@@ -1,3 +1,4 @@
+import { signUpStyles as styles } from "@/styles/auth/signup.styles";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -6,12 +7,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+
+import { signUpSchema } from "@/styles/auth/schemas/signup.schema";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SignUp() {
   const router = useRouter();
@@ -27,8 +30,39 @@ export default function SignUp() {
     confirmPassword: "",
   });
 
+  const [errors, setErrors] = useState<any>({});
+
   const handleChange = (key: string, value: string) => {
     setFormData({ ...formData, [key]: value });
+    setErrors({ ...errors, [key]: "" }); // remove error as they type
+  };
+
+  const handleSubmit = async () => {
+    const result = signUpSchema.safeParse(formData);
+
+    if (!result.success) {
+      const errObj: any = {};
+      result.error.errors.forEach((err) => {
+        errObj[err.path[0]] = err.message;
+      });
+      setErrors(errObj);
+      return;
+    }
+    const userToSave = {
+      email: result.data.email,
+      password: result.data.password,
+      role: result.data.role,
+      company: result.data.company,
+      fullName: result.data.fullName,
+    };
+
+    console.log("Signup Success:", result.data);
+
+    // Save user to local storage
+    await AsyncStorage.setItem("user", JSON.stringify(userToSave));
+
+    // Redirect to tab dashboard
+    router.replace("/(tab)/dashboard");
   };
 
   return (
@@ -70,6 +104,7 @@ export default function SignUp() {
             value={formData.role}
             onChangeText={(val) => handleChange("role", val)}
           />
+          {errors.role && <Text style={styles.error}>{errors.role}</Text>}
 
           {/* Company Name */}
           <Text style={styles.label}>Company Name</Text>
@@ -80,6 +115,7 @@ export default function SignUp() {
             value={formData.company}
             onChangeText={(val) => handleChange("company", val)}
           />
+          {errors.company && <Text style={styles.error}>{errors.company}</Text>}
 
           {/* Full Name */}
           <Text style={styles.label}>Full Name</Text>
@@ -90,6 +126,9 @@ export default function SignUp() {
             value={formData.fullName}
             onChangeText={(val) => handleChange("fullName", val)}
           />
+          {errors.fullName && (
+            <Text style={styles.error}>{errors.fullName}</Text>
+          )}
 
           {/* Email */}
           <Text style={styles.label}>Email Address</Text>
@@ -101,6 +140,7 @@ export default function SignUp() {
             value={formData.email}
             onChangeText={(val) => handleChange("email", val)}
           />
+          {errors.email && <Text style={styles.error}>{errors.email}</Text>}
 
           {/* Password */}
           <Text style={styles.label}>Password</Text>
@@ -124,6 +164,9 @@ export default function SignUp() {
               />
             </TouchableOpacity>
           </View>
+          {errors.password && (
+            <Text style={styles.error}>{errors.password}</Text>
+          )}
 
           {/* Confirm Password */}
           <Text style={styles.label}>Confirm Password</Text>
@@ -147,9 +190,12 @@ export default function SignUp() {
               />
             </TouchableOpacity>
           </View>
+          {errors.confirmPassword && (
+            <Text style={styles.error}>{errors.confirmPassword}</Text>
+          )}
 
           {/* Create Account Button */}
-          <TouchableOpacity style={styles.signUpButton}>
+          <TouchableOpacity style={styles.signUpButton} onPress={handleSubmit}>
             <Text style={styles.signUpButtonText}>Create Account</Text>
           </TouchableOpacity>
 
@@ -165,92 +211,3 @@ export default function SignUp() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  inner: {
-    padding: 20,
-    paddingTop: 40,
-  },
-  backText: {
-    color: "#FFD600",
-    marginBottom: 10,
-  },
-  logoContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  logo: {
-    width: 45,
-    height: 45,
-    marginRight: 8,
-  },
-  logoText: {
-    color: "#FFD600",
-    fontWeight: "700",
-    fontSize: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 5,
-  },
-  subtitle: {
-    color: "#ccc",
-    textAlign: "center",
-    marginBottom: 25,
-    fontSize: 14,
-  },
-  label: {
-    color: "#fff",
-    fontSize: 14,
-    marginBottom: 6,
-    fontWeight: "500",
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    color: "#000",
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 14,
-    marginBottom: 15,
-  },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    marginBottom: 15,
-    paddingRight: 10,
-  },
-  passwordInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  eyeIcon: {
-    paddingLeft: 8,
-  },
-  signUpButton: {
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  signUpButtonText: {
-    color: "#FFD600",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  footerText: {
-    textAlign: "center",
-    color: "#ccc",
-    marginTop: 25,
-    fontSize: 14,
-  },
-  signInLink: {
-    color: "#FFD600",
-    fontWeight: "600",
-  },
-});
