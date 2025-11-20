@@ -1,5 +1,5 @@
 export const COLORS = {
-  brandBg: '#1D0A33',
+  brandBg: '#0F1F3A',
   brandAccent: '#FFD700',
   textMuted: 'rgba(255,255,255,0.7)',
 };

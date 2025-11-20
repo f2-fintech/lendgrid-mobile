@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { COLORS, SIZES, SPACING } from './tokens';
+import { COLORS, SIZES, SPACING } from './token';
 
 export const splashStyles = StyleSheet.create({
   container: {

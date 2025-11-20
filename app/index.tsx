@@ -1,4 +1,5 @@
-import CustomSplashScreen from "@/components/CustomSplashScreen";
+import CustomSplashScreen from "@/components/common/CustomSplashScreen";
+import { ROUTES } from "@/constants/routes";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 
@@ -19,9 +20,8 @@ export default function Index() {
   }, []);
   return (
     <CustomSplashScreen
-      // nextRoute="/(tab)/dashboard"
-      // nextRoute="/(auth)/signin"
-      nextRoute={nextRoute}
+      nextRoute={ROUTES.landing}
+      // nextRoute={nextRoute}
       repeatCount={1}
       iconDurationMs={800}
       holdMs={300}

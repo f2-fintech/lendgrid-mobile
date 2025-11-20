@@ -15,21 +15,21 @@ export default function Layout() {
       />
 
       <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <FontAwesome name="user-circle-o" size={24} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
         name="commissions"
         options={{
           title: "Commissions",
           tabBarIcon: ({ color }) => (
             <FontAwesome name="money" size={24} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color }) => (
+            <FontAwesome name="user-circle-o" size={24} color={color} />
           ),
         }}
       />

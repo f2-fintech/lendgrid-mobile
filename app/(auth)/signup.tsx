@@ -1,5 +1,6 @@
-import { signUpStyles as styles } from "@/styles/auth/signup.styles";
+import { signUpStyles as styles } from "@/styles/components/auth/signup.style";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -13,56 +14,59 @@ import {
   View,
 } from "react-native";
 
-import { signUpSchema } from "@/styles/auth/schemas/signup.schema";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { signUpSchema, SignUpSchemaType } from "@/lib/validators/signup.schema";
 
 export default function SignUp() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [formData, setFormData] = useState({
-    role: "",
-    company: "",
+  const [formData, setFormData] = useState<SignUpSchemaType>({
+    role: "Aggregator admin",
     fullName: "",
     email: "",
+    companyName: "",
+    userType: "aggregator",
     password: "",
     confirmPassword: "",
+    agreeToTerms: true,
   });
 
-  const [errors, setErrors] = useState<any>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleChange = (key: string, value: string) => {
-    setFormData({ ...formData, [key]: value });
-    setErrors({ ...errors, [key]: "" }); // remove error as they type
+  const handleChange = <K extends keyof SignUpSchemaType>(
+    key: K,
+    value: SignUpSchemaType[K]
+  ) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
   const handleSubmit = async () => {
     const result = signUpSchema.safeParse(formData);
 
     if (!result.success) {
-      const errObj: any = {};
-      result.error.errors.forEach((err) => {
-        errObj[err.path[0]] = err.message;
+      const errObj: Record<string, string> = {};
+      result.error.issues.forEach((issue) => {
+        const field = issue.path[0] as string;
+        if (field) errObj[field] = issue.message;
       });
       setErrors(errObj);
       return;
     }
+
     const userToSave = {
       email: result.data.email,
       password: result.data.password,
       role: result.data.role,
-      company: result.data.company,
       fullName: result.data.fullName,
+      companyName: result.data.companyName,
+      userType: result.data.userType,
     };
 
-    console.log("Signup Success:", result.data);
-
-    // Save user to local storage
     await AsyncStorage.setItem("user", JSON.stringify(userToSave));
 
-    // Redirect to tab dashboard
-    router.replace("/(tab)/dashboard");
+    router.replace("/signin");
   };
 
   return (
@@ -70,17 +74,12 @@ export default function SignUp() {
       style={{ flex: 1, backgroundColor: "#0c0c0c" }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <View style={styles.inner}>
-          {/* Back Button */}
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
 
-          {/* Logo + Title */}
           <View style={styles.logoContainer}>
             <Image
               source={require("@/assets/images/logo.png")}
@@ -95,42 +94,16 @@ export default function SignUp() {
             Create your account to get started
           </Text>
 
-          {/* User Type */}
-          <Text style={styles.label}>User Type</Text>
-          <TextInput
-            placeholder="Select your role"
-            placeholderTextColor="#666"
-            style={styles.input}
-            value={formData.role}
-            onChangeText={(val) => handleChange("role", val)}
-          />
-          {errors.role && <Text style={styles.error}>{errors.role}</Text>}
-
-          {/* Company Name */}
-          <Text style={styles.label}>Company Name</Text>
-          <TextInput
-            placeholder="Your Company Ltd."
-            placeholderTextColor="#666"
-            style={styles.input}
-            value={formData.company}
-            onChangeText={(val) => handleChange("company", val)}
-          />
-          {errors.company && <Text style={styles.error}>{errors.company}</Text>}
-
-          {/* Full Name */}
           <Text style={styles.label}>Full Name</Text>
           <TextInput
             placeholder="John Doe"
             placeholderTextColor="#666"
             style={styles.input}
             value={formData.fullName}
-            onChangeText={(val) => handleChange("fullName", val)}
+            onChangeText={(v) => handleChange("fullName", v)}
           />
-          {errors.fullName && (
-            <Text style={styles.error}>{errors.fullName}</Text>
-          )}
+          {errors.fullName && <Text style={styles.error}>{errors.fullName}</Text>}
 
-          {/* Email */}
           <Text style={styles.label}>Email Address</Text>
           <TextInput
             placeholder="john@company.com"
@@ -138,11 +111,22 @@ export default function SignUp() {
             keyboardType="email-address"
             style={styles.input}
             value={formData.email}
-            onChangeText={(val) => handleChange("email", val)}
+            onChangeText={(v) => handleChange("email", v)}
           />
           {errors.email && <Text style={styles.error}>{errors.email}</Text>}
 
-          {/* Password */}
+          <Text style={styles.label}>Company Name</Text>
+          <TextInput
+            placeholder="Your Company Ltd."
+            placeholderTextColor="#666"
+            style={styles.input}
+            value={formData.companyName}
+            onChangeText={(v) => handleChange("companyName", v)}
+          />
+          {errors.companyName && (
+            <Text style={styles.error}>{errors.companyName}</Text>
+          )}
+
           <Text style={styles.label}>Password</Text>
           <View style={styles.passwordContainer}>
             <TextInput
@@ -151,7 +135,7 @@ export default function SignUp() {
               secureTextEntry={!showPassword}
               style={[styles.input, styles.passwordInput]}
               value={formData.password}
-              onChangeText={(val) => handleChange("password", val)}
+              onChangeText={(v) => handleChange("password", v)}
             />
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
@@ -168,7 +152,6 @@ export default function SignUp() {
             <Text style={styles.error}>{errors.password}</Text>
           )}
 
-          {/* Confirm Password */}
           <Text style={styles.label}>Confirm Password</Text>
           <View style={styles.passwordContainer}>
             <TextInput
@@ -177,7 +160,7 @@ export default function SignUp() {
               secureTextEntry={!showConfirmPassword}
               style={[styles.input, styles.passwordInput]}
               value={formData.confirmPassword}
-              onChangeText={(val) => handleChange("confirmPassword", val)}
+              onChangeText={(v) => handleChange("confirmPassword", v)}
             />
             <TouchableOpacity
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -194,12 +177,10 @@ export default function SignUp() {
             <Text style={styles.error}>{errors.confirmPassword}</Text>
           )}
 
-          {/* Create Account Button */}
           <TouchableOpacity style={styles.signUpButton} onPress={handleSubmit}>
             <Text style={styles.signUpButtonText}>Create Account</Text>
           </TouchableOpacity>
 
-          {/* Footer */}
           <TouchableOpacity onPress={() => router.push("/signin")}>
             <Text style={styles.footerText}>
               Already have an account?{" "}

@@ -1,13 +1,13 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Text, View } from 'react-native';
 import { Headline } from 'react-native-paper';
 
-import { splashStyles as styles } from '../styles/theme/components/splash.styles';
-import { COLORS } from '../styles/theme/components/tokens';
+import { splashStyles as styles } from '@/styles/components/splash/splash.style';
+import { COLORS } from '@/styles/components/splash/token';
 
-const LogoImage = require('../assets/images/logo.png');
+const LogoImage = require('@/assets/images/logo.png');
 
 type IconItem = { name: string; label: string };
 
