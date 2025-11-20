@@ -9,32 +9,33 @@ import {
   View,
 } from "react-native";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useForm } from "react-hook-form";
+import { ROUTES } from "@/constants/routes";
 import {
   signInSchema,
   SignInSchemaType,
-} from "../../styles/auth/schemas/signin.schema";
-import { signInStyles } from "../../styles/auth/signin.styles";
+} from "@/lib/validators/signin.schema";
+import { signInStyles } from "@/styles/auth/signin.styles";
+import { zodResolver } from "@hookform/resolvers/zod";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useForm } from "react-hook-form";
 
 export default function SignIn() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
-    register,
     setValue,
     handleSubmit,
     formState: { errors },
   } = useForm<SignInSchemaType>({
     resolver: zodResolver(signInSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
   });
 
   const onSubmit = async (data: SignInSchemaType) => {
-    console.log("Form Submitted:", data);
-
-    // 1️⃣ Get saved user from storage
     const savedUser = await AsyncStorage.getItem("user");
 
     if (!savedUser) {
@@ -44,10 +45,8 @@ export default function SignIn() {
 
     const user = JSON.parse(savedUser);
 
-    // 2️⃣ Check if email & password match
     if (user.email === data.email && user.password === data.password) {
-      // 3️⃣ Redirect to dashboard
-      router.replace("/(tab)/dashboard");
+      router.replace(ROUTES.Dashboard);
     } else {
       alert("Invalid email or password");
     }
@@ -59,14 +58,12 @@ export default function SignIn() {
       contentContainerStyle={{ flexGrow: 1 }}
     >
       <View style={signInStyles.inner}>
-        {/* Email */}
         <Text style={signInStyles.label}>Email Address</Text>
         <TextInput
           placeholder="Enter your email"
           placeholderTextColor="#888"
           onChangeText={(text) => setValue("email", text)}
           style={signInStyles.input}
-          {...register("email")}
         />
         {errors.email && (
           <Text style={{ color: "red", marginBottom: 10 }}>
@@ -74,7 +71,6 @@ export default function SignIn() {
           </Text>
         )}
 
-        {/* Password */}
         <Text style={signInStyles.label}>Password</Text>
         <View style={signInStyles.passwordContainer}>
           <TextInput
@@ -83,7 +79,6 @@ export default function SignIn() {
             secureTextEntry={!showPassword}
             onChangeText={(text) => setValue("password", text)}
             style={[signInStyles.input, { flex: 1, marginBottom: 0 }]}
-            {...register("password")}
           />
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
@@ -102,7 +97,6 @@ export default function SignIn() {
           </Text>
         )}
 
-        {/* Button */}
         <TouchableOpacity
           style={signInStyles.signInButton}
           onPress={handleSubmit(onSubmit)}
@@ -110,7 +104,6 @@ export default function SignIn() {
           <Text style={signInStyles.signInText}>Sign In ➜</Text>
         </TouchableOpacity>
 
-        {/* Footer */}
         <TouchableOpacity onPress={() => router.push("/signup")}>
           <Text style={signInStyles.footerText}>
             Don’t have an account?{" "}

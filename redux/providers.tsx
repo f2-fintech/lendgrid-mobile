@@ -1,23 +1,26 @@
-import darkTheme from "@/styles/theme/darkTheme";
-import lightTheme from "@/styles/theme/lightTheme";
-import React from "react";
-import { PaperProvider } from "react-native-paper";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Provider as ReduxProvider, useSelector } from "react-redux";
-import { RootState, store } from "./store";
+import React from 'react';
+import { Provider as PaperProvider } from 'react-native-paper';
+import { Provider as ReduxProvider, useSelector } from 'react-redux';
 
-function ThemeWrapper({ children }: { children: React.ReactNode }) {
-  const mode = useSelector((s: RootState) => s.theme.mode);
-  const theme = mode === "dark" ? darkTheme : lightTheme;
+import { RootState, store } from './store';
+
+
+import darkTheme from '@/styles/theme/darkTheme';
+import lightTheme from '@/styles/theme/lightTheme';
+
+type Props = { children: React.ReactNode };
+
+const ThemedPaperProvider: React.FC<Props> = ({ children }) => {
+  const mode = useSelector((state: RootState) => state.theme.mode);
+  const theme = mode === 'dark' ? darkTheme : lightTheme;
+
   return <PaperProvider theme={theme}>{children}</PaperProvider>;
-}
+};
 
-export default function AppProviders({ children }: { children: React.ReactNode }) {
+export default function AppProviders({ children }: Props) {
   return (
     <ReduxProvider store={store}>
-      <SafeAreaProvider>
-        <ThemeWrapper>{children}</ThemeWrapper>
-      </SafeAreaProvider>
+      <ThemedPaperProvider>{children}</ThemedPaperProvider>
     </ReduxProvider>
   );
 }

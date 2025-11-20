@@ -1,6 +1,5 @@
+import AppProviders from "@/redux/providers";
 import { Stack } from "expo-router";
-import React from "react";
-import AppProviders from "../redux/providers";
 
 export default function RootLayout() {
   return (

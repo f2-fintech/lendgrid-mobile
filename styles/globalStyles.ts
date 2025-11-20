@@ -1,5 +1,6 @@
+// globalStyles.ts
 import { StyleSheet } from 'react-native';
-import { COLORS } from './theme/components/tokens';
+import { COLORS, TYPOGRAPHY } from './theme/tokens';
 
 export const globalStyles = StyleSheet.create({
   screenCenter: {
@@ -9,6 +10,7 @@ export const globalStyles = StyleSheet.create({
     alignItems: 'center',
   },
   textMuted: {
+    ...TYPOGRAPHY.bodySmall,
     color: COLORS.textMuted,
   },
 });
