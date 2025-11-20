@@ -3,50 +3,91 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useForm } from "react-hook-form";
+import {
+  signInSchema,
+  SignInSchemaType,
+} from "../../styles/auth/schemas/signin.schema";
+import { signInStyles } from "../../styles/auth/signin.styles";
+
 export default function SignIn() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+
+  const {
+    register,
+    setValue,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInSchemaType>({
+    resolver: zodResolver(signInSchema),
+  });
+
+  const onSubmit = async (data: SignInSchemaType) => {
+    console.log("Form Submitted:", data);
+
+    // 1️⃣ Get saved user from storage
+    const savedUser = await AsyncStorage.getItem("user");
+
+    if (!savedUser) {
+      alert("No account found! Please signup first.");
+      return;
+    }
+
+    const user = JSON.parse(savedUser);
+
+    // 2️⃣ Check if email & password match
+    if (user.email === data.email && user.password === data.password) {
+      // 3️⃣ Redirect to dashboard
+      router.replace("/(tab)/dashboard");
+    } else {
+      alert("Invalid email or password");
+    }
+  };
 
   return (
     <ScrollView
-      style={styles.container}
+      style={signInStyles.container}
       contentContainerStyle={{ flexGrow: 1 }}
     >
-      <View style={styles.inner}>
-        {/* Email Field */}
-        <Text style={styles.label}>Email Address</Text>
+      <View style={signInStyles.inner}>
+        {/* Email */}
+        <Text style={signInStyles.label}>Email Address</Text>
         <TextInput
           placeholder="Enter your email"
           placeholderTextColor="#888"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.input}
-          keyboardType="email-address"
+          onChangeText={(text) => setValue("email", text)}
+          style={signInStyles.input}
+          {...register("email")}
         />
+        {errors.email && (
+          <Text style={{ color: "red", marginBottom: 10 }}>
+            {errors.email.message}
+          </Text>
+        )}
 
-        {/* Password Field */}
-        <Text style={styles.label}>Password</Text>
-        <View style={styles.passwordContainer}>
+        {/* Password */}
+        <Text style={signInStyles.label}>Password</Text>
+        <View style={signInStyles.passwordContainer}>
           <TextInput
             placeholder="Enter your password"
             placeholderTextColor="#888"
             secureTextEntry={!showPassword}
-            value={password}
-            onChangeText={setPassword}
-            style={[styles.input, { flex: 1, marginBottom: 0 }]}
+            onChangeText={(text) => setValue("password", text)}
+            style={[signInStyles.input, { flex: 1, marginBottom: 0 }]}
+            {...register("password")}
           />
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
-            style={styles.eyeIcon}
+            style={signInStyles.eyeIcon}
           >
             <Ionicons
               name={showPassword ? "eye-off" : "eye"}
@@ -55,89 +96,28 @@ export default function SignIn() {
             />
           </TouchableOpacity>
         </View>
+        {errors.password && (
+          <Text style={{ color: "red", marginBottom: 10 }}>
+            {errors.password.message}
+          </Text>
+        )}
 
-        {/* Sign In Button */}
-        <TouchableOpacity style={styles.signInButton}>
-          <Text style={styles.signInText}>Sign In ➜</Text>
+        {/* Button */}
+        <TouchableOpacity
+          style={signInStyles.signInButton}
+          onPress={handleSubmit(onSubmit)}
+        >
+          <Text style={signInStyles.signInText}>Sign In ➜</Text>
         </TouchableOpacity>
 
         {/* Footer */}
         <TouchableOpacity onPress={() => router.push("/signup")}>
-          <Text style={styles.footerText}>
+          <Text style={signInStyles.footerText}>
             Don’t have an account?{" "}
-            <Text style={styles.signUpText}>Sign up</Text>
+            <Text style={signInStyles.signUpText}>Sign up</Text>
           </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#0c0c0c",
-    flex: 1,
-  },
-  inner: {
-    flex: 1,
-    padding: 20,
-    justifyContent: "center",
-  },
-  label: {
-    color: "#fff",
-    fontSize: 14,
-    marginBottom: 6,
-    marginTop: 15,
-    fontWeight: "500",
-  },
-  roleBox: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 15,
-  },
-  roleText: {
-    color: "#1b1b1b",
-    fontSize: 14,
-  },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    color: "#000",
-    paddingHorizontal: 15,
-    paddingVertical: 14,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1b1b1b",
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  eyeIcon: {
-    paddingHorizontal: 10,
-  },
-  signInButton: {
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  signInText: {
-    color: "#FFD600",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  footerText: {
-    textAlign: "center",
-    color: "#ccc",
-    marginTop: 25,
-    fontSize: 14,
-  },
-  signUpText: {
-    color: "#FFD600",
-    fontWeight: "600",
-  },
-});
