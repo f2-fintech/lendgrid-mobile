@@ -6,7 +6,7 @@ import React from 'react';
 import { Image, TouchableOpacity, View } from 'react-native';
 import { Card, Surface, Text, useTheme } from 'react-native-paper';
 
-import { ROUTES } from '@/constants/routes';
+import { ROUTES } from '@/assets/constants/routes';
 import { lendGridStyles as styles } from '@/styles/components/landing/landingStyles';
 
 const LogoImage = require('@/assets/images/logo.png');

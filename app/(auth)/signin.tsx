@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 
-import { ROUTES } from "@/constants/routes";
+import { ROUTES } from "@/assets/constants/routes";
 import {
   signInSchema,
   SignInSchemaType,
