@@ -38,3 +38,6 @@ export const signUpSchema = z
   });
 
 export type SignUpSchemaType = z.infer<typeof signUpSchema>;
+
+// remove role, user type, aggree to terms. 
+// add contact number.

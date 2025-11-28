@@ -1,5 +1,5 @@
+import { ROUTES } from "@/assets/constants/routes";
 import CustomSplashScreen from "@/components/common/CustomSplashScreen";
-import { ROUTES } from "@/constants/routes";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 
