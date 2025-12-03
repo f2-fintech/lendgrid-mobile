@@ -14,7 +14,7 @@ import BusinessTab from "@/components/ui/profile/BusinessTab";
 import KYCTab from "@/components/ui/profile/KYCTab";
 import ProfileTab from "@/components/ui/profile/ProfileTab";
 
-import { MasterProfileSchema } from "@/Validation/ProfileMasterSchema";
+import { MasterProfileSchema } from "@/lib/validators/ProfileMasterSchema";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { FormProvider, useForm } from "react-hook-form";
 

@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 export const signInSchema = z.object({
-  email: z.string().email("Enter a valid email"),
+  email: z.string()
+    .email("Enter a valid email")
+    .toLowerCase() 
+    .trim(), 
 
   password: z
     .string()
@@ -12,5 +15,3 @@ export const signInSchema = z.object({
 });
 
 export type SignInSchemaType = z.infer<typeof signInSchema>;
-
-// add validation in email correctly for space and Capital letters
