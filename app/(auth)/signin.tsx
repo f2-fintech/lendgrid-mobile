@@ -9,11 +9,9 @@ import {
   View,
 } from "react-native";
 
+import { signInApi } from "@/apis/auth.api";
 import { ROUTES } from "@/assets/constants/routes";
-import {
-  signInSchema,
-  SignInSchemaType,
-} from "@/lib/validators/signin.schema";
+import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
 import { zodResolver } from "@hookform/resolvers/zod";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -36,19 +34,21 @@ export default function SignIn() {
   });
 
   const onSubmit = async (data: SignInSchemaType) => {
-    const savedUser = await AsyncStorage.getItem("user");
+    try {
+      const response = await signInApi({
+        email: data.email,
+        password: data.password,
+      });
 
-    if (!savedUser) {
-      alert("No account found! Please signup first.");
-      return;
-    }
-
-    const user = JSON.parse(savedUser);
-
-    if (user.email === data.email && user.password === data.password) {
-      router.replace(ROUTES.Dashboard);
-    } else {
-      alert("Invalid email or password");
+      // EXACT same response handling as web app
+      if (response.success && response.access_token) {
+        await AsyncStorage.setItem("token", response.access_token);
+        router.replace(ROUTES.Dashboard);
+      } else {
+        alert(response.message || "Login failed");
+      }
+    } catch (err: any) {
+      alert(err?.message || "Invalid email or password");
     }
   };
 

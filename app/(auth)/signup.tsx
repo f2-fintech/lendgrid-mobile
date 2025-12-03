@@ -1,6 +1,6 @@
+import { signUpApi } from "@/apis/auth.api";
 import { signUpStyles as styles } from "@/styles/components/auth/signup.style";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -48,25 +48,41 @@ export default function SignUp() {
     if (!result.success) {
       const errObj: Record<string, string> = {};
       result.error.issues.forEach((issue) => {
-        const field = issue.path[0] as string;
-        if (field) errObj[field] = issue.message;
+        errObj[issue.path[0] as string] = issue.message;
       });
       setErrors(errObj);
       return;
     }
 
-    const userToSave = {
-      email: result.data.email,
-      password: result.data.password,
-      role: result.data.role,
-      fullName: result.data.fullName,
-      companyName: result.data.companyName,
-      userType: result.data.userType,
-    };
+    try {
+      // Web app ke exact payload structure ke hisaab se
+      const { confirmPassword, agreeToTerms, ...apiPayload } = result.data;
 
-    await AsyncStorage.setItem("user", JSON.stringify(userToSave));
+      // CreateUserDto ke required fields map karo
+      // signup.tsx mein - role value fix karo
+      // ✅ CORRECT ROLE VALUE - exact same as backend enum
+      const webAppPayload = {
+        username: apiPayload.fullName,
+        email: apiPayload.email,
+        password: apiPayload.password,
+        role: "AGGREGATOR_ADMIN",
+        companyName: apiPayload.companyName,
+      };
 
-    router.replace("/signin");
+      console.log("Final Payload:", webAppPayload); // Debug ke liye
+
+      const response = await signUpApi(webAppPayload);
+
+      // EXACT same response handling as web app
+      if (response.success) {
+        alert("Account created successfully!");
+        router.replace("/signin");
+      } else {
+        alert(response.message || "Signup failed");
+      }
+    } catch (err: any) {
+      alert(err?.message || "Signup failed");
+    }
   };
 
   return (
@@ -102,7 +118,9 @@ export default function SignUp() {
             value={formData.fullName}
             onChangeText={(v) => handleChange("fullName", v)}
           />
-          {errors.fullName && <Text style={styles.error}>{errors.fullName}</Text>}
+          {errors.fullName && (
+            <Text style={styles.error}>{errors.fullName}</Text>
+          )}
 
           <Text style={styles.label}>Email Address</Text>
           <TextInput

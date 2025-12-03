@@ -1,9 +1,16 @@
-import axios from 'axios';
-import Constants from 'expo-constants';
+import { api } from "./config/axiosConfig";
 
-const extra = Constants.expoConfig?.extra as any;
-const api = axios.create({
-  baseURL: extra?.API_URL || 'https://api.lendgrid.in',
-});
+export async function gqlRequest(query: string, variables: any = {}) {
+  try {
+    const response = await api.post("", { query, variables });
 
-export default api;
+    if (response.data.errors) {
+      throw new Error(response.data.errors[0].message);
+    }
+
+    return response.data.data;
+  } catch (error: any) {
+    console.log("GraphQL Error:", error);
+    throw error;
+  }
+}
