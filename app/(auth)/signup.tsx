@@ -22,13 +22,14 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState<SignUpSchemaType>({
-    role: "Aggregator admin",
+    role: "AGGREGATOR_ADMIN",
     fullName: "",
     email: "",
     companyName: "",
     userType: "aggregator",
     password: "",
     confirmPassword: "",
+    contact: "",
     agreeToTerms: true,
   });
 
@@ -55,33 +56,30 @@ export default function SignUp() {
     }
 
     try {
-      // Web app ke exact payload structure ke hisaab se
-      const { confirmPassword, agreeToTerms, ...apiPayload } = result.data;
+      const { confirmPassword, agreeToTerms, role, userType, ...apiData } =
+        result.data;
 
-      // CreateUserDto ke required fields map karo
-      // signup.tsx mein - role value fix karo
-      // ✅ CORRECT ROLE VALUE - exact same as backend enum
       const webAppPayload = {
-        username: apiPayload.fullName,
-        email: apiPayload.email,
-        password: apiPayload.password,
+        username: apiData.fullName,
+        email: apiData.email.toLowerCase(),
+        password: apiData.password,
         role: "AGGREGATOR_ADMIN",
-        companyName: apiPayload.companyName,
+        companyName: apiData.companyName,
+        contact: apiData.contact,
       };
 
-      console.log("Final Payload:", webAppPayload); // Debug ke liye
+      console.log("Final Payload:", webAppPayload);
 
       const response = await signUpApi(webAppPayload);
 
-      // EXACT same response handling as web app
       if (response.success) {
         alert("Account created successfully!");
         router.replace("/signin");
       } else {
         alert(response.message || "Signup failed");
       }
-    } catch (err: any) {
-      alert(err?.message || "Signup failed");
+    } catch (error: any) {
+      alert(error?.message || "Signup failed");
     }
   };
 
@@ -144,6 +142,16 @@ export default function SignUp() {
           {errors.companyName && (
             <Text style={styles.error}>{errors.companyName}</Text>
           )}
+          <Text style={styles.label}>Phone Number</Text>
+          <TextInput
+            placeholder="9876543210"
+            placeholderTextColor="#666"
+            keyboardType="phone-pad"
+            style={styles.input}
+            value={formData.contact}
+            onChangeText={(v) => handleChange("contact", v)}
+          />
+          {errors.contact && <Text style={styles.error}>{errors.contact}</Text>}
 
           <Text style={styles.label}>Password</Text>
           <View style={styles.passwordContainer}>
