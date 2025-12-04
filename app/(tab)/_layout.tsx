@@ -14,9 +14,9 @@ export default function Layout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
+        headerShown: true, // Default to true, overridden below
 
-        // THEME FOR HEADER
+        // THEME FOR HEADER (Only applies if headerShown is true)
         headerStyle: { backgroundColor: theme.colors.background },
         headerTintColor: theme.colors.onSurface,
 
@@ -31,7 +31,7 @@ export default function Layout() {
           backgroundColor: theme.colors.background,
         },
 
-        // THEME TOGGLE BUTTON
+        // THEME TOGGLE BUTTON (Only applies if headerShown is true)
         headerRight: () => (
           <TouchableOpacity
             onPress={() => dispatch(toggleTheme())}
@@ -49,6 +49,8 @@ export default function Layout() {
       <Tabs.Screen
         name="dashboard"
         options={{
+          // 👇 This is the fix: Hide the header for the dashboard screen
+          headerShown: false,
           title: "Dashboard",
           tabBarIcon: ({ color, size }) => (
             <Feather name="home" size={size} color={color} />

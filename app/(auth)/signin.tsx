@@ -2,11 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  Image,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 import { signInApi } from "@/apis/auth.api";
@@ -54,10 +55,39 @@ export default function SignIn() {
 
   return (
     <ScrollView
-      style={signInStyles.container}
+      style={{ flex: 1, backgroundColor: "#0c0c0c" }}
       contentContainerStyle={{ flexGrow: 1 }}
     >
       <View style={signInStyles.inner}>
+        {/* --- Logo Implementation (Cleaned and Styled Inline) --- */}
+        <View
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: 20, // Space below the logo block
+          }}
+        >
+          <Image
+            source={require("@/assets/images/logo.png")}
+            style={{
+              width: 60,
+              height: 60,
+              marginBottom: 5, // Space between image and text
+            }}
+            resizeMode="contain"
+          />
+          <Text
+            style={{
+              color: "#FFD600", // Yellow accent
+              fontWeight: "700",
+              fontSize: 24,
+            }}
+          >
+            LendGrid
+          </Text>
+        </View>
+        {/* --- End Logo Implementation --- */}
+
         <Text style={signInStyles.label}>Email Address</Text>
         <TextInput
           placeholder="Enter your email"
