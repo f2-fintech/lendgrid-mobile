@@ -1,9 +1,9 @@
-import { signUpApi } from "@/apis/auth.api";
 import { signUpStyles as styles } from "@/styles/components/auth/signup.style";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -13,13 +13,26 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Snackbar } from "react-native-paper";
 
+import { useSignUp } from "@/hooks/useAuth";
 import { signUpSchema, SignUpSchemaType } from "@/lib/validators/signup.schema";
 
 export default function SignUp() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const { mutateAsync: signUp, isPending } = useSignUp();
+
+  // SNACKBAR STATE
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+
+  const showError = (msg: string) => {
+    setSnackbarMessage(msg);
+    setSnackbarVisible(true);
+  };
 
   const [formData, setFormData] = useState<SignUpSchemaType>({
     role: "AGGREGATOR_ADMIN",
@@ -56,10 +69,9 @@ export default function SignUp() {
     }
 
     try {
-      const { confirmPassword, agreeToTerms, role, userType, ...apiData } =
-        result.data;
+      const { confirmPassword, ...apiData } = result.data;
 
-      const webAppPayload = {
+      const payload = {
         username: apiData.fullName,
         email: apiData.email.toLowerCase(),
         password: apiData.password,
@@ -68,153 +80,224 @@ export default function SignUp() {
         contact: apiData.contact,
       };
 
-      console.log("Final Payload:", webAppPayload);
-
-      const response = await signUpApi(webAppPayload);
+      const response = await signUp(payload);
 
       if (response.success) {
-        alert("Account created successfully!");
-        router.replace("/signin");
+        setSnackbarMessage("Account created successfully!");
+        setSnackbarVisible(true);
+
+        setTimeout(() => {
+          router.replace("/signin");
+        }, 1200);
       } else {
-        alert(response.message || "Signup failed");
+        showError(response.message || "Signup failed");
       }
     } catch (error: any) {
-      alert(error?.message || "Signup failed");
+      showError(error?.message || "Signup failed");
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#0c0c0c" }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={styles.inner}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: "#0c0c0c" }}>
 
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("@/assets/images/logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={styles.logoText}>LendGrid</Text>
-          </View>
-
-          <Text style={styles.title}>Join LendGrid</Text>
-          <Text style={styles.subtitle}>
-            Create your account to get started
-          </Text>
-
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput
-            placeholder="John Doe"
-            placeholderTextColor="#666"
-            style={styles.input}
-            value={formData.fullName}
-            onChangeText={(v) => handleChange("fullName", v)}
-          />
-          {errors.fullName && (
-            <Text style={styles.error}>{errors.fullName}</Text>
-          )}
-
-          <Text style={styles.label}>Email Address</Text>
-          <TextInput
-            placeholder="john@company.com"
-            placeholderTextColor="#666"
-            keyboardType="email-address"
-            style={styles.input}
-            value={formData.email}
-            onChangeText={(v) => handleChange("email", v)}
-          />
-          {errors.email && <Text style={styles.error}>{errors.email}</Text>}
-
-          <Text style={styles.label}>Company Name</Text>
-          <TextInput
-            placeholder="Your Company Ltd."
-            placeholderTextColor="#666"
-            style={styles.input}
-            value={formData.companyName}
-            onChangeText={(v) => handleChange("companyName", v)}
-          />
-          {errors.companyName && (
-            <Text style={styles.error}>{errors.companyName}</Text>
-          )}
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            placeholder="9876543210"
-            placeholderTextColor="#666"
-            keyboardType="phone-pad"
-            style={styles.input}
-            value={formData.contact}
-            onChangeText={(v) => handleChange("contact", v)}
-          />
-          {errors.contact && <Text style={styles.error}>{errors.contact}</Text>}
-
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              placeholder="Create a strong password"
-              placeholderTextColor="#666"
-              secureTextEntry={!showPassword}
-              style={[styles.input, styles.passwordInput]}
-              value={formData.password}
-              onChangeText={(v) => handleChange("password", v)}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeIcon}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color="#666"
-              />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          style={{ flex: 1, backgroundColor: "#0c0c0c" }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            backgroundColor: "#0c0c0c",
+            paddingBottom: 40, // keeps layout clean
+          }}
+        >
+          <View style={styles.inner}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.backText}>← Back</Text>
             </TouchableOpacity>
-          </View>
-          {errors.password && (
-            <Text style={styles.error}>{errors.password}</Text>
-          )}
 
-          <Text style={styles.label}>Confirm Password</Text>
-          <View style={styles.passwordContainer}>
-            <TextInput
-              placeholder="Re-enter your password"
-              placeholderTextColor="#666"
-              secureTextEntry={!showConfirmPassword}
-              style={[styles.input, styles.passwordInput]}
-              value={formData.confirmPassword}
-              onChangeText={(v) => handleChange("confirmPassword", v)}
-            />
-            <TouchableOpacity
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              style={styles.eyeIcon}
-            >
-              <Ionicons
-                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color="#666"
+            <View style={styles.logoContainer}>
+              <Image
+                source={require("@/assets/images/logo.png")}
+                style={styles.logo}
+                resizeMode="contain"
               />
-            </TouchableOpacity>
-          </View>
-          {errors.confirmPassword && (
-            <Text style={styles.error}>{errors.confirmPassword}</Text>
-          )}
+              <Text style={styles.logoText}>LendGrid</Text>
+            </View>
 
-          <TouchableOpacity style={styles.signUpButton} onPress={handleSubmit}>
-            <Text style={styles.signUpButtonText}>Create Account</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => router.push("/signin")}>
-            <Text style={styles.footerText}>
-              Already have an account?{" "}
-              <Text style={styles.signInLink}>Sign in</Text>
+            <Text style={styles.title}>Join LendGrid</Text>
+            <Text style={styles.subtitle}>
+              Create your account to get started
             </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+            {/* FULL NAME */}
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              placeholder="John Doe"
+              placeholderTextColor="#666"
+              style={styles.input}
+              value={formData.fullName}
+              onChangeText={(v) => handleChange("fullName", v)}
+            />
+            {errors.fullName && (
+              <Text style={styles.error}>{errors.fullName}</Text>
+            )}
+
+            {/* EMAIL */}
+            <Text style={styles.label}>Email Address</Text>
+            <TextInput
+              placeholder="john@company.com"
+              placeholderTextColor="#666"
+              keyboardType="email-address"
+              style={styles.input}
+              value={formData.email}
+              onChangeText={(v) => handleChange("email", v)}
+            />
+            {errors.email && <Text style={styles.error}>{errors.email}</Text>}
+
+            {/* COMPANY NAME */}
+            <Text style={styles.label}>Company Name</Text>
+            <TextInput
+              placeholder="Your Company Ltd."
+              placeholderTextColor="#666"
+              style={styles.input}
+              value={formData.companyName}
+              onChangeText={(v) => handleChange("companyName", v)}
+            />
+            {errors.companyName && (
+              <Text style={styles.error}>{errors.companyName}</Text>
+            )}
+
+            {/* PHONE NUMBER */}
+            <Text style={styles.label}>Phone Number</Text>
+            <TextInput
+              placeholder="9876543210"
+              placeholderTextColor="#666"
+              keyboardType="phone-pad"
+              style={styles.input}
+              value={formData.contact}
+              onChangeText={(v) => handleChange("contact", v)}
+            />
+            {errors.contact && (
+              <Text style={styles.error}>{errors.contact}</Text>
+            )}
+
+            {/* PASSWORD */}
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                placeholder="Create a strong password"
+                placeholderTextColor="#666"
+                secureTextEntry={!showPassword}
+                style={[styles.input, styles.passwordInput]}
+                value={formData.password}
+                onChangeText={(v) => handleChange("password", v)}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.password && (
+              <Text style={styles.error}>{errors.password}</Text>
+            )}
+
+            {/* CONFIRM PASSWORD */}
+            <Text style={styles.label}>Confirm Password</Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                placeholder="Re-enter your password"
+                placeholderTextColor="#666"
+                secureTextEntry={!showConfirmPassword}
+                style={[styles.input, styles.passwordInput]}
+                value={formData.confirmPassword}
+                onChangeText={(v) => handleChange("confirmPassword", v)}
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.confirmPassword && (
+              <Text style={styles.error}>{errors.confirmPassword}</Text>
+            )}
+
+            {/* SIGNUP BUTTON */}
+            <TouchableOpacity
+              style={[styles.signUpButton, isPending && { opacity: 0.6 }]}
+              disabled={isPending}
+              onPress={handleSubmit}
+            >
+              {isPending ? (
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <ActivityIndicator size="small" color="#FFD600" />
+                  <Text
+                    style={{
+                      color: "#FFD600",
+                      marginLeft: 8,
+                      fontSize: 16,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Creating account...
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.signUpButtonText}>Create Account</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => router.push("/signin")}>
+              <Text style={[styles.footerText, { marginTop: 5 }]}>
+                Already have an account?{" "}
+                <Text style={styles.signInLink}>Sign in</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/*SNACKBAR AT TOP */}
+      <View
+        style={{
+          position: "absolute",
+          top: 150,
+          left: 20,
+          right: 0,
+          alignItems: "center",
+          zIndex: 999,
+        }}
+      >
+        <Snackbar
+          visible={snackbarVisible}
+          onDismiss={() => setSnackbarVisible(false)}
+          duration={2800}
+          style={{
+            backgroundColor: "#FFD600",
+            width: "90%",
+            borderRadius: 8,
+          }}
+        >
+          <Text
+            style={{ color: "#000", fontWeight: "600", textAlign: "center" }}
+          >
+            {snackbarMessage}
+          </Text>
+        </Snackbar>
+      </View>
+    </View>
   );
 }

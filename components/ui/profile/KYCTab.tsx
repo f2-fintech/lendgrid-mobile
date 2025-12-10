@@ -13,7 +13,7 @@ export default function KYCTab() {
     setValue,
   } = useFormContext();
 
-  const documents = watch("documents"); 
+  const documents = watch("documents");
 
   const setDoc = (key: string, file: any) => {
     const updated = {
@@ -48,13 +48,24 @@ export default function KYCTab() {
     );
   };
 
+  const rawStatus = watch("kycStatus");
+
+  const STATUS_COLORS: Record<string, string> = {
+    PENDING: "#FFA726",
+    UNDER_REVIEW: "#42A5F5",
+    APPROVED: "#4CAF50",
+    REJECTED: "#E53935",
+  };
+
   const kycStatusLabel =
     {
       PENDING: "PENDING",
       UNDER_REVIEW: "UNDER REVIEW",
       APPROVED: "APPROVED",
       REJECTED: "REJECTED",
-    }[watch("kycStatus")] || "PENDING";
+    }[rawStatus] || "PENDING";
+
+  const statusColor = STATUS_COLORS[rawStatus] || "#FFA726";
 
   return (
     <ScrollView>
@@ -80,14 +91,24 @@ export default function KYCTab() {
 
           <Text style={{ marginBottom: 8 }}>Status</Text>
 
-          <TextInput
-            mode="outlined"
-            editable={false}
-            value={kycStatusLabel}
-            style={{ marginBottom: 16 }}
-          />
+          {/* ⭐ STATUS CAPSULE (replaces input field) */}
+          <View
+            style={{
+              alignSelf: "flex-start",
+              backgroundColor: statusColor,
+              paddingVertical: 6,
+              paddingHorizontal: 16,
+              borderRadius: 20,
+              marginBottom: 16,
+            }}
+          >
+            <Text style={{ color: "white", fontWeight: "700" }}>
+              {kycStatusLabel}
+            </Text>
+          </View>
 
-          {watch("kycStatus") === "REJECTED" && (
+          {/* -------- REJECTED -------- */}
+          {rawStatus === "REJECTED" && (
             <>
               <Text style={{ marginBottom: 8 }}>Rejection Reason</Text>
               <TextInput
@@ -100,7 +121,8 @@ export default function KYCTab() {
             </>
           )}
 
-          {watch("kycStatus") === "APPROVED" && (
+          {/* -------- APPROVED -------- */}
+          {rawStatus === "APPROVED" && (
             <>
               <Text style={{ marginBottom: 8 }}>Approved At</Text>
               <TextInput

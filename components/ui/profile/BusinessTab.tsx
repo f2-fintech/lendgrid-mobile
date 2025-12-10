@@ -5,6 +5,9 @@ import { Platform, TouchableOpacity, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { Menu, Text, TextInput, useTheme } from "react-native-paper";
 
+/* ------------------------------------------
+   BUSINESS TYPE CONSTANTS (unchanged UI)
+------------------------------------------- */
 const BUSINESS_TYPES = [
   {
     label: "PRIVATE LIMITED",
@@ -17,29 +20,18 @@ const BUSINESS_TYPES = [
   { label: "LLP", value: "llp", icon: "briefcase" },
 ];
 
-// Mock API for pincode → city/state lookup
-const fetchLocationByPincode = async (pincode: string) => {
-  await new Promise((res) => setTimeout(res, 400));
-  const mock = {
-    "110001": { city: "New Delhi", state: "Delhi" },
-    "400001": { city: "Mumbai", state: "Maharashtra" },
-    "560001": { city: "Bangalore", state: "Karnataka" },
-  };
-  return (
-    mock[pincode] ||
-    (pincode.length === 6
-      ? { city: "Unknown City", state: "Unknown State" }
-      : null)
-  );
-};
 
+const normalizeBusinessType = (value?: string) =>
+  value ? value.toLowerCase() : "";
+
+/* ------------------------------------------
+   Get label from dropdown
+------------------------------------------- */
 const getLabel = (value?: string) =>
   BUSINESS_TYPES.find((b) => b.value === value)?.label || "";
 
 export default function BusinessTab() {
   const theme = useTheme();
-
-  //MASTER FORM CONTEXT
   const {
     control,
     watch,
@@ -52,11 +44,30 @@ export default function BusinessTab() {
   const [loadingPincode, setLoadingPincode] = useState(false);
 
   const pincode = watch("pincode");
-  const businessTypeValue = watch("businessType");
 
-  // Auto fetch city/state when pincode loses focus
+  const businessTypeValue = normalizeBusinessType(watch("businessType"));
+
+  /* ----------------- PINCODE LOOKUP MOCK ----------------- */
+  const fetchLocationByPincode = async (pincode: string) => {
+    await new Promise((res) => setTimeout(res, 400));
+
+    const mock = {
+      "110001": { city: "New Delhi", state: "Delhi" },
+      "400001": { city: "Mumbai", state: "Maharashtra" },
+      "560001": { city: "Bangalore", state: "Karnataka" },
+    };
+
+    return (
+      mock[pincode] ||
+      (pincode.length === 6
+        ? { city: "Unknown City", state: "Unknown State" }
+        : null)
+    );
+  };
+
   const handlePincodeBlur = async () => {
     if (!pincode || pincode.length !== 6) return;
+
     setLoadingPincode(true);
     const loc = await fetchLocationByPincode(pincode);
     setLoadingPincode(false);
@@ -131,13 +142,14 @@ export default function BusinessTab() {
                     <TextInput
                       label="Business Type"
                       mode="outlined"
-                      value={getLabel(field.value)}
+                      value={getLabel(businessTypeValue)} // ⭐ FIXED
                       editable={false}
                       left={
                         <TextInput.Icon
                           icon={
-                            BUSINESS_TYPES.find((t) => t.value === field.value)
-                              ?.icon || "domain"
+                            BUSINESS_TYPES.find(
+                              (t) => t.value === businessTypeValue
+                            )?.icon || "domain"
                           }
                           component={MaterialCommunityIcons}
                         />
@@ -156,7 +168,7 @@ export default function BusinessTab() {
                 <Menu.Item
                   key={item.value}
                   onPress={() => {
-                    field.onChange(item.value);
+                    field.onChange(item.value); // store lowercase
                     setMenuVisible(false);
                     setMenuKey((k) => k + 1);
                   }}
@@ -212,7 +224,7 @@ export default function BusinessTab() {
               <TextInput
                 label="GST Number"
                 value={value}
-                onChangeText={(text) => onChange(text.toUpperCase())} // ⭐ FORCE UPPERCASE
+                onChangeText={(text) => onChange(text.toUpperCase())}
                 onBlur={onBlur}
                 mode="outlined"
                 autoCapitalize="characters"

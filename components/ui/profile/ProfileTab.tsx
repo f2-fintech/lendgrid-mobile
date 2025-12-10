@@ -16,6 +16,7 @@ export default function ProfileTab() {
   } = useFormContext();
 
   const avatar = watch("avatar");
+  const status = watch("user.status");
 
   const pickAvatar = async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -29,8 +30,11 @@ export default function ProfileTab() {
 
     setValue(
       "avatar",
-      { name: asset.name ?? "profile_photo", uri: asset.uri },
-      { shouldValidate: true, shouldDirty: true }
+      { uri: asset.uri, name: asset.name },
+      {
+        shouldValidate: true,
+        shouldDirty: true,
+      }
     );
   };
 
@@ -49,7 +53,6 @@ export default function ProfileTab() {
         Profile Information
       </Text>
 
-      {/* ----------- AVATAR SECTION (EXACT UI) ----------- */}
       <View
         style={{
           flexDirection: "row",
@@ -112,7 +115,6 @@ export default function ProfileTab() {
         </View>
       </View>
 
-      {/* ----------- ACCOUNT STATUS BADGE (unchanged UI) ----------- */}
       <View
         style={{
           flexDirection: "row",
@@ -130,40 +132,27 @@ export default function ProfileTab() {
             paddingVertical: 6,
             paddingHorizontal: 16,
             borderRadius: 20,
-            backgroundColor:
-              watch("status") === "ACTIVE" ? "#4CAF50" : "#E53935",
+            backgroundColor: status === "ACTIVE" ? "#4CAF50" : "#E53935",
           }}
         >
-          <Text style={{ color: "white", fontWeight: "700" }}>
-            {watch("status")}
-          </Text>
+          <Text style={{ color: "white", fontWeight: "700" }}>{status}</Text>
         </View>
       </View>
 
-      {/* ----------- FIRST NAME ----------- */}
       <Controller
         control={control}
-        name="firstName"
+        name="firstName" // form field
         render={({ field }) => (
           <TextInput
             label="First Name"
             value={field.value}
-            onChangeText={field.onChange}
-            onBlur={field.onBlur}
+            onChangeText={(txt) => field.onChange(txt)}
             mode="outlined"
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.firstName && (
-        <Text
-          style={{ color: theme.colors.error, marginBottom: 16, fontSize: 12 }}
-        >
-          {errors.firstName.message}
-        </Text>
-      )}
 
-      {/* ----------- LAST NAME ----------- */}
       <Controller
         control={control}
         name="lastName"
@@ -172,43 +161,27 @@ export default function ProfileTab() {
             label="Last Name"
             value={field.value}
             onChangeText={field.onChange}
-            onBlur={field.onBlur}
             mode="outlined"
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.lastName && (
-        <Text
-          style={{ color: theme.colors.error, marginBottom: 16, fontSize: 12 }}
-        >
-          {errors.lastName.message}
-        </Text>
-      )}
 
       {/* ----------- EMAIL ----------- */}
       <Controller
         control={control}
-        name="email"
+        name="email" // mapped manually in ProfileScreen
         render={({ field }) => (
           <TextInput
             label="Email Address"
             keyboardType="email-address"
             value={field.value}
             onChangeText={field.onChange}
-            onBlur={field.onBlur}
             mode="outlined"
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.email && (
-        <Text
-          style={{ color: theme.colors.error, marginBottom: 16, fontSize: 12 }}
-        >
-          {errors.email.message}
-        </Text>
-      )}
 
       {/* ----------- PHONE ----------- */}
       <Controller
@@ -217,22 +190,14 @@ export default function ProfileTab() {
         render={({ field }) => (
           <TextInput
             label="Phone Number"
-            value={field.value}
             keyboardType="phone-pad"
+            value={field.value}
             onChangeText={field.onChange}
-            onBlur={field.onBlur}
             mode="outlined"
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.phone && (
-        <Text
-          style={{ color: theme.colors.error, marginBottom: 30, fontSize: 12 }}
-        >
-          {errors.phone.message}
-        </Text>
-      )}
     </KeyboardAwareScrollView>
   );
 }
