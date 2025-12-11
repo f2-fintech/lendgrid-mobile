@@ -1,8 +1,13 @@
 // app/(tab)/profile.tsx
 
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
-import { ScrollView, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Button, Text, useTheme } from "react-native-paper";
 
 import { updateField } from "@/redux/features/profileSlice";
@@ -18,6 +23,19 @@ import { MasterProfileSchema } from "@/lib/validators/ProfileMasterSchema";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { FormProvider, useForm } from "react-hook-form";
 
+import { useAggregatorDetails } from "@/hooks/useAggregator";
+import { useProfile } from "@/hooks/useAuth";
+
+function splitName(fullName?: string) {
+  if (!fullName) return { firstName: "", lastName: "" };
+
+  const parts = fullName.trim().split(" ");
+  const firstName = parts.shift() ?? "";
+  const lastName = parts.join(" ");
+
+  return { firstName, lastName };
+}
+
 export default function ProfileScreen() {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -25,31 +43,100 @@ export default function ProfileScreen() {
 
   const [activeTab, setActiveTab] = useState("profile");
 
+  // ---------------- FETCH AUTH PROFILE ----------------
+  const { data: user, isLoading: loadingUser } = useProfile();
+  const profileId = user?.profileId;
+
+  // ---------------- FETCH AGGREGATOR PROFILE ----------------
+  const { data: aggProfile, isLoading: loadingAgg } = useAggregatorDetails(
+    profileId ?? ""
+  );
+
+  // ---------------- REACT-HOOK-FORM ----------------
   const methods = useForm({
     resolver: yupResolver(MasterProfileSchema),
-
     defaultValues: {
       ...s,
       documents: { ...s.documents },
     },
-
     shouldUnregister: false,
-
     mode: "onChange",
     reValidateMode: "onChange",
   });
 
-  // SAVE handler
+  // ---------------- MAP BACKEND DATA → FORM + REDUX ----------------
+  useEffect(() => {
+    if (aggProfile) {
+      console.log("🟢 Aggregator Profile Loaded:", aggProfile);
+
+      // Extract first + last from user.username
+      const { firstName, lastName } = splitName(aggProfile.user?.username);
+
+      // 1️⃣ Update Redux store
+      Object.entries(aggProfile).forEach(([key, value]) => {
+        dispatch(updateField({ key: key as any, value }));
+      });
+
+      // Add user-level fields to Redux
+      dispatch(
+        updateField({ key: "email", value: aggProfile.user?.email || "" })
+      );
+      dispatch(
+        updateField({ key: "phone", value: aggProfile.user?.contact || "" })
+      );
+      dispatch(
+        updateField({
+          key: "status",
+          value: aggProfile.user?.status || "ACTIVE",
+        })
+      );
+      dispatch(updateField({ key: "firstName", value: firstName }));
+      dispatch(updateField({ key: "lastName", value: lastName }));
+
+      //  Inject into form
+      methods.reset({
+        ...aggProfile,
+
+        email: aggProfile.user?.email || "",
+        phone: aggProfile.user?.contact || "",
+        status: aggProfile.user?.status || "ACTIVE",
+
+        firstName,
+        lastName,
+      });
+    }
+  }, [aggProfile]);
+
+  // ---------------- LOADING STATES ----------------
+  if (loadingUser || loadingAgg) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+        <Text style={{ marginTop: 10 }}>Loading your profile…</Text>
+      </View>
+    );
+  }
+
+  if (!profileId) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>No aggregator profile found.</Text>
+      </View>
+    );
+  }
+
+  // ---------------- SAVE HANDLER ----------------
   const onSave = (values: any) => {
-    console.log("🔥 FULL MASTER SUBMIT:", values);
+    console.log(" FULL MASTER SUBMIT:", values);
 
     for (const [key, value] of Object.entries(values)) {
       dispatch(updateField({ key: key as any, value }));
     }
 
-    console.log("🟢 Saved to Redux");
+    console.log(" Saved to Redux");
   };
 
+  // ---------------- TAB RENDER ----------------
   const renderTab = () => {
     switch (activeTab) {
       case "profile":
@@ -63,6 +150,7 @@ export default function ProfileScreen() {
     }
   };
 
+  // ---------------- UI (UNCHANGED) ----------------
   return (
     <FormProvider {...methods}>
       <ScrollView
