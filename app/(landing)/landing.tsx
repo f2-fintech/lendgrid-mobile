@@ -1,46 +1,28 @@
-import { useRef } from 'react';
+import { useRef } from "react";
+import { Dimensions, ScrollView, StatusBar, View } from "react-native";
+
+import { useTheme } from "react-native-paper";
+
+import LendGridSections from "@/components/ui/landing/landingSections";
 import {
-  Dimensions,
-  ScrollView,
-  StatusBar,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+  lendGridStyles as styles
+} from "@/styles/components/landing/landingStyles";
 
-import { useTheme } from 'react-native-paper';
-
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-import LendGridSections from '@/components/ui/landing/landingSections';
-import {
-  lendGridStyles as styles,
-  TOP_INSET,
-} from '@/styles/components/landing/landingStyles';
-
-import { useAppDispatch, useAppSelector } from '@/hooks/lightDark';
-import { toggleTheme } from '@/redux/features/themeSlice';
-
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 export default function LandingScreen() {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const isSmallScreen = width <= 400;
 
-  const dispatch = useAppDispatch();
-  const mode = useAppSelector((s) => s.theme.mode);
-  const isDark = mode === 'dark';
-
   const theme = useTheme();
+  const isDark = theme.dark;
+
+  const bgColor = "#15253fff";
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: theme.colors.background },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: bgColor }]}>
       <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
+        barStyle={isDark ? "light-content" : "dark-content"}
         translucent
         backgroundColor="transparent"
       />
@@ -51,52 +33,14 @@ export default function LandingScreen() {
         stickyHeaderIndices={[0]}
         contentInsetAdjustmentBehavior="never"
         removeClippedSubviews={false}
+        style={{ backgroundColor: bgColor }}
+        contentContainerStyle={{ backgroundColor: bgColor }}
       >
-        {/* Sticky Header */}
-        <View
-          style={[
-            styles.headerShell,
-            { backgroundColor: theme.colors.background },
-          ]}
-        >
-          <View
-            style={{
-              height: TOP_INSET || 0,
-              backgroundColor: theme.colors.background,
-            }}
-          />
 
-          {/* Theme Toggle Button */}
-          <View
-            style={[
-              styles.themeBar,
-              { backgroundColor: theme.colors.background },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.themeToggleButton}
-              onPress={() => dispatch(toggleTheme())}
-              activeOpacity={0.8}
-            >
-              <MaterialCommunityIcons
-                name={isDark ? 'white-balance-sunny' : 'moon-waning-crescent'}
-                size={22}
-                color={theme.colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <View style={{ height: 50, }} />
 
-        {/* Main Content */}
+        {/* MAIN CONTENT */}
         <LendGridSections isSmallScreen={isSmallScreen} />
-
-        {/* Footer Space */}
-        <View
-          style={[
-            styles.footer,
-            { backgroundColor: theme.colors.background },
-          ]}
-        />
       </ScrollView>
     </View>
   );

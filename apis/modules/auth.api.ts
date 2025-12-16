@@ -73,3 +73,103 @@ export const getProfileApi = async () => {
 
   return gqlRequest<{ profile: User }>(query).then((d) => d.profile);
 };
+
+export const updateUserApi = async (payload: {
+  id: string; 
+  username?: string;
+  email?: string;
+  contact?: string;
+  photoUrl?: string | null;
+  status?: string;
+}) => {
+  const query = `
+    mutation UpdateUser($updateUserInput: UpdateUserDto!) {
+      updateUser(updateUserInput: $updateUserInput) {
+        _id
+        profileId
+        username
+        email
+        role
+        status
+        contact
+        photoUrl
+      }
+    }
+  `;
+
+  return gqlRequest<{ updateUser: User }>(query, {
+    updateUserInput: payload, 
+  }).then((d) => d.updateUser);
+};
+
+//  USERS BY ROLE
+export const findUsersByRoleApi = async (
+  role: string,
+  params?: { page?: number; limit?: number }
+) => {
+  const query = `
+    query UsersByRole($role: Role!, $page: Int, $limit: Int) {
+      usersByRole(role: $role, paginationArgs: { page: $page, limit: $limit }) {
+        results {
+          _id
+          username
+          email
+          status
+          role
+          createdAt
+          loginHistory
+        }
+        count
+        page
+        pages
+      }
+    }
+  `;
+
+  return gqlRequest<{ usersByRole: any }>(query, {
+    role,
+    page: params?.page,
+    limit: params?.limit,
+  }).then((d) => d.usersByRole);
+};
+
+//  GET USERS (PAGINATED)
+export const getUsersApi = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+}) => {
+  const query = `
+    query Users($page: Int, $limit: Int, $status: String) {
+      users(paginationArgs: { page: $page, limit: $limit, status: $status }) {
+        results {
+          _id
+          username
+          email
+          role
+          status
+        }
+        count
+        pages
+      }
+    }
+  `;
+
+  return gqlRequest<{ users: any }>(query, params || {}).then((d) => d.users);
+};
+
+//  REMOVE USER
+export const removeUserApi = async (id: string) => {
+  const query = `
+    mutation RemoveUser($id: ID!) {
+      removeUser(id: $id) {
+        _id
+        username
+        status
+      }
+    }
+  `;
+  return gqlRequest<{ removeUser: any }>(query, { id }).then(
+    (d) => d.removeUser
+  );
+};
