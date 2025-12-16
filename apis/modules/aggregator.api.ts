@@ -1,13 +1,12 @@
-// apis/modules/aggregator.api.ts
 
 import { gqlRequest } from "@/apis/config/apiClient";
 import {
-    AggregatorDocuments,
-    AggregatorProfile,
-    BusinessType,
-    CreateResponse,
-    KYCStatus,
-    PaginatedResponse,
+  AggregatorDocuments,
+  AggregatorProfile,
+  BusinessType,
+  CreateResponse,
+  KYCStatus,
+  PaginatedResponse,
 } from "@/types/api-response";
 
 export const aggregatorApi = {
@@ -24,6 +23,7 @@ export const aggregatorApi = {
     pincode?: string;
     gstNumber?: string;
     panNumber?: string;
+    aadhaarNumber?: string;
     tanNumber?: string;
     cinNumber?: string;
     websiteUrl?: string;
@@ -132,11 +132,14 @@ export const aggregatorApi = {
           pincode
           gstNumber
           panNumber
+          aadhaarNumber
           tanNumber
           cinNumber
           websiteUrl
           pocName
           documents {
+            aadhaarFront     
+            aadhaarBack       
             panCard
             gstCertificate
             incorporationCertificate
@@ -201,12 +204,40 @@ export const aggregatorApi = {
           userId
           companyName
           businessType
+          registeredAddress
           city
           state
+          pincode
+          gstNumber
+          panNumber
+          aadhaarNumber       
+          tanNumber
+          cinNumber
+          websiteUrl
+          pocName
+          documents {         
+            aadhaarFront
+            aadhaarBack
+            panCard
+            gstCertificate
+            incorporationCertificate
+            bankStatement
+            cancelledCheque
+            addressProof
+            authorizedSignatory
+          }
           kycStatus
+          kycRejectionReason
+          kycApprovedAt
+          bankName
+          accountNumber
+          ifscCode
+          accountHolderName
+          isBankVerified
           totalApplicationsSubmitted
           totalApplicationsDisbursed
           totalCommissionEarned
+          totalPaidOut
           pendingPayout
           createdAt
           updatedAt

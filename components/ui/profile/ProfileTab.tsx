@@ -1,12 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import { useEffect, useRef } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { TouchableOpacity, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { Text, TextInput, useTheme } from "react-native-paper";
 
-export default function ProfileTab() {
+type Props = {
+  uiState?: { isEditMode: boolean; activeTab: string };
+};
+
+export default function ProfileTab({ uiState }: Props) {
   const theme = useTheme();
+  const isEditMode = !!uiState?.isEditMode;
+  const isActive = uiState?.activeTab === "profile";
+
+  const firstNameRef = useRef<any>(null);
 
   const {
     control,
@@ -16,9 +25,17 @@ export default function ProfileTab() {
   } = useFormContext();
 
   const avatar = watch("avatar");
-  const status = watch("user.status");
+  const status = watch("status");
+
+  useEffect(() => {
+    if (isEditMode && isActive) {
+      setTimeout(() => firstNameRef.current?.focus?.(), 250);
+    }
+  }, [isEditMode, isActive]);
 
   const pickAvatar = async () => {
+    if (!isEditMode) return;
+
     const result = await DocumentPicker.getDocumentAsync({
       type: "image/*",
       copyToCacheDirectory: true,
@@ -31,10 +48,7 @@ export default function ProfileTab() {
     setValue(
       "avatar",
       { uri: asset.uri, name: asset.name },
-      {
-        shouldValidate: true,
-        shouldDirty: true,
-      }
+      { shouldValidate: true, shouldDirty: true }
     );
   };
 
@@ -42,10 +56,9 @@ export default function ProfileTab() {
     <KeyboardAwareScrollView
       contentContainerStyle={{ paddingVertical: 10, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
-      enableOnAndroid={true}
+      enableOnAndroid
       extraScrollHeight={20}
     >
-      {/* ----------- HEADER ----------- */}
       <Text
         variant="headlineSmall"
         style={{ fontWeight: "700", marginBottom: 6 }}
@@ -53,12 +66,9 @@ export default function ProfileTab() {
         Profile Information
       </Text>
 
+      {/* AVATAR */}
       <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          marginBottom: 26,
-        }}
+        style={{ flexDirection: "row", alignItems: "center", marginBottom: 26 }}
       >
         <View
           style={{
@@ -69,6 +79,7 @@ export default function ProfileTab() {
             justifyContent: "center",
             alignItems: "center",
             marginRight: 20,
+            opacity: isEditMode ? 1 : 0.9,
           }}
         >
           {avatar?.uri ? (
@@ -85,10 +96,12 @@ export default function ProfileTab() {
         </View>
 
         <View>
-          <TouchableOpacity onPress={pickAvatar}>
+          <TouchableOpacity onPress={pickAvatar} disabled={!isEditMode}>
             <Text
               style={{
-                color: theme.colors.primary,
+                color: isEditMode
+                  ? theme.colors.primary
+                  : theme.colors.onSurfaceVariant,
                 fontSize: 16,
                 fontWeight: "600",
               }}
@@ -97,9 +110,11 @@ export default function ProfileTab() {
             </Text>
           </TouchableOpacity>
 
-          {errors.avatar?.uri && (
-            <Text style={{ color: theme.colors.error, fontSize: 12 }}>
-              {errors.avatar.uri.message}
+          {(errors as any)?.avatar?.uri && (
+            <Text
+              style={{ color: theme.colors.error, fontSize: 12, marginTop: 6 }}
+            >
+              {(errors as any)?.avatar?.uri?.message}
             </Text>
           )}
 
@@ -115,6 +130,7 @@ export default function ProfileTab() {
         </View>
       </View>
 
+      {/* STATUS */}
       <View
         style={{
           flexDirection: "row",
@@ -139,20 +155,32 @@ export default function ProfileTab() {
         </View>
       </View>
 
+      {/* FIRST NAME */}
       <Controller
         control={control}
-        name="firstName" // form field
+        name="firstName"
         render={({ field }) => (
           <TextInput
+            ref={firstNameRef}
             label="First Name"
             value={field.value}
-            onChangeText={(txt) => field.onChange(txt)}
+            onChangeText={field.onChange}
             mode="outlined"
+            editable={isEditMode}
+            error={!!errors.firstName}
             style={{ marginBottom: 4 }}
           />
         )}
       />
+      {errors.firstName && (
+        <Text
+          style={{ color: theme.colors.error, fontSize: 12, marginBottom: 14 }}
+        >
+          {(errors.firstName as any)?.message}
+        </Text>
+      )}
 
+      {/* LAST NAME */}
       <Controller
         control={control}
         name="lastName"
@@ -162,15 +190,24 @@ export default function ProfileTab() {
             value={field.value}
             onChangeText={field.onChange}
             mode="outlined"
+            editable={isEditMode}
+            error={!!errors.lastName}
             style={{ marginBottom: 4 }}
           />
         )}
       />
+      {errors.lastName && (
+        <Text
+          style={{ color: theme.colors.error, fontSize: 12, marginBottom: 14 }}
+        >
+          {(errors.lastName as any)?.message}
+        </Text>
+      )}
 
-      {/* ----------- EMAIL ----------- */}
+      {/* EMAIL */}
       <Controller
         control={control}
-        name="email" // mapped manually in ProfileScreen
+        name="email"
         render={({ field }) => (
           <TextInput
             label="Email Address"
@@ -178,26 +215,49 @@ export default function ProfileTab() {
             value={field.value}
             onChangeText={field.onChange}
             mode="outlined"
+            editable={isEditMode}
+            error={!!errors.email}
+            autoCapitalize="none"
             style={{ marginBottom: 4 }}
           />
         )}
       />
+      {errors.email && (
+        <Text
+          style={{ color: theme.colors.error, fontSize: 12, marginBottom: 14 }}
+        >
+          {(errors.email as any)?.message}
+        </Text>
+      )}
 
-      {/* ----------- PHONE ----------- */}
+      {/* PHONE (digits only, max 10) */}
       <Controller
         control={control}
         name="phone"
         render={({ field }) => (
           <TextInput
             label="Phone Number"
-            keyboardType="phone-pad"
+            keyboardType="number-pad"
             value={field.value}
-            onChangeText={field.onChange}
             mode="outlined"
+            editable={isEditMode}
+            error={!!errors.phone}
+            maxLength={10} 
+            onChangeText={(txt) => {
+              const onlyDigits = txt.replace(/[^0-9]/g, "").slice(0, 10); // ✅ digits only + max 10
+              field.onChange(onlyDigits);
+            }}
             style={{ marginBottom: 4 }}
           />
         )}
       />
+      {errors.phone && (
+        <Text
+          style={{ color: theme.colors.error, fontSize: 12, marginBottom: 14 }}
+        >
+          {(errors.phone as any)?.message}
+        </Text>
+      )}
     </KeyboardAwareScrollView>
   );
 }

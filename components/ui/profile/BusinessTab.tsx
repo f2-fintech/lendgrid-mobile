@@ -1,37 +1,39 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { Platform, TouchableOpacity, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { Menu, Text, TextInput, useTheme } from "react-native-paper";
 
 /* ------------------------------------------
-   BUSINESS TYPE CONSTANTS (unchanged UI)
+   BUSINESS TYPE CONSTANTS
 ------------------------------------------- */
 const BUSINESS_TYPES = [
   {
     label: "PRIVATE LIMITED",
-    value: "private_limited",
+    value: "PRIVATE_LIMITED",
     icon: "office-building",
   },
-  { label: "PUBLIC LIMITED", value: "public_limited", icon: "bank" },
-  { label: "PROPRIETORSHIP", value: "proprietorship", icon: "account" },
-  { label: "PARTNERSHIP", value: "partnership", icon: "account-group" },
-  { label: "LLP", value: "llp", icon: "briefcase" },
+  { label: "PUBLIC LIMITED", value: "PUBLIC_LIMITED", icon: "bank" },
+  { label: "PROPRIETORSHIP", value: "PROPRIETORSHIP", icon: "account" },
+  { label: "PARTNERSHIP", value: "PARTNERSHIP", icon: "account-group" },
+  { label: "LLP", value: "LLP", icon: "briefcase" },
 ];
 
-
-const normalizeBusinessType = (value?: string) =>
-  value ? value.toLowerCase() : "";
-
-/* ------------------------------------------
-   Get label from dropdown
-------------------------------------------- */
 const getLabel = (value?: string) =>
   BUSINESS_TYPES.find((b) => b.value === value)?.label || "";
 
-export default function BusinessTab() {
+type Props = {
+  uiState?: { isEditMode: boolean; activeTab: string };
+};
+
+export default function BusinessTab({ uiState }: Props) {
   const theme = useTheme();
+  const isEditMode = !!uiState?.isEditMode;
+  const isActive = uiState?.activeTab === "business";
+
+  const companyNameRef = useRef<any>(null);
+
   const {
     control,
     watch,
@@ -44,22 +46,25 @@ export default function BusinessTab() {
   const [loadingPincode, setLoadingPincode] = useState(false);
 
   const pincode = watch("pincode");
+  const businessTypeValue = watch("businessType"); 
 
-  const businessTypeValue = normalizeBusinessType(watch("businessType"));
+  useEffect(() => {
+    if (isEditMode && isActive) {
+      setTimeout(() => companyNameRef.current?.focus?.(), 250);
+    }
+  }, [isEditMode, isActive]);
 
-  /* ----------------- PINCODE LOOKUP MOCK ----------------- */
-  const fetchLocationByPincode = async (pincode: string) => {
+  // Mock API for pincode → city/state lookup
+  const fetchLocationByPincode = async (pin: string) => {
     await new Promise((res) => setTimeout(res, 400));
-
-    const mock = {
+    const mock: any = {
       "110001": { city: "New Delhi", state: "Delhi" },
       "400001": { city: "Mumbai", state: "Maharashtra" },
       "560001": { city: "Bangalore", state: "Karnataka" },
     };
-
     return (
-      mock[pincode] ||
-      (pincode.length === 6
+      mock[pin] ||
+      (pin.length === 6
         ? { city: "Unknown City", state: "Unknown State" }
         : null)
     );
@@ -67,7 +72,6 @@ export default function BusinessTab() {
 
   const handlePincodeBlur = async () => {
     if (!pincode || pincode.length !== 6) return;
-
     setLoadingPincode(true);
     const loc = await fetchLocationByPincode(pincode);
     setLoadingPincode(false);
@@ -106,11 +110,13 @@ export default function BusinessTab() {
         name="companyName"
         render={({ field }) => (
           <TextInput
+            ref={companyNameRef}
             label="Registered Company Name"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             mode="outlined"
+            editable={isEditMode}
             style={{ marginBottom: 4 }}
           />
         )}
@@ -119,7 +125,7 @@ export default function BusinessTab() {
         <Text
           style={{ color: theme.colors.error, marginBottom: 16, fontSize: 12 }}
         >
-          {errors.companyName.message}
+          {errors.companyName.message as any}
         </Text>
       )}
 
@@ -137,19 +143,21 @@ export default function BusinessTab() {
                 setMenuKey((k) => k + 1);
               }}
               anchor={
-                <TouchableOpacity onPress={() => setMenuVisible(true)}>
+                <TouchableOpacity
+                  onPress={() => isEditMode && setMenuVisible(true)}
+                  disabled={!isEditMode}
+                >
                   <View pointerEvents="none">
                     <TextInput
                       label="Business Type"
                       mode="outlined"
-                      value={getLabel(businessTypeValue)} // ⭐ FIXED
+                      value={getLabel(field.value)} 
                       editable={false}
                       left={
                         <TextInput.Icon
                           icon={
-                            BUSINESS_TYPES.find(
-                              (t) => t.value === businessTypeValue
-                            )?.icon || "domain"
+                            BUSINESS_TYPES.find((t) => t.value === field.value)
+                              ?.icon || "domain"
                           }
                           component={MaterialCommunityIcons}
                         />
@@ -168,7 +176,7 @@ export default function BusinessTab() {
                 <Menu.Item
                   key={item.value}
                   onPress={() => {
-                    field.onChange(item.value); // store lowercase
+                    field.onChange(item.value); 
                     setMenuVisible(false);
                     setMenuKey((k) => k + 1);
                   }}
@@ -185,7 +193,7 @@ export default function BusinessTab() {
         <Text
           style={{ color: theme.colors.error, marginBottom: 16, fontSize: 12 }}
         >
-          {errors.businessType.message}
+          {errors.businessType.message as any}
         </Text>
       )}
 
@@ -201,6 +209,7 @@ export default function BusinessTab() {
             onBlur={field.onBlur}
             autoCapitalize="characters"
             mode="outlined"
+            editable={isEditMode}
             style={{ marginBottom: 4 }}
           />
         )}
@@ -209,7 +218,7 @@ export default function BusinessTab() {
         <Text
           style={{ color: theme.colors.error, marginBottom: 16, fontSize: 12 }}
         >
-          {errors.cinNumber.message}
+          {errors.cinNumber.message as any}
         </Text>
       )}
 
@@ -228,6 +237,7 @@ export default function BusinessTab() {
                 onBlur={onBlur}
                 mode="outlined"
                 autoCapitalize="characters"
+                editable={isEditMode}
                 style={{ marginBottom: 4 }}
               />
             )}
@@ -240,7 +250,7 @@ export default function BusinessTab() {
                 fontSize: 12,
               }}
             >
-              {errors.gstNumber.message}
+              {errors.gstNumber.message as any}
             </Text>
           )}
         </View>
@@ -258,6 +268,7 @@ export default function BusinessTab() {
                 onBlur={field.onBlur}
                 autoCapitalize="characters"
                 mode="outlined"
+                editable={isEditMode}
                 style={{ marginBottom: 4 }}
               />
             )}
@@ -270,7 +281,7 @@ export default function BusinessTab() {
                 fontSize: 12,
               }}
             >
-              {errors.panNumber.message}
+              {errors.panNumber.message as any}
             </Text>
           )}
         </View>
@@ -291,6 +302,7 @@ export default function BusinessTab() {
                 onBlur={field.onBlur}
                 autoCapitalize="characters"
                 mode="outlined"
+                editable={isEditMode}
                 style={{ marginBottom: 4 }}
               />
             )}
@@ -303,7 +315,7 @@ export default function BusinessTab() {
                 fontSize: 12,
               }}
             >
-              {errors.tanNumber.message}
+              {errors.tanNumber.message as any}
             </Text>
           )}
         </View>
@@ -320,12 +332,13 @@ export default function BusinessTab() {
                 onChangeText={field.onChange}
                 onBlur={() => {
                   field.onBlur();
-                  handlePincodeBlur();
+                  if (isEditMode) handlePincodeBlur();
                 }}
                 mode="outlined"
                 keyboardType="number-pad"
                 maxLength={6}
                 loading={loadingPincode}
+                editable={isEditMode}
                 style={{ marginBottom: 4 }}
               />
             )}
@@ -338,7 +351,7 @@ export default function BusinessTab() {
                 fontSize: 12,
               }}
             >
-              {errors.pincode.message}
+              {errors.pincode.message as any}
             </Text>
           )}
         </View>
@@ -357,7 +370,7 @@ export default function BusinessTab() {
                 value={field.value}
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
-                editable={!loadingPincode}
+                editable={isEditMode && !loadingPincode}
                 mode="outlined"
                 style={{ marginBottom: 4 }}
               />
@@ -371,7 +384,7 @@ export default function BusinessTab() {
                 fontSize: 12,
               }}
             >
-              {errors.city.message}
+              {errors.city.message as any}
             </Text>
           )}
         </View>
@@ -387,7 +400,7 @@ export default function BusinessTab() {
                 value={field.value}
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
-                editable={!loadingPincode}
+                editable={isEditMode && !loadingPincode}
                 mode="outlined"
                 style={{ marginBottom: 4 }}
               />
@@ -401,7 +414,7 @@ export default function BusinessTab() {
                 fontSize: 12,
               }}
             >
-              {errors.state.message}
+              {errors.state.message as any}
             </Text>
           )}
         </View>
@@ -420,6 +433,7 @@ export default function BusinessTab() {
             mode="outlined"
             multiline
             numberOfLines={3}
+            editable={isEditMode}
             style={{ marginBottom: 4 }}
           />
         )}
@@ -428,7 +442,7 @@ export default function BusinessTab() {
         <Text
           style={{ color: theme.colors.error, marginBottom: 16, fontSize: 12 }}
         >
-          {errors.registeredAddress.message}
+          {errors.registeredAddress.message as any}
         </Text>
       )}
 
@@ -444,6 +458,7 @@ export default function BusinessTab() {
             onBlur={field.onBlur}
             mode="outlined"
             keyboardType="url"
+            editable={isEditMode}
             style={{ marginBottom: 4 }}
           />
         )}
@@ -452,7 +467,7 @@ export default function BusinessTab() {
         <Text
           style={{ color: theme.colors.error, marginBottom: 30, fontSize: 12 }}
         >
-          {errors.websiteUrl.message}
+          {errors.websiteUrl.message as any}
         </Text>
       )}
     </KeyboardAwareScrollView>

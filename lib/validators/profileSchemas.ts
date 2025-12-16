@@ -9,14 +9,26 @@ const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 const TAN_REGEX = /^([A-Za-z]{4})([0-9]{5})([A-Za-z]{1})$/;
 
-// Backend Enum Values
+// (UPPERCASE to match your UI dropdown)
 const BusinessTypeValues = [
-  "proprietorship",
-  "partnership",
-  "private_limited",
-  "public_limited",
-  "llp",
+  "PROPRIETORSHIP",
+  "PARTNERSHIP",
+  "PRIVATE_LIMITED",
+  "PUBLIC_LIMITED",
+  "LLP",
 ];
+
+// allow backend string url OR picked file object OR null
+const optionalFile = yup
+  .mixed()
+  .nullable(true)
+  .notRequired()
+  .test("file-shape", "Invalid file", (val: any) => {
+    if (!val) return true;
+    if (typeof val === "string") return true; 
+    if (typeof val?.uri === "string") return true; 
+    return false;
+  });
 
 // 1. PROFILE TAB SCHEMA
 export interface ProfileInputs {
@@ -67,49 +79,57 @@ export const BusinessSchema = yup.object().shape({
     .string()
     .required("Company name is required.")
     .min(3, "Company name is too short."),
+
   businessType: yup
     .string()
     .required("Business type is required.")
     .oneOf(BusinessTypeValues, "Invalid business type selected."),
+
   cinNumber: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .min(21, "CIN must be exactly 21 characters.")
     .max(21, "CIN must be exactly 21 characters.")
     .when("businessType", {
       is: (val: string) =>
-        val === "private_limited" || val === "public_limited" || val === "llp",
+        val === "PRIVATE_LIMITED" || val === "PUBLIC_LIMITED" || val === "LLP",
       then: (schema) =>
         schema.required("CIN is required for Incorporated entities."),
-      otherwise: (schema) => schema.nullable(true).default(""),
+      otherwise: (schema) => schema.notRequired(),
     }),
+
   gstNumber: yup
     .string()
     .matches(GST_REGEX, "Invalid GST number format (15 characters).")
     .required("GST number is required."),
+
   panNumber: yup
     .string()
     .matches(PAN_REGEX, "Invalid PAN number format (e.g., ABCDE1234F).")
     .required("PAN number is required."),
+
   tanNumber: yup
     .string()
     .matches(TAN_REGEX, "Invalid TAN format (10 characters, e.g., ABCD12345E).")
     .required("TAN number is required."),
+
   pincode: yup
     .string()
     .matches(PINCODE_REGEX, "Pincode must be 6 digits.")
     .required("Pincode is required."),
+
   city: yup.string().required("City is required."),
   state: yup.string().required("State is required."),
+
   registeredAddress: yup
     .string()
     .min(10, "Registered Address is too short.")
     .required("Registered address is required."),
   websiteUrl: yup
     .string()
-    .url("Must be a valid URL format (e.g., http://example.com).")
-    .nullable(true)
-    .notRequired()
-    .default(""),
+    .transform((v) => (v === "" ? undefined : v))
+    .url("Must be a valid URL format (e.g., https://example.com).")
+    .notRequired(),
 });
 
 // 3. BANKING TAB SCHEMA
@@ -125,36 +145,39 @@ export const BankingSchema = yup.object().shape({
     .string()
     .required("Account Holder name is required.")
     .min(3, "Name is too short."),
+
   accountNumber: yup
     .string()
     .required("Account number is required.")
     .min(9, "Account number is too short.")
     .max(18, "Account number is too long.")
     .matches(/^[0-9]+$/, "Account number must only contain digits."),
+
   ifscCode: yup
     .string()
     .matches(IFSC_REGEX, "Invalid IFSC format (e.g., ABCD0123456).")
     .required("IFSC Code is required."),
+
   bankName: yup
     .string()
     .required("Bank name is required.")
     .min(3, "Bank name is too short."),
 });
 
-// 4. KYC TAB SCHEMA (User editable fields)
+// 4. KYC TAB SCHEMA
 export interface KYCInputs {
   aadhaarNumber: string;
   panNumber: string;
   documents: {
-    aadhaarFront: { uri: string } | null;
-    aadhaarBack: { uri: string } | null;
-    panCard: { uri: string } | null;
-    incorporationCertificate: { uri: string } | null;
-    gstCertificate: { uri: string } | null;
-    bankStatement: { uri: string } | null;
-    cancelledCheque: { uri: string } | null;
-    addressProof: { uri: string } | null;
-    authorizedSignatory: { uri: string } | null;
+    aadhaarFront: any;
+    aadhaarBack: any;
+    panCard: any;
+    incorporationCertificate: any;
+    gstCertificate: any;
+    bankStatement: any;
+    cancelledCheque: any;
+    addressProof: any;
+    authorizedSignatory: any;
   };
 }
 
@@ -163,6 +186,7 @@ export const KYCSchema = yup.object().shape({
     .string()
     .matches(AADHAAR_REGEX, "Aadhaar number must be exactly 12 digits.")
     .required("Aadhaar number is required."),
+
   panNumber: yup
     .string()
     .matches(PAN_REGEX, "Invalid PAN number format (e.g., ABCDE1234F).")
@@ -170,71 +194,24 @@ export const KYCSchema = yup.object().shape({
   documents: yup
     .object()
     .shape({
-      aadhaarFront: yup
-        .object({
-          uri: yup.string().required("Aadhaar Front upload is not required."),
-        })
-        .required("Aadhaar Front upload is not required.")
-        .nullable(false)
-        .default(null),
-      aadhaarBack: yup
-        .object({
-          uri: yup.string().required("Aadhaar Back upload is not required."),
-        })
-        .required("Aadhaar Back upload is not required.")
-        .nullable(false)
-        .default(null),
-      panCard: yup
-        .object({ uri: yup.string().required("PAN Card upload is not required.") })
-        .required("PAN Card upload is not required.")
-        .nullable(false)
-        .default(null),
-      incorporationCertificate: yup 
-        .object({
-          uri: yup
-            .string()
-            .required("Incorporation Certificate upload is not required."),
-        })
-        .required("Incorporation Certificate upload is not required.")
-        .nullable(false)
-        .default(null),
-      gstCertificate: yup
-        .object({
-          uri: yup.string().required("GST Certificate upload is not required."),
-        })
-        .required("GST Certificate upload is not required.")
-        .nullable(false)
-        .default(null),
-      bankStatement: yup
-        .object({
-          uri: yup.string().required("Bank Statement upload is not required."),
-        })
-        .required("Bank Statement upload is not required.")
-        .nullable(false)
-        .default(null),
-      cancelledCheque: yup
-        .object({
-          uri: yup.string().required("Cancelled Cheque upload is not required."),
-        })
-        .required("Cancelled Cheque upload is not required.")
-        .nullable(false)
-        .default(null),
-      addressProof: yup
-        .object({
-          uri: yup.string().required("Address Proof upload is not required."),
-        })
-        .required("Address Proof upload is not required.")
-        .nullable(false)
-        .default(null),
-      authorizedSignatory: yup
-        .object({
-          uri: yup
-            .string()
-            .required("Authorized Signatory ID upload is not required."),
-        })
-        .required("Authorized Signatory ID upload is not required.")
-        .nullable(false)
-        .default(null),
+      aadhaarFront: optionalFile,
+      aadhaarBack: optionalFile,
+      panCard: optionalFile,
+      gstCertificate: optionalFile,
+      incorporationCertificate: optionalFile,
+      bankStatement: optionalFile,
+      cancelledCheque: optionalFile,
+      addressProof: optionalFile,
+      authorizedSignatory: optionalFile,
     })
-    .required("Documents section not is required."),
+    .default({})
+    .notRequired(),
+});
+
+// 5. MASTER PROFILE SCHEMA
+export const MasterProfileSchema = yup.object().shape({
+  ...ProfileSchema.fields,
+  ...BusinessSchema.fields,
+  ...BankingSchema.fields,
+  ...KYCSchema.fields,
 });

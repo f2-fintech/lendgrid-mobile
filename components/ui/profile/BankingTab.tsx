@@ -1,15 +1,30 @@
+import { useEffect, useRef } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { Text, TextInput, useTheme } from "react-native-paper";
 
-export default function BankingTab() {
+type Props = {
+  uiState?: { isEditMode: boolean; activeTab: string };
+};
+
+export default function BankingTab({ uiState }: Props) {
   const theme = useTheme();
+  const isEditMode = !!uiState?.isEditMode;
+  const isActive = uiState?.activeTab === "banking";
+
+  const firstRef = useRef<any>(null);
 
   const {
     control,
     formState: { errors },
   } = useFormContext();
+
+  useEffect(() => {
+    if (isEditMode && isActive) {
+      setTimeout(() => firstRef.current?.focus?.(), 250);
+    }
+  }, [isEditMode, isActive]);
 
   return (
     <KeyboardAwareScrollView
@@ -18,7 +33,6 @@ export default function BankingTab() {
       enableOnAndroid={true}
       extraScrollHeight={20}
     >
-      {/* ---------------- HEADER ---------------- */}
       <Text
         variant="headlineSmall"
         style={{ fontWeight: "700", marginBottom: 6 }}
@@ -33,34 +47,30 @@ export default function BankingTab() {
         Enter your primary account details for payouts.
       </Text>
 
-      {/* ---------------- ACCOUNT HOLDER NAME ---------------- */}
       <Controller
         control={control}
         name="accountHolderName"
         render={({ field }) => (
           <TextInput
+            ref={firstRef}
             label="Account Holder Name"
             mode="outlined"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
+            editable={isEditMode}
             style={{ marginBottom: 4 }}
           />
         )}
       />
       {errors.accountHolderName && (
         <Text
-          style={{
-            color: theme.colors.error,
-            marginBottom: 16,
-            fontSize: 12,
-          }}
+          style={{ color: theme.colors.error, marginBottom: 16, fontSize: 12 }}
         >
-          {errors.accountHolderName.message}
+          {errors.accountHolderName.message as any}
         </Text>
       )}
 
-      {/* ---------------- ACCOUNT NUMBER ---------------- */}
       <Controller
         control={control}
         name="accountNumber"
@@ -72,23 +82,12 @@ export default function BankingTab() {
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             keyboardType="number-pad"
+            editable={isEditMode}
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.accountNumber && (
-        <Text
-          style={{
-            color: theme.colors.error,
-            marginBottom: 16,
-            fontSize: 12,
-          }}
-        >
-          {errors.accountNumber.message}
-        </Text>
-      )}
 
-      {/* ---------------- IFSC CODE ---------------- */}
       <Controller
         control={control}
         name="ifscCode"
@@ -100,23 +99,12 @@ export default function BankingTab() {
             onChangeText={(t) => field.onChange(t.toUpperCase())}
             onBlur={field.onBlur}
             autoCapitalize="characters"
+            editable={isEditMode}
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.ifscCode && (
-        <Text
-          style={{
-            color: theme.colors.error,
-            marginBottom: 16,
-            fontSize: 12,
-          }}
-        >
-          {errors.ifscCode.message}
-        </Text>
-      )}
 
-      {/* ---------------- BANK NAME ---------------- */}
       <Controller
         control={control}
         name="bankName"
@@ -127,21 +115,11 @@ export default function BankingTab() {
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
+            editable={isEditMode}
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.bankName && (
-        <Text
-          style={{
-            color: theme.colors.error,
-            marginBottom: 30,
-            fontSize: 12,
-          }}
-        >
-          {errors.bankName.message}
-        </Text>
-      )}
 
       <View style={{ height: 50 }} />
     </KeyboardAwareScrollView>
