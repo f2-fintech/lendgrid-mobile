@@ -1,15 +1,16 @@
-import { useState } from "react";
-import { SafeAreaView, ScrollView, StatusBar } from "react-native";
+import { useMemo, useState } from "react";
+import { ScrollView, View } from "react-native";
+import { useTheme } from "react-native-paper";
 
-import { CommissionHeader } from "../../components/ui/commissions/CommissionHeader";
 import { CommissionHistory } from "../../components/ui/commissions/CommissionHistory";
 import { CommissionMetrics } from "../../components/ui/commissions/CommissionMetrics";
 import { CommissionTabs } from "../../components/ui/commissions/CommissionTabs";
 import { CommissionTrends } from "../../components/ui/commissions/CommissionTrends";
 import { LenderBreakdown } from "../../components/ui/commissions/LenderBreakdown";
+
 import { commissionsStyles } from "../../styles/components/commissions/commissions.styles";
 
-// Mock data (can be moved to separate file if needed)
+// Mock data (unchanged)
 const mockData = {
   metrics: {
     totalEarned: 485000,
@@ -117,17 +118,19 @@ const mockData = {
 };
 
 export default function CommissionsScreen() {
+  const theme = useTheme();
+  const styles = useMemo(() => commissionsStyles(theme), [theme]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [selectedTab, setSelectedTab] = useState("trends");
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", {
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 0,
     }).format(amount);
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -140,7 +143,7 @@ export default function CommissionsScreen() {
       case "Disputed":
         return "#EF4444";
       default:
-        return "#6B7280";
+        return theme.colors.onSurfaceVariant;
     }
   };
 
@@ -207,27 +210,25 @@ export default function CommissionsScreen() {
   };
 
   return (
-    <SafeAreaView style={commissionsStyles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#111827" />
-
+    <View style={styles.container}>
       <ScrollView
-        style={commissionsStyles.scrollView}
+        style={styles.scrollView}
+        contentContainerStyle={{
+          paddingTop: 14,
+          paddingBottom: 20,
+        }}
         showsVerticalScrollIndicator={false}
       >
-        <CommissionHeader />
-
         <CommissionMetrics
           metrics={mockData.metrics}
           formatCurrency={formatCurrency}
         />
-
         <CommissionTabs
           selectedTab={selectedTab}
           setSelectedTab={setSelectedTab}
         />
-
         {renderSelectedTab()}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

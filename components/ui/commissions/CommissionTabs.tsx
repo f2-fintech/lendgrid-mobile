@@ -1,4 +1,7 @@
+import { useMemo } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "react-native-paper";
+
 import { commissionsStyles } from "../../../styles/components/commissions/commissions.styles";
 
 interface CommissionTabsProps {
@@ -10,6 +13,9 @@ export const CommissionTabs = ({
   selectedTab,
   setSelectedTab,
 }: CommissionTabsProps) => {
+  const theme = useTheme();
+  const styles = useMemo(() => commissionsStyles(theme), [theme]);
+
   const tabs = [
     { id: "trends", label: "Trends" },
     { id: "breakdown", label: "Lenders" },
@@ -17,28 +23,40 @@ export const CommissionTabs = ({
   ];
 
   return (
-    <View style={commissionsStyles.tabsContainer}>
+    <View style={styles.tabsContainer}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={commissionsStyles.tabs}>
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[
-                commissionsStyles.tab,
-                selectedTab === tab.id && commissionsStyles.activeTab,
-              ]}
-              onPress={() => setSelectedTab(tab.id)}
-            >
-              <Text
+        <View style={styles.tabs}>
+          {tabs.map((tab) => {
+            const active = selectedTab === tab.id;
+
+            return (
+              <TouchableOpacity
+                key={tab.id}
                 style={[
-                  commissionsStyles.tabText,
-                  selectedTab === tab.id && commissionsStyles.activeTabText,
+                  styles.tab,
+                  {
+                    backgroundColor: active
+                      ? (theme.colors as any).tabActiveBg
+                      : (theme.colors as any).tabInactiveBg,
+                  },
                 ]}
+                onPress={() => setSelectedTab(tab.id)}
               >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color: active
+                        ? (theme.colors as any).tabActiveText
+                        : (theme.colors as any).tabInactiveText,
+                    },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
     </View>

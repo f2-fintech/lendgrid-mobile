@@ -1,5 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { Text, View } from "react-native";
+import { useTheme } from "react-native-paper";
+
 import { commissionsStyles } from "../../../styles/components/commissions/commissions.styles";
 
 interface CommissionItemProps {
@@ -26,64 +29,71 @@ export const CommissionItem = ({
   getStatusColor,
   getStatusIcon,
 }: CommissionItemProps) => {
+  const theme = useTheme();
+  const styles = useMemo(() => commissionsStyles(theme), [theme]);
+
   const statusColor = getStatusColor(item.status);
   const statusIcon = getStatusIcon(item.status);
 
   return (
-    <View style={commissionsStyles.commissionItem}>
-      <View style={commissionsStyles.commissionHeader}>
+    <View style={styles.commissionItem}>
+      <View style={styles.commissionHeader}>
         <View>
-          <Text style={commissionsStyles.applicationId}>
-            {item.applicationId}
-          </Text>
-          <Text style={commissionsStyles.lenderName}>
+          <Text style={styles.applicationId}>{item.applicationId}</Text>
+          <Text style={styles.lenderName}>
             {item.lenderName} • {item.loanType}
           </Text>
         </View>
+
         <View
-          style={[
-            commissionsStyles.statusBadge,
-            { backgroundColor: statusColor + "20" },
-          ]}
+          style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}
         >
-          <MaterialIcons name={statusIcon} size={14} color={statusColor} />
-          <Text style={[commissionsStyles.statusText, { color: statusColor }]}>
+          <MaterialIcons
+            name={statusIcon as any}
+            size={14}
+            color={statusColor}
+          />
+          <Text style={[styles.statusText, { color: statusColor }]}>
             {item.status}
           </Text>
         </View>
       </View>
 
-      <View style={commissionsStyles.commissionDetails}>
-        <View style={commissionsStyles.detailRow}>
+      <View style={styles.commissionDetails}>
+        <View style={styles.detailRow}>
           <View>
-            <Text style={commissionsStyles.detailLabel}>Disbursed Amount</Text>
-            <Text style={commissionsStyles.detailValue}>
+            <Text style={styles.detailLabel}>Disbursed Amount</Text>
+            <Text style={styles.detailValue}>
               {formatCurrency(item.disbursedAmount)}
             </Text>
           </View>
-          <View style={commissionsStyles.commissionInfo}>
-            <Text style={commissionsStyles.commissionRate}>
-              {item.commissionRate}%
-            </Text>
-            <Text style={commissionsStyles.commissionAmount}>
+
+          <View style={styles.commissionInfo}>
+            <Text style={styles.commissionRate}>{item.commissionRate}%</Text>
+            <Text style={styles.commissionAmount}>
               {formatCurrency(item.commissionAmount)}
             </Text>
           </View>
         </View>
 
-        <View style={commissionsStyles.dateRow}>
-          <View style={commissionsStyles.dateItem}>
-            <MaterialIcons name="calendar-today" size={14} color="#9CA3AF" />
-            <Text style={commissionsStyles.dateText}>
-              Disbursed: {item.disbursedDate}
-            </Text>
+        <View style={styles.dateRow}>
+          <View style={styles.dateItem}>
+            <MaterialIcons
+              name="calendar-today"
+              size={14}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text style={styles.dateText}>Disbursed: {item.disbursedDate}</Text>
           </View>
-          {item.paidDate && (
-            <View style={commissionsStyles.dateItem}>
-              <MaterialIcons name="check-circle" size={14} color="#9CA3AF" />
-              <Text style={commissionsStyles.dateText}>
-                Paid: {item.paidDate}
-              </Text>
+
+          {!!item.paidDate && (
+            <View style={styles.dateItem}>
+              <MaterialIcons
+                name="check-circle"
+                size={14}
+                color={theme.colors.onSurfaceVariant}
+              />
+              <Text style={styles.dateText}>Paid: {item.paidDate}</Text>
             </View>
           )}
         </View>

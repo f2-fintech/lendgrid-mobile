@@ -1,5 +1,5 @@
-import { MD3LightTheme as DefaultTheme } from 'react-native-paper';
-import { COLORS } from './tokens';
+import { MD3LightTheme as DefaultTheme } from "react-native-paper";
+import { COLORS } from "./tokens";
 
 const lightTheme = {
   ...DefaultTheme,
@@ -7,7 +7,7 @@ const lightTheme = {
     ...DefaultTheme.colors,
 
     primary: COLORS.brandBg,
-    secondary: '#B19CD9',
+    secondary: "#B19CD9",
 
     background: COLORS.surfaceLight,
     surface: COLORS.surfaceLight,
@@ -19,7 +19,13 @@ const lightTheme = {
     onSurfaceVariant: COLORS.textSecondaryLight,
 
     outline: COLORS.borderLight,
-    surfaceDisabled: 'rgba(0,0,0,0.05)',
+    surfaceDisabled: "rgba(0,0,0,0.05)",
+
+    tabsBg: COLORS.tabsBgLight,
+    tabInactiveBg: COLORS.tabInactiveBgLight,
+    tabInactiveText: COLORS.tabInactiveTextLight,
+    tabActiveBg: COLORS.tabsBgDark,
+    tabActiveText: COLORS.tabActiveText,
   },
   roundness: 10,
 };

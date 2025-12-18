@@ -1,8 +1,8 @@
 import { ROUTES } from "@/assets/constants/routes";
 import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
-import { useState } from "react";
-import { TouchableOpacity } from "react-native";
+import { useMemo, useState } from "react";
+import { TouchableOpacity, View } from "react-native";
 
 import { useAppDispatch, useAppSelector } from "@/hooks/lightDark";
 import { toggleTheme } from "@/redux/features/themeSlice";
@@ -19,35 +19,165 @@ export default function Layout() {
 
   const [logoutVisible, setLogoutVisible] = useState(false);
 
+  const [rangeVisible, setRangeVisible] = useState(false);
+  const [selectedRange, setSelectedRange] = useState<"7" | "30" | "90">("30");
+
   const showLogoutDialog = () => setLogoutVisible(true);
   const hideLogoutDialog = () => setLogoutVisible(false);
 
+  const showRangeDialog = () => setRangeVisible(true);
+  const hideRangeDialog = () => setRangeVisible(false);
+
+  const rangeLabel = useMemo(() => {
+    if (selectedRange === "7") return "Last 7 Days";
+    if (selectedRange === "90") return "Last 90 Days";
+    return "Last 30 Days";
+  }, [selectedRange]);
+
   // -----------------------------------------
-  //  LOGOUT FUNCTION
+  // LOGOUT
   // -----------------------------------------
   const handleLogout = async () => {
     hideLogoutDialog();
 
-    // Remove Access Token
     await AsyncStorage.removeItem("access_token");
 
-    // Reset Redux profile
     dispatch(updateField({ key: "username", value: "" }));
     dispatch(updateField({ key: "email", value: "" }));
     dispatch(updateField({ key: "phone", value: "" }));
     dispatch(updateField({ key: "companyName", value: "" }));
     dispatch(updateField({ key: "documents", value: {} }));
-    // (Redux auto-resets others when empty)
 
-    // Navigate to Login Page
     router.replace(ROUTES.signin);
-
-    console.log("User Logged Out Successfully");
   };
+
+  const ThemeToggleBtn = () => (
+    <TouchableOpacity
+      onPress={() => dispatch(toggleTheme())}
+      style={{ marginRight: 15 }}
+    >
+      <Ionicons
+        name={mode === "dark" ? "sunny-outline" : "moon-outline"}
+        size={24}
+        color={theme.colors.onSurface}
+      />
+    </TouchableOpacity>
+  );
+
+  //Dashboard header: only text + theme toggle
+  const DashboardHeaderRight = () => (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <ThemeToggleBtn />
+    </View>
+  );
+
+  //Commissions header: dropdown + theme toggle
+  const CommissionsHeaderRight = () => (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <TouchableOpacity
+        onPress={showRangeDialog}
+        activeOpacity={0.8}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 12,
+          paddingVertical: 7,
+          borderRadius: 10,
+          backgroundColor: theme.colors.surfaceVariant,
+          borderWidth: 1,
+          borderColor: theme.colors.outline,
+          marginRight: 10,
+        }}
+      >
+        <Text style={{ color: theme.colors.onSurface, fontWeight: "600" }}>
+          {rangeLabel}
+        </Text>
+        <Ionicons
+          name="chevron-down"
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+          style={{ marginLeft: 6 }}
+        />
+      </TouchableOpacity>
+
+      <ThemeToggleBtn />
+    </View>
+  );
 
   return (
     <>
-      {/* LOGOUT CONFIRMATION DIALOG */}
+      {/* COMMISSIONS RANGE DIALOG */}
+      <Portal>
+        <Dialog
+          visible={rangeVisible}
+          onDismiss={hideRangeDialog}
+          style={{
+            borderRadius: 16,
+            backgroundColor: theme.colors.surface,
+          }}
+        >
+          <Dialog.Title
+            style={{
+              fontWeight: "700",
+              fontSize: 18,
+              color: theme.colors.onSurface,
+            }}
+          >
+            Select Range
+          </Dialog.Title>
+
+          <Dialog.Content>
+            {[
+              { id: "7" as const, label: "Last 7 Days" },
+              { id: "30" as const, label: "Last 30 Days" },
+              { id: "90" as const, label: "Last 90 Days" },
+            ].map((opt) => {
+              const active = selectedRange === opt.id;
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  onPress={() => {
+                    setSelectedRange(opt.id);
+                    hideRangeDialog();
+                  }}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 10,
+                    borderRadius: 12,
+                    marginBottom: 8,
+                    backgroundColor: active
+                      ? theme.colors.primaryContainer
+                      : theme.colors.surfaceVariant,
+                    borderWidth: 1,
+                    borderColor: active
+                      ? theme.colors.primary
+                      : theme.colors.outline,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontWeight: active ? "700" : "600",
+                      color: active
+                        ? theme.colors.onPrimaryContainer
+                        : theme.colors.onSurface,
+                    }}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </Dialog.Content>
+
+          <Dialog.Actions style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+            <Button mode="outlined" onPress={hideRangeDialog}>
+              Close
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* LOGOUT DIALOG */}
       <Portal>
         <Dialog
           visible={logoutVisible}
@@ -76,7 +206,6 @@ export default function Layout() {
               style={{
                 textAlign: "center",
                 color: theme.colors.onSurfaceVariant,
-                lineHeight: 22,
               }}
             >
               Are you sure you want to log out?
@@ -87,12 +216,7 @@ export default function Layout() {
             <Button
               mode="outlined"
               onPress={hideLogoutDialog}
-              textColor={theme.colors.onSurface}
-              style={{
-                flex: 1,
-                marginRight: 8,
-                borderColor: theme.colors.outline,
-              }}
+              style={{ flex: 1, marginRight: 8 }}
             >
               Cancel
             </Button>
@@ -109,40 +233,31 @@ export default function Layout() {
         </Dialog>
       </Portal>
 
+      {/* TABS */}
       <Tabs
         screenOptions={{
           headerShown: true,
-
           headerStyle: { backgroundColor: theme.colors.background },
           headerTintColor: theme.colors.onSurface,
+
+          headerTitleStyle: {
+            fontWeight: "700",
+            fontSize: 18,
+          },
 
           tabBarStyle: {
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.outline,
           },
-
           sceneStyle: { backgroundColor: theme.colors.background },
-
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={() => dispatch(toggleTheme())}
-              style={{ marginRight: 15 }}
-            >
-              <Ionicons
-                name={mode === "dark" ? "sunny-outline" : "moon-outline"}
-                size={24}
-                color={theme.colors.onSurface}
-              />
-            </TouchableOpacity>
-          ),
         }}
       >
         {/* Dashboard */}
         <Tabs.Screen
           name="dashboard"
           options={{
-            headerShown: false,
             title: "Dashboard",
+            headerRight: () => <DashboardHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Feather name="home" size={size} color={color} />
             ),
@@ -154,6 +269,7 @@ export default function Layout() {
           name="commissions"
           options={{
             title: "Commissions",
+            headerRight: () => <CommissionsHeaderRight />,
             tabBarIcon: ({ color }) => (
               <FontAwesome name="money" size={24} color={color} />
             ),
@@ -165,10 +281,8 @@ export default function Layout() {
           name="profile"
           options={{
             title: "Profile",
-
             headerRight: () => (
-              <>
-                {/* LOGOUT BUTTON */}
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <TouchableOpacity
                   onPress={showLogoutDialog}
                   style={{ marginRight: 12 }}
@@ -180,20 +294,9 @@ export default function Layout() {
                   />
                 </TouchableOpacity>
 
-                {/* THEME TOGGLE */}
-                <TouchableOpacity
-                  onPress={() => dispatch(toggleTheme())}
-                  style={{ marginRight: 15 }}
-                >
-                  <Ionicons
-                    name={mode === "dark" ? "sunny-outline" : "moon-outline"}
-                    size={24}
-                    color={theme.colors.onSurface}
-                  />
-                </TouchableOpacity>
-              </>
+                <ThemeToggleBtn />
+              </View>
             ),
-
             tabBarIcon: ({ color }) => (
               <FontAwesome name="user-circle-o" size={24} color={color} />
             ),

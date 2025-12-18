@@ -1,17 +1,15 @@
-// styles/theme/darkTheme.ts
-import { MD3DarkTheme as DefaultTheme } from 'react-native-paper';
-import { COLORS } from './tokens';
+import { MD3DarkTheme as DefaultTheme } from "react-native-paper";
+import { COLORS } from "./tokens";
 
 const darkTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
 
-    // CTA color (button, links etc.)
     primary: COLORS.primary,
-    secondary: '#B19CD9',
+    secondary: "#B19CD9",
 
-    background: '#0A1628',
+    background: "#0A1628",
     surface: COLORS.surfaceDark,
     surfaceVariant: COLORS.surfaceVariantDark,
 
@@ -22,7 +20,13 @@ const darkTheme = {
     onSurfaceVariant: COLORS.textSecondaryDark,
 
     outline: COLORS.borderDark,
-    surfaceDisabled: 'rgba(255,255,255,0.05)',
+    surfaceDisabled: "rgba(255,255,255,0.05)",
+
+    tabsBg: COLORS.tabsBgDark,
+    tabInactiveBg: COLORS.tabInactiveBgDark,
+    tabInactiveText: COLORS.tabInactiveTextDark,
+    tabActiveBg: COLORS.tabActiveBg,
+    tabActiveText: COLORS.tabActiveText,
   },
   roundness: 10,
 };

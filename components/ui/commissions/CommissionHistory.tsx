@@ -1,12 +1,9 @@
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
-import {
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useMemo } from "react";
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useTheme } from "react-native-paper";
+
 import { commissionsStyles } from "../../../styles/components/commissions/commissions.styles";
 import { CommissionItem } from "./CommissionItem";
 
@@ -44,67 +41,68 @@ export const CommissionHistory = ({
   getStatusColor,
   getStatusIcon,
 }: CommissionHistoryProps) => {
+  const theme = useTheme();
+  const styles = useMemo(() => commissionsStyles(theme), [theme]);
+
   return (
-    <View style={commissionsStyles.contentCard}>
-      <View style={commissionsStyles.historyHeader}>
-        <Text style={commissionsStyles.cardTitle}>Commission History</Text>
-        <Text style={commissionsStyles.cardSubtitle}>
+    <View style={styles.contentCard}>
+      <View style={styles.historyHeader}>
+        <Text style={styles.cardTitle}>Commission History</Text>
+        <Text style={styles.cardSubtitle}>
           Detailed record of all commission transactions
         </Text>
       </View>
 
-      {/* Search and Filters */}
-      <View style={commissionsStyles.searchContainer}>
+      {/* Search */}
+      <View style={styles.searchContainer}>
         <MaterialCommunityIcons
           name="magnify"
           size={20}
-          color="#9CA3AF"
-          style={commissionsStyles.searchIcon}
+          color={theme.colors.onSurfaceVariant}
+          style={styles.searchIcon}
         />
         <TextInput
-          style={commissionsStyles.searchInput}
+          style={styles.searchInput}
           placeholder="Search by ID or lender..."
-          placeholderTextColor="#6B7280"
+          placeholderTextColor={theme.colors.onSurfaceVariant}
           value={searchTerm}
           onChangeText={setSearchTerm}
         />
       </View>
 
+      {/* Filters */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={commissionsStyles.filterContainer}
+        style={styles.filterContainer}
       >
         <TouchableOpacity
-          style={[
-            commissionsStyles.filterChip,
-            filterStatus === "all" && commissionsStyles.activeFilterChip,
-          ]}
+          style={[styles.filterChip, filterStatus === "all" && styles.activeFilterChip]}
           onPress={() => setFilterStatus("all")}
         >
           <Text
             style={[
-              commissionsStyles.filterChipText,
-              filterStatus === "all" && commissionsStyles.activeFilterChipText,
+              styles.filterChipText,
+              filterStatus === "all" && styles.activeFilterChipText,
             ]}
           >
             All
           </Text>
         </TouchableOpacity>
+
         {["Paid", "Pending", "Processing", "Disputed"].map((status) => (
           <TouchableOpacity
             key={status}
             style={[
-              commissionsStyles.filterChip,
-              filterStatus === status && commissionsStyles.activeFilterChip,
+              styles.filterChip,
+              filterStatus === status && styles.activeFilterChip,
             ]}
             onPress={() => setFilterStatus(status)}
           >
             <Text
               style={[
-                commissionsStyles.filterChipText,
-                filterStatus === status &&
-                  commissionsStyles.activeFilterChipText,
+                styles.filterChipText,
+                filterStatus === status && styles.activeFilterChipText,
               ]}
             >
               {status}
@@ -113,16 +111,12 @@ export const CommissionHistory = ({
         ))}
       </ScrollView>
 
-      {/* Commission List */}
+      {/* List */}
       {commissions.length === 0 ? (
-        <View style={commissionsStyles.emptyState}>
-          <MaterialIcons name="search-off" size={48} color="#374151" />
-          <Text style={commissionsStyles.emptyStateText}>
-            No commissions found
-          </Text>
-          <Text style={commissionsStyles.emptyStateSubtext}>
-            Try adjusting your search or filters
-          </Text>
+        <View style={styles.emptyState}>
+          <MaterialIcons name="search-off" size={48} color={theme.colors.onSurfaceVariant} />
+          <Text style={styles.emptyStateText}>No commissions found</Text>
+          <Text style={styles.emptyStateSubtext}>Try adjusting your search or filters</Text>
         </View>
       ) : (
         <FlashList

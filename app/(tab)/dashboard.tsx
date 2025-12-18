@@ -1,12 +1,10 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { RefreshControl, ScrollView } from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
 import { useTheme } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
 
 import ApplicationsList from "@/components/ui/dashboard/ApplicationsList";
-import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 import DisbursalChart from "@/components/ui/dashboard/DisbursalChart";
 import MetricsGrid from "@/components/ui/dashboard/MetricsGrid";
 import SkeletonLoader from "@/components/ui/dashboard/SkeletonLoader";
@@ -24,7 +22,6 @@ export default function AggregatorDashboard() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh delay
     setTimeout(() => {
       setRefreshing(false);
     }, 1500);
@@ -32,7 +29,7 @@ export default function AggregatorDashboard() {
 
   if (loading) {
     return (
-      <SafeAreaView
+      <View
         style={{
           flex: 1,
           justifyContent: "center",
@@ -42,37 +39,19 @@ export default function AggregatorDashboard() {
       >
         <StatusBar style={isDarkMode ? "light" : "dark"} />
         <SkeletonLoader />
-        {/* <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={{ marginTop: 16, color: theme.colors.onSurface }}>
-          Loading Dashboard...
-        </Text> */}
-      </SafeAreaView>
+      </View>
     );
   }
 
-  // return (
-  //   <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-  //     <StatusBar style={isDarkMode ? "light" : "dark"} />
-  //     <ScrollView
-  //       refreshControl={
-  //         <RefreshControl
-  //           refreshing={refreshing}
-  //           onRefresh={() => setRefreshing(false)}
-  //         />
-  //       }
-  //       showsVerticalScrollIndicator={false}
-  //     >
-  //       <DashboardHeader />
-  //       <MetricsGrid />
-  //       <DisbursalChart />
-  //       <ApplicationsList />
-  //     </ScrollView>
-  //   </SafeAreaView>
-  // );
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar style={isDarkMode ? "light" : "dark"} />
+
       <ScrollView
+        contentContainerStyle={{
+          paddingTop: 16, 
+          paddingBottom: 20,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -83,11 +62,10 @@ export default function AggregatorDashboard() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <DashboardHeader />
         <MetricsGrid />
         <DisbursalChart />
         <ApplicationsList />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
