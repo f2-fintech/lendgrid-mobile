@@ -1,6 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { useTheme } from "react-native-paper";
+
 import { commissionsStyles } from "../../../styles/components/commissions/commissions.styles";
 
 interface MetricCardProps {
@@ -29,59 +32,68 @@ const MetricCard = ({
   color,
   subtitle,
   trend,
-}: MetricCardProps) => (
-  <View style={commissionsStyles.metricCard}>
-    <LinearGradient
-      colors={["rgba(31, 41, 55, 0.8)", "rgba(17, 24, 39, 0.9)"]}
-      style={commissionsStyles.metricGradient}
-    >
-      <View style={commissionsStyles.metricContent}>
-        <View style={commissionsStyles.metricLeft}>
-          <Text style={commissionsStyles.metricTitle}>{title}</Text>
-          <Text style={commissionsStyles.metricValue}>{value}</Text>
-          {subtitle && (
-            <Text style={commissionsStyles.metricSubtitle}>{subtitle}</Text>
-          )}
-          {trend && (
-            <View style={commissionsStyles.trendContainer}>
-              <MaterialCommunityIcons
-                name="trending-up"
-                size={14}
-                color="#10B981"
-              />
-              <Text style={commissionsStyles.trendText}>{trend}</Text>
-            </View>
-          )}
+}: MetricCardProps) => {
+  const theme = useTheme();
+  const styles = useMemo(() => commissionsStyles(theme), [theme]);
+
+  return (
+    <View style={styles.metricCard}>
+      <LinearGradient
+        colors={[theme.colors.surfaceVariant, theme.colors.surface]}
+        style={styles.metricGradient}
+      >
+        <View style={styles.metricContent}>
+          <View style={styles.metricLeft}>
+            <Text style={styles.metricTitle}>{title}</Text>
+            <Text style={styles.metricValue}>{value}</Text>
+            {!!subtitle && (
+              <Text style={styles.metricSubtitle}>{subtitle}</Text>
+            )}
+            {!!trend && (
+              <View style={styles.trendContainer}>
+                <MaterialCommunityIcons
+                  name="trending-up"
+                  size={14}
+                  color="#10B981"
+                />
+                <Text style={styles.trendText}>{trend}</Text>
+              </View>
+            )}
+          </View>
+
+          <View
+            style={[
+              styles.metricIconContainer,
+              { backgroundColor: color + "20" },
+            ]}
+          >
+            <MaterialCommunityIcons name={iconName} size={24} color={color} />
+          </View>
         </View>
-        <View
-          style={[
-            commissionsStyles.metricIconContainer,
-            { backgroundColor: color + "20" },
-          ]}
-        >
-          <MaterialCommunityIcons name={iconName} size={24} color={color} />
-        </View>
-      </View>
-    </LinearGradient>
-  </View>
-);
+      </LinearGradient>
+    </View>
+  );
+};
 
 export const CommissionMetrics = ({
   metrics,
   formatCurrency,
 }: CommissionMetricsProps) => {
+  const theme = useTheme();
+  const styles = useMemo(() => commissionsStyles(theme), [theme]);
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      style={commissionsStyles.metricsScroll}
+      style={styles.metricsScroll}
     >
-      <View style={commissionsStyles.metricsContainer}>
+      <View style={styles.metricsContainer}>
         <MetricCard
           title="Total Commission Earned"
           value={formatCurrency(metrics.totalEarned)}
           iconName="cash"
-          color="#FFD700"
+          color={theme.colors.tertiary}
           trend="+12.5% from last month"
         />
         <MetricCard
