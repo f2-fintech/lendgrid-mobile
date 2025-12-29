@@ -104,6 +104,13 @@ export default function Layout() {
     </View>
   );
 
+  // Applications header: only theme toggle
+  const ApplicationsHeaderRight = () => (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <ThemeToggleBtn />
+    </View>
+  );
+
   return (
     <>
       {/* COMMISSIONS RANGE DIALOG */}
@@ -272,6 +279,18 @@ export default function Layout() {
             headerRight: () => <CommissionsHeaderRight />,
             tabBarIcon: ({ color }) => (
               <FontAwesome name="money" size={24} color={color} />
+            ),
+          }}
+        />
+
+        {/*Applications */}
+        <Tabs.Screen
+          name="applications"
+          options={{
+            title: "Applications",
+            headerRight: () => <ApplicationsHeaderRight />,
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="file-text" size={size} color={color} />
             ),
           }}
         />
