@@ -48,10 +48,12 @@ export default {
       reactCompiler: true,
     },
 
-    extra: {
-      API_URL: process.env.EXPO_PUBLIC_API_URL,
-      ENV: process.env.EXPO_PUBLIC_ENV,
-      eas: { projectId: "25848bf5-1e37-4a24-bd6a-43f5aebcad8a" },
-    },
+  extra: {
+    API_URL: process.env.EXPO_PUBLIC_API_URL,
+    ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL,
+    ENV: process.env.EXPO_PUBLIC_ENV,
+    eas: { projectId: "25848bf5-1e37-4a24-bd6a-43f5aebcad8a" },
+  },
+
   },
 };
