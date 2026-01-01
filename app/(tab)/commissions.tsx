@@ -6,7 +6,6 @@ import { CommissionHistory } from "../../components/ui/commissions/CommissionHis
 import { CommissionMetrics } from "../../components/ui/commissions/CommissionMetrics";
 import { CommissionTabs } from "../../components/ui/commissions/CommissionTabs";
 import { CommissionTrends } from "../../components/ui/commissions/CommissionTrends";
-import { LenderBreakdown } from "../../components/ui/commissions/LenderBreakdown";
 
 import { commissionsStyles } from "../../styles/components/commissions/commissions.styles";
 
@@ -185,12 +184,6 @@ export default function CommissionsScreen() {
           />
         );
       case "breakdown":
-        return (
-          <LenderBreakdown
-            lenders={mockData.lenderWiseCommission}
-            formatCurrency={formatCurrency}
-          />
-        );
       case "history":
         return (
           <CommissionHistory
