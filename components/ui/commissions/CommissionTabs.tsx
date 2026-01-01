@@ -17,9 +17,8 @@ export const CommissionTabs = ({
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
   const tabs = [
-    { id: "trends", label: "Trends" },
-    { id: "breakdown", label: "Lenders" },
-    { id: "history", label: "History" },
+    { id: "trends", label: "Commission Trends" },
+    { id: "history", label: "Payment History" },
   ];
 
   return (

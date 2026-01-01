@@ -1,8 +1,10 @@
 import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
 import { Feather } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Linking,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -30,17 +32,25 @@ export default function ApplicationsScreen() {
   const [appsPage, setAppsPage] = useState(1);
   const [ticketsPage, setTicketsPage] = useState(1);
 
+  // ✅ ROWS PER PAGE STATES
+  const [appsRowsPerPage, setAppsRowsPerPage] = useState(10);
+  const [ticketsRowsPerPage, setTicketsRowsPerPage] = useState(10);
+
+  // what user is typing
+  const [appsRowsPerPageInput, setAppsRowsPerPageInput] = useState("10");
+  const [ticketsRowsPerPageInput, setTicketsRowsPerPageInput] = useState("10");
+
   // ----------------- API HOOKS -----------------
   const appsQuery = useCustomerApplications({
     page: appsPage,
-    limit: 10,
+    limit: appsRowsPerPage,
     search: search || undefined,
     enabled: activeTab === "applications",
   });
 
   const ticketsQuery = useTickets({
     page: ticketsPage,
-    limit: 10,
+    limit: ticketsRowsPerPage,
     search: search || undefined,
     enabled: activeTab === "tickets",
   });
@@ -59,6 +69,38 @@ export default function ApplicationsScreen() {
     refetch: refetchTickets,
   } = ticketsQuery;
 
+  // ------------- DEBOUNCED ROWS PER PAGE ----------------
+
+  // Applications
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const trimmed = appsRowsPerPageInput.trim();
+      const n = parseInt(trimmed, 10);
+
+      if (!isNaN(n) && n > 0 && n !== appsRowsPerPage) {
+        setAppsRowsPerPage(n);
+        setAppsPage(1);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(handler);
+  }, [appsRowsPerPageInput, appsRowsPerPage]);
+
+  // Tickets
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      const trimmed = ticketsRowsPerPageInput.trim();
+      const n = parseInt(trimmed, 10);
+
+      if (!isNaN(n) && n > 0 && n !== ticketsRowsPerPage) {
+        setTicketsRowsPerPage(n);
+        setTicketsPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [ticketsRowsPerPageInput, ticketsRowsPerPage]);
+
   // ------------- DERIVED DATA ----------------
   const applications = appsData?.results ?? [];
   const tickets = ticketsData?.results ?? [];
@@ -66,15 +108,15 @@ export default function ApplicationsScreen() {
   const totalApplications = appsData?.count ?? 0;
   const totalTickets = ticketsData?.count ?? 0;
 
-  // If backend sends `pages`, use it; otherwise derive from count/limit=10
   const appsTotalPages =
-    appsData?.pages ?? Math.max(1, Math.ceil((appsData?.count ?? 0) / 10));
+    appsData?.pages ??
+    Math.max(1, Math.ceil((appsData?.count ?? 0) / appsRowsPerPage));
 
   const ticketsTotalPages =
     ticketsData?.pages ??
-    Math.max(1, Math.ceil((ticketsData?.count ?? 0) / 10));
+    Math.max(1, Math.ceil((ticketsData?.count ?? 0) / ticketsRowsPerPage));
 
-  // ✅ Picked Applications = Total Tickets (as you requested)
+  // ✅ Picked Applications = Total Tickets
   const pickedApplications = totalTickets;
 
   // ✅ STATUS-WISE SUMMARY FOR TICKETS
@@ -204,6 +246,14 @@ export default function ApplicationsScreen() {
     }
   };
 
+  // Helpers to show "1–10 of 42"
+  const getRangeLabel = (page: number, rowsPerPage: number, total: number) => {
+    if (!total) return "0 of 0";
+    const start = (page - 1) * rowsPerPage + 1;
+    const end = Math.min(page * rowsPerPage, total);
+    return `${start}–${end} of ${total}`;
+  };
+
   // ----------------- APPLICATIONS TAB -----------------
   const renderApplicationsTab = () => (
     <View style={{ paddingHorizontal: 16 }}>
@@ -271,7 +321,7 @@ export default function ApplicationsScreen() {
             marginBottom: 4,
           }}
         >
-          <Text style={styles.cardTitle}>Applications</Text>
+          <Text style={styles.cardTitle}>Fresh Applications</Text>
 
           <TouchableOpacity
             onPress={handleApplyPress}
@@ -303,9 +353,7 @@ export default function ApplicationsScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.cardSubtitle}>
-          Recent submissions and status updates
-        </Text>
+        <Text style={styles.cardSubtitle}>Recent submissions</Text>
 
         {appsLoading && renderLoading()}
         {appsError && !appsData && renderError(refetchApps)}
@@ -373,70 +421,103 @@ export default function ApplicationsScreen() {
           </View>
         )}
 
-        {/* Pagination Controls - Applications */}
-        {appsTotalPages > 1 && (
+        {/* Pagination Controls - Applications (ALWAYS SHOWN) */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 16,
+          }}
+        >
+          {/* Left: rows per page */}
           <View
             style={{
               flexDirection: "row",
-              justifyContent: "space-between",
               alignItems: "center",
-              marginTop: 16,
+              gap: 8,
             }}
           >
-            <TouchableOpacity
-              onPress={handleAppsPrev}
-              disabled={appsPage === 1 || appsLoading}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: theme.colors.outline,
-                opacity: appsPage === 1 || appsLoading ? 0.4 : 1,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: theme.colors.onSurface,
-                }}
-              >
-                Previous
-              </Text>
-            </TouchableOpacity>
-
             <Text
               style={{
                 fontSize: 13,
                 color: theme.colors.onSurfaceVariant,
               }}
             >
-              Page {appsPage} of {appsTotalPages}
+              Rows per page
             </Text>
+            <TextInput
+              value={appsRowsPerPageInput}
+              keyboardType="numeric"
+              onChangeText={setAppsRowsPerPageInput}
+              onEndEditing={() => {
+                const trimmed = appsRowsPerPageInput.trim();
+                const n = parseInt(trimmed, 10);
+                if (isNaN(n) || n <= 0) {
+                  setAppsRowsPerPageInput(String(appsRowsPerPage));
+                }
+              }}
+              style={{
+                minWidth: 48,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderWidth: 1,
+                borderColor: theme.colors.outline,
+                borderRadius: 6,
+                color: theme.colors.onSurface,
+                textAlign: "center",
+              }}
+            />
+          </View>
+
+          {/* Right: 1–10 of X + arrows */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                color: theme.colors.onSurfaceVariant,
+              }}
+            >
+              {getRangeLabel(appsPage, appsRowsPerPage, totalApplications)}
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleAppsPrev}
+              disabled={appsPage === 1 || appsLoading}
+              style={{
+                paddingHorizontal: 4,
+                opacity: appsPage === 1 || appsLoading ? 0.4 : 1,
+              }}
+            >
+              <Feather
+                name="chevron-left"
+                size={18}
+                color={theme.colors.onSurface}
+              />
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleAppsNext}
               disabled={appsPage === appsTotalPages || appsLoading}
               style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: theme.colors.outline,
+                paddingHorizontal: 4,
                 opacity: appsPage === appsTotalPages || appsLoading ? 0.4 : 1,
               }}
             >
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: theme.colors.onSurface,
-                }}
-              >
-                Next
-              </Text>
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={theme.colors.onSurface}
+              />
             </TouchableOpacity>
           </View>
-        )}
+        </View>
       </View>
     </View>
   );
@@ -610,138 +691,180 @@ export default function ApplicationsScreen() {
           </View>
         )}
 
-        {/* Pagination Controls - Tickets */}
-        {ticketsTotalPages > 1 && (
+        {/* Pagination Controls - Tickets (ALWAYS SHOWN) */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 16,
+          }}
+        >
+          {/* Left: rows per page */}
           <View
             style={{
               flexDirection: "row",
-              justifyContent: "space-between",
               alignItems: "center",
-              marginTop: 16,
+              gap: 8,
             }}
           >
-            <TouchableOpacity
-              onPress={handleTicketsPrev}
-              disabled={ticketsPage === 1 || ticketsLoading}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: theme.colors.outline,
-                opacity: ticketsPage === 1 || ticketsLoading ? 0.4 : 1,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: theme.colors.onSurface,
-                }}
-              >
-                Previous
-              </Text>
-            </TouchableOpacity>
-
             <Text
               style={{
                 fontSize: 13,
                 color: theme.colors.onSurfaceVariant,
               }}
             >
-              Page {ticketsPage} of {ticketsTotalPages}
+              Rows per page
             </Text>
+            <TextInput
+              value={ticketsRowsPerPageInput}
+              keyboardType="numeric"
+              onChangeText={setTicketsRowsPerPageInput}
+              onEndEditing={() => {
+                const trimmed = ticketsRowsPerPageInput.trim();
+                const n = parseInt(trimmed, 10);
+                if (isNaN(n) || n <= 0) {
+                  setTicketsRowsPerPageInput(String(ticketsRowsPerPage));
+                }
+              }}
+              style={{
+                minWidth: 48,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderWidth: 1,
+                borderColor: theme.colors.outline,
+                borderRadius: 6,
+                color: theme.colors.onSurface,
+                textAlign: "center",
+              }}
+            />
+          </View>
+
+          {/* Right: 1–10 of X + arrows */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                color: theme.colors.onSurfaceVariant,
+              }}
+            >
+              {getRangeLabel(ticketsPage, ticketsRowsPerPage, totalTickets)}
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleTicketsPrev}
+              disabled={ticketsPage === 1 || ticketsLoading}
+              style={{
+                paddingHorizontal: 4,
+                opacity: ticketsPage === 1 || ticketsLoading ? 0.4 : 1,
+              }}
+            >
+              <Feather
+                name="chevron-left"
+                size={18}
+                color={theme.colors.onSurface}
+              />
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleTicketsNext}
               disabled={ticketsPage === ticketsTotalPages || ticketsLoading}
               style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 1,
-                borderColor: theme.colors.outline,
+                paddingHorizontal: 4,
                 opacity:
                   ticketsPage === ticketsTotalPages || ticketsLoading ? 0.4 : 1,
               }}
             >
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: theme.colors.onSurface,
-                }}
-              >
-                Next
-              </Text>
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={theme.colors.onSurface}
+              />
             </TouchableOpacity>
           </View>
-        )}
+        </View>
       </View>
     </View>
   );
 
   // ----------------- MAIN RENDER -----------------
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Tab Navigation */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === "applications" && styles.activeTab,
-            ]}
-            onPress={() => setActiveTab("applications")}
-          >
-            <Feather
-              name="file-text"
-              size={18}
-              color={
-                activeTab === "applications"
-                  ? "#000"
-                  : theme.colors.onSurfaceVariant
-              }
-              style={{ marginRight: 8 }}
-            />
-            <Text
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 80}
+    >
+      <View style={styles.container}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Tab Navigation */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
               style={[
-                styles.tabText,
-                activeTab === "applications" && styles.activeTabText,
+                styles.tab,
+                activeTab === "applications" && styles.activeTab,
               ]}
+              onPress={() => setActiveTab("applications")}
             >
-              Applications
-            </Text>
-          </TouchableOpacity>
+              <Feather
+                name="file-text"
+                size={18}
+                color={
+                  activeTab === "applications"
+                    ? "#000"
+                    : theme.colors.onSurfaceVariant
+                }
+                style={{ marginRight: 8 }}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "applications" && styles.activeTabText,
+                ]}
+              >
+                Applications
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.tab, activeTab === "tickets" && styles.activeTab]}
-            onPress={() => setActiveTab("tickets")}
-          >
-            <Feather
-              name="clipboard"
-              size={18}
-              color={
-                activeTab === "tickets" ? "#000" : theme.colors.onSurfaceVariant
-              }
-              style={{ marginRight: 8 }}
-            />
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === "tickets" && styles.activeTabText,
-              ]}
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "tickets" && styles.activeTab]}
+              onPress={() => setActiveTab("tickets")}
             >
-              Tickets
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Feather
+                name="clipboard"
+                size={18}
+                color={
+                  activeTab === "tickets"
+                    ? "#000"
+                    : theme.colors.onSurfaceVariant
+                }
+                style={{ marginRight: 8 }}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "tickets" && styles.activeTabText,
+                ]}
+              >
+                Tickets
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-        {activeTab === "applications"
-          ? renderApplicationsTab()
-          : renderTicketsTab()}
-      </ScrollView>
-    </View>
+          {activeTab === "applications"
+            ? renderApplicationsTab()
+            : renderTicketsTab()}
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
