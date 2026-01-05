@@ -1,3 +1,5 @@
+// components/ui/commissions/CommissionItem.tsx
+
 import { MaterialIcons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
@@ -37,13 +39,9 @@ export const CommissionItem = ({
 
   return (
     <View style={styles.commissionItem}>
+      {/* ---------- TOP ROW: ID + STATUS BADGE ---------- */}
       <View style={styles.commissionHeader}>
-        <View>
-          <Text style={styles.applicationId}>{item.applicationId}</Text>
-          <Text style={styles.lenderName}>
-            {item.lenderName} • {item.loanType}
-          </Text>
-        </View>
+        <Text style={styles.applicationId}>{item.applicationId}</Text>
 
         <View
           style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}
@@ -59,6 +57,16 @@ export const CommissionItem = ({
         </View>
       </View>
 
+      {/* ---------- SECOND ROW: LENDER + LOAN TYPE ---------- */}
+      <Text
+        style={[styles.lenderName, { marginTop: 4 }]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+      >
+        {item.lenderName} • {item.loanType}
+      </Text>
+
+      {/* ---------- DETAILS SECTION ---------- */}
       <View style={styles.commissionDetails}>
         <View style={styles.detailRow}>
           <View>

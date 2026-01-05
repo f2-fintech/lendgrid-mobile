@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
 import { CommissionHistory } from "../../components/ui/commissions/CommissionHistory";
@@ -9,120 +9,43 @@ import { CommissionTrends } from "../../components/ui/commissions/CommissionTren
 
 import { commissionsStyles } from "../../styles/components/commissions/commissions.styles";
 
-// Mock data (unchanged)
-const mockData = {
-  metrics: {
-    totalEarned: 485000,
-    pendingAmount: 125000,
-    paidAmount: 360000,
-    avgCommissionRate: 4.2,
-  },
-  commissionTrends: [
-    { month: "Jan", earned: 35000, paid: 32000, pending: 3000 },
-    { month: "Feb", earned: 42000, paid: 38000, pending: 4000 },
-    { month: "Mar", earned: 58000, paid: 52000, pending: 6000 },
-    { month: "Apr", earned: 45000, paid: 41000, pending: 4000 },
-    { month: "May", earned: 68000, paid: 62000, pending: 6000 },
-    { month: "Jun", earned: 75000, paid: 68000, pending: 7000 },
-  ],
-  lenderWiseCommission: [
-    {
-      name: "HDFC Bank",
-      commission: 125000,
-      percentage: 25.8,
-      color: "#FFD700",
-    },
-    {
-      name: "ICICI Bank",
-      commission: 98000,
-      percentage: 20.2,
-      color: "#007AFF",
-    },
-    {
-      name: "Bajaj Finance",
-      commission: 87000,
-      percentage: 17.9,
-      color: "#22c55e",
-    },
-    {
-      name: "Axis Bank",
-      commission: 76000,
-      percentage: 15.7,
-      color: "#f97316",
-    },
-    { name: "Others", commission: 99000, percentage: 20.4, color: "#8b5cf6" },
-  ],
-  commissionHistory: [
-    {
-      id: "COM001",
-      applicationId: "APP001",
-      lenderName: "HDFC Bank",
-      loanType: "Personal Loan",
-      disbursedAmount: 500000,
-      commissionRate: 4.0,
-      commissionAmount: 20000,
-      status: "Paid",
-      disbursedDate: "15 Jan 2025",
-      paidDate: "20 Jan 2025",
-    },
-    {
-      id: "COM002",
-      applicationId: "APP002",
-      lenderName: "ICICI Bank",
-      loanType: "Home Loan",
-      disbursedAmount: 2500000,
-      commissionRate: 3.5,
-      commissionAmount: 87500,
-      status: "Pending",
-      disbursedDate: "18 Jan 2025",
-      paidDate: null,
-    },
-    {
-      id: "COM003",
-      applicationId: "APP003",
-      lenderName: "Bajaj Finance",
-      loanType: "Business Loan",
-      disbursedAmount: 1000000,
-      commissionRate: 4.5,
-      commissionAmount: 45000,
-      status: "Paid",
-      disbursedDate: "20 Jan 2025",
-      paidDate: "25 Jan 2025",
-    },
-    {
-      id: "COM004",
-      applicationId: "APP004",
-      lenderName: "Axis Bank",
-      loanType: "Car Loan",
-      disbursedAmount: 800000,
-      commissionRate: 3.8,
-      commissionAmount: 30400,
-      status: "Processing",
-      disbursedDate: "22 Jan 2025",
-      paidDate: null,
-    },
-    {
-      id: "COM005",
-      applicationId: "APP005",
-      lenderName: "Kotak Bank",
-      loanType: "Personal Loan",
-      disbursedAmount: 350000,
-      commissionRate: 4.2,
-      commissionAmount: 14700,
-      status: "Disputed",
-      disbursedDate: "19 Jan 2025",
-      paidDate: null,
-    },
-  ],
-};
+import { useMyAggregatorProfile } from "@/hooks/useAggregator";
+import { useCommissionTransactions } from "@/hooks/useCommissions";
+import { CommissionStatus, CommissionTransaction } from "@/types/commissions";
 
 export default function CommissionsScreen() {
   const theme = useTheme();
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [selectedTab, setSelectedTab] = useState("trends");
+  const [filterStatus, setFilterStatus] = useState<"all" | string>("all");
+  const [selectedTab, setSelectedTab] = useState<"trends" | "history">(
+    "trends"
+  );
+  const [page] = useState(1);
+  const [pageSize] = useState(50);
+
+  // 1) Aggregator profile (may be null right now – that’s okay)
+  const {
+    data: myProfile,
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+  } = useMyAggregatorProfile();
+
+  // 2) Fetch commissions (currently no filter; later you can add { aggregatorId })
+  const {
+    data: commissionsData,
+    isLoading: isCommissionsLoading,
+    isError: isCommissionsError,
+  } = useCommissionTransactions({
+    page,
+    limit: pageSize,
+    // filters: aggregatorId ? { aggregatorId } : undefined,
+    filters: undefined,
+    enabled: true,
+  });
+
+  const isLoading = isProfileLoading || isCommissionsLoading;
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -131,59 +54,206 @@ export default function CommissionsScreen() {
       minimumFractionDigits: 0,
     }).format(amount);
 
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  //  Correct mapping from backend enum → UI label
+  const getStatusLabel = (status: CommissionStatus | string) => {
+    switch (status) {
+      case CommissionStatus.PAID:
+        return "Paid";
+      case CommissionStatus.PENDING:
+        return "Pending";
+      case CommissionStatus.CALCULATED:
+        return "Calculated";
+      case CommissionStatus.APPROVED:
+        return "Approved";
+      case CommissionStatus.DISPUTED:
+        return "Disputed";
+      case CommissionStatus.REJECTED:
+        return "Rejected";
+      case CommissionStatus.CANCELLED:
+        return "Cancelled";
+      default:
+        return String(status);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Paid":
-        return "#10B981";
+        return "#10B981"; // green
       case "Pending":
-        return "#F59E0B";
-      case "Processing":
-        return "#3B82F6";
+      case "Calculated":
+        return "#F59E0B"; // orange
+      case "Approved":
+        return "#3B82F6"; // blue
       case "Disputed":
-        return "#EF4444";
+        return "#EF4444"; // red
+      case "Rejected":
+      case "Cancelled":
+        return theme.colors.onSurfaceVariant;
       default:
         return theme.colors.onSurfaceVariant;
     }
   };
 
+  // Icons based on UI label
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Paid":
         return "check-circle";
       case "Pending":
         return "pending";
-      case "Processing":
-        return "sync";
+      case "Calculated":
+        return "schedule"; // clock icon
+      case "Approved":
+        return "check-circle";
       case "Disputed":
         return "error";
+      case "Rejected":
+      case "Cancelled":
+        return "cancel";
       default:
         return "schedule";
     }
   };
 
-  const filteredCommissions = mockData.commissionHistory.filter(
-    (commission) => {
-      const matchesSearch =
-        commission.applicationId
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        commission.lenderName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus =
-        filterStatus === "all" || commission.status === filterStatus;
-      return matchesSearch && matchesStatus;
+  const transactions: CommissionTransaction[] = commissionsData?.data || [];
+
+  // ---------- Metrics ----------
+
+  const metrics = useMemo(() => {
+    if (!transactions.length) {
+      return {
+        totalEarned: 0,
+        pendingAmount: 0,
+        paidAmount: 0,
+        avgCommissionRate: 0,
+      };
     }
+
+    const totalEarned = transactions.reduce(
+      (sum, t) => sum + t.commissionAmount,
+      0
+    );
+
+    const pendingAmount = transactions
+      .filter(
+        (t) =>
+          t.status === CommissionStatus.PENDING ||
+          t.status === CommissionStatus.CALCULATED
+      )
+      .reduce((sum, t) => sum + t.commissionAmount, 0);
+
+    const paidAmount = transactions
+      .filter((t) => t.status === CommissionStatus.PAID)
+      .reduce((sum, t) => sum + t.commissionAmount, 0);
+
+    const avgRate =
+      transactions.reduce((sum, t) => sum + t.commissionRate, 0) /
+      transactions.length;
+
+    const result = {
+      totalEarned,
+      pendingAmount,
+      paidAmount,
+      avgCommissionRate: Number(avgRate.toFixed(2)),
+    };
+
+    return result;
+  }, [transactions]);
+
+  // ---------- Trends ----------
+
+  const commissionTrends = useMemo(() => {
+    if (!transactions.length) return [];
+
+    const monthly: Record<
+      string,
+      { earned: number; paid: number; pending: number }
+    > = {};
+
+    transactions.forEach((t) => {
+      const baseDate = t.calculatedAt || t.createdAt;
+      const d = new Date(baseDate);
+      const key = d.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+
+      if (!monthly[key]) {
+        monthly[key] = { earned: 0, paid: 0, pending: 0 };
+      }
+
+      monthly[key].earned += t.commissionAmount;
+
+      if (t.status === CommissionStatus.PAID) {
+        monthly[key].paid += t.commissionAmount;
+      } else {
+        monthly[key].pending += t.commissionAmount;
+      }
+    });
+
+    const arr = Object.entries(monthly)
+      .map(([month, v]) => ({
+        month: month.split(" ")[0],
+        ...v,
+      }))
+      .slice(-6);
+
+    console.log("📈 COMMISSION TRENDS >>>", arr);
+    return arr;
+  }, [transactions]);
+
+  // ---------- History mapping (appId forced to string) ----------
+
+  const commissionHistory = useMemo(
+    () =>
+      transactions.map((t) => ({
+        id: t.id,
+        applicationId: String(t.ticketId), // always string
+        lenderName: t.provider || "N/A",
+        loanType: t.productType || "N/A",
+        disbursedAmount: t.disbursedAmount,
+        commissionRate: t.commissionRate,
+        commissionAmount: t.commissionAmount,
+        status: getStatusLabel(t.status), // label like "Calculated"
+        disbursedDate: formatDate(t.calculatedAt),
+        paidDate: t.paidAt ? formatDate(t.paidAt) : null,
+      })),
+    [transactions]
   );
+
+  // ---------- Filters ----------
+
+  const filteredCommissions = commissionHistory.filter((c) => {
+    const appId = (c.applicationId ?? "").toString().toLowerCase();
+    const lender = (c.lenderName ?? "").toString().toLowerCase();
+    const search = (searchTerm ?? "").toLowerCase();
+
+    const matchesSearch = appId.includes(search) || lender.includes(search);
+
+    const matchesStatus = filterStatus === "all" || c.status === filterStatus;
+
+    return matchesSearch && matchesStatus;
+  });
 
   const renderSelectedTab = () => {
     switch (selectedTab) {
       case "trends":
         return (
           <CommissionTrends
-            trends={mockData.commissionTrends}
+            trends={commissionTrends}
             formatCurrency={formatCurrency}
           />
         );
-      case "breakdown":
       case "history":
         return (
           <CommissionHistory
@@ -202,6 +272,28 @@ export default function CommissionsScreen() {
     }
   };
 
+  // ---------- Loading / Error ----------
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (isProfileError || isCommissionsError) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <Text style={{ color: theme.colors.error, textAlign: "center" }}>
+          Failed to load commissions. Please try again.
+        </Text>
+      </View>
+    );
+  }
+
+  // ---------- Main UI ----------
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -212,14 +304,14 @@ export default function CommissionsScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <CommissionMetrics
-          metrics={mockData.metrics}
-          formatCurrency={formatCurrency}
-        />
+        <CommissionMetrics metrics={metrics} formatCurrency={formatCurrency} />
+
+        {/* Tabs stay same as before: Trends + Payment History */}
         <CommissionTabs
           selectedTab={selectedTab}
           setSelectedTab={setSelectedTab}
         />
+
         {renderSelectedTab()}
       </ScrollView>
     </View>
