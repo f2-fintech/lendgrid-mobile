@@ -11,6 +11,7 @@ import { Button, Dialog, Portal, Text, useTheme } from "react-native-paper";
 import { updateField } from "@/redux/features/profileSlice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+
 export default function Layout() {
   const dispatch = useAppDispatch();
   const mode = useAppSelector((s) => s.theme.mode);
@@ -29,9 +30,9 @@ export default function Layout() {
   const hideRangeDialog = () => setRangeVisible(false);
 
   const rangeLabel = useMemo(() => {
-    if (selectedRange === "7") return "Last 7 Days";
-    if (selectedRange === "90") return "Last 90 Days";
-    return "Last 30 Days";
+    if (selectedRange === "7") return " 7 Days";
+    if (selectedRange === "90") return " 90 Days";
+    return " 30 Days";
   }, [selectedRange]);
 
   // -----------------------------------------
@@ -64,14 +65,31 @@ export default function Layout() {
     </TouchableOpacity>
   );
 
-  //Dashboard header: only text + theme toggle
+  const NotificationBtn = () => (
+    <TouchableOpacity
+      // TODO: add navigation when Notifications screen is ready
+      // onPress={() => router.push("/notifications")}
+      onPress={() => {}}
+      style={{ marginRight: 10 }}
+      activeOpacity={0.8}
+    >
+      <Ionicons
+        name="notifications-outline"
+        size={24}
+        color={theme.colors.onSurface}
+      />
+    </TouchableOpacity>
+  );
+
+  // Dashboard header: theme toggle + notification
   const DashboardHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <ThemeToggleBtn />
+      <NotificationBtn />
     </View>
   );
 
-  //Commissions header: dropdown + theme toggle
+  // Commissions header: dropdown + theme toggle + notification
   const CommissionsHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <TouchableOpacity
@@ -101,13 +119,31 @@ export default function Layout() {
       </TouchableOpacity>
 
       <ThemeToggleBtn />
+      <NotificationBtn />
     </View>
   );
 
-  // Applications header: only theme toggle
+  // Applications header: theme toggle + notification
   const ApplicationsHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <ThemeToggleBtn />
+      <NotificationBtn />
+    </View>
+  );
+
+  // Profile header: logout + theme toggle + notification
+  const ProfileHeaderRight = () => (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <TouchableOpacity onPress={showLogoutDialog} style={{ marginRight: 12 }}>
+        <Ionicons
+          name="log-out-outline"
+          size={24}
+          color={theme.colors.onSurface}
+        />
+      </TouchableOpacity>
+
+      <ThemeToggleBtn />
+      <NotificationBtn />
     </View>
   );
 
@@ -135,9 +171,9 @@ export default function Layout() {
 
           <Dialog.Content>
             {[
-              { id: "7" as const, label: "Last 7 Days" },
-              { id: "30" as const, label: "Last 30 Days" },
-              { id: "90" as const, label: "Last 90 Days" },
+              { id: "7" as const, label: "7 Days" },
+              { id: "30" as const, label: "30 Days" },
+              { id: "90" as const, label: "90 Days" },
             ].map((opt) => {
               const active = selectedRange === opt.id;
               return (
@@ -283,7 +319,7 @@ export default function Layout() {
           }}
         />
 
-        {/*Applications */}
+        {/* Applications */}
         <Tabs.Screen
           name="applications"
           options={{
@@ -300,22 +336,7 @@ export default function Layout() {
           name="profile"
           options={{
             title: "Profile",
-            headerRight: () => (
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <TouchableOpacity
-                  onPress={showLogoutDialog}
-                  style={{ marginRight: 12 }}
-                >
-                  <Ionicons
-                    name="log-out-outline"
-                    size={24}
-                    color={theme.colors.onSurface}
-                  />
-                </TouchableOpacity>
-
-                <ThemeToggleBtn />
-              </View>
-            ),
+            headerRight: () => <ProfileHeaderRight />,
             tabBarIcon: ({ color }) => (
               <FontAwesome name="user-circle-o" size={24} color={color} />
             ),

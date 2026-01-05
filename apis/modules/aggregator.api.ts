@@ -1,4 +1,3 @@
-
 import { gqlRequest } from "@/apis/config/apiClient";
 import {
   AggregatorDocuments,
@@ -27,13 +26,11 @@ export const aggregatorApi = {
     tanNumber?: string;
     cinNumber?: string;
     websiteUrl?: string;
-    pocName?: string;
     documents?: AggregatorDocuments;
     bankName?: string;
     accountNumber?: string;
     ifscCode?: string;
     accountHolderName?: string;
-    isBankVerified?: boolean;
     teamMembers?: string[];
     totalApplicationsSubmitted?: number;
     totalApplicationsDisbursed?: number;
@@ -136,7 +133,6 @@ export const aggregatorApi = {
           tanNumber
           cinNumber
           websiteUrl
-          pocName
           documents {
             aadhaarFront     
             aadhaarBack       
@@ -146,7 +142,6 @@ export const aggregatorApi = {
             bankStatement
             cancelledCheque
             addressProof
-            authorizedSignatory
           }
           kycStatus
           kycRejectionReason
@@ -155,7 +150,7 @@ export const aggregatorApi = {
           accountNumber
           ifscCode
           accountHolderName
-          isBankVerified
+          # isBankVerified removed
           totalApplicationsSubmitted
           totalApplicationsDisbursed
           totalCommissionEarned
@@ -214,7 +209,6 @@ export const aggregatorApi = {
           tanNumber
           cinNumber
           websiteUrl
-          pocName
           documents {         
             aadhaarFront
             aadhaarBack
@@ -224,7 +218,6 @@ export const aggregatorApi = {
             bankStatement
             cancelledCheque
             addressProof
-            authorizedSignatory
           }
           kycStatus
           kycRejectionReason
@@ -233,7 +226,6 @@ export const aggregatorApi = {
           accountNumber
           ifscCode
           accountHolderName
-          isBankVerified
           totalApplicationsSubmitted
           totalApplicationsDisbursed
           totalCommissionEarned
