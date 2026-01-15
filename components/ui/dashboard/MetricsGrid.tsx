@@ -6,7 +6,7 @@ import { useTheme } from "react-native-paper";
 const metrics = [
   {
     title: "Total Disbursed",
-    value: "₹1,25,00,000",
+    value: "₹ 0",
     icon: "money-bill-wave",
     library: FontAwesome5,
     trend: "+12.5%",
@@ -14,7 +14,7 @@ const metrics = [
   },
   {
     title: "Commission Earned",
-    value: "₹5,00,000",
+    value: "₹ 0",
     icon: "trending-up",
     library: MaterialIcons,
     trend: "+8.2%",
@@ -22,7 +22,7 @@ const metrics = [
   },
   {
     title: "Pending Payouts",
-    value: "₹1,25,000",
+    value: "₹ 0",
     icon: "credit-card",
     library: FontAwesome5,
     color: "#F97316",

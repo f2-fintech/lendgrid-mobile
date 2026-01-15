@@ -17,6 +17,7 @@ import { ROUTES } from "@/assets/constants/routes";
 import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
 
+import { setGraphqlAuthToken } from "@/apis/config/graphql_Notification_Client";
 import { useLogin } from "@/hooks/useAuth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -57,7 +58,15 @@ export default function SignIn() {
       });
 
       if (response.success && response.access_token) {
+        // Persist token for future app launches
         await AsyncStorage.setItem("token", response.access_token);
+        // console.log("🔥 ACCESS TOKEN =", response.access_token);
+
+
+        //  Tell GraphQL (HTTP + WebSocket) about the token
+        setGraphqlAuthToken(response.access_token);
+
+        //  Navigate to dashboard
         router.replace(ROUTES.Dashboard);
       } else {
         showError(response.message || "Login failed");

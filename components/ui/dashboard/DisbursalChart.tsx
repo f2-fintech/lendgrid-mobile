@@ -1,6 +1,6 @@
 import {
-    chartConfig,
-    dashboardStyles,
+  chartConfig,
+  dashboardStyles,
 } from "@/styles/components/dashboard/dashboard.styles";
 import { Dimensions, Text, View } from "react-native";
 import { BarChart } from "react-native-chart-kit";
@@ -10,7 +10,7 @@ const { width } = Dimensions.get("window");
 
 const chartData = {
   labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-  datasets: [{ data: [1200000, 1800000, 2200000, 1900000, 2500000, 2800000] }],
+  datasets: [{ data: [0, 0, 0, 0, 0, 0] }],
 };
 
 export default function DisbursalChart() {
