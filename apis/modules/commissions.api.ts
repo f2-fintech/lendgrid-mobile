@@ -41,7 +41,6 @@ export const commissionsApi = {
             calculatedAt
             approvedAt
             paidAt
-            paymentReference
             remarks
             createdAt
             updatedAt

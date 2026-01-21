@@ -2,8 +2,8 @@
 
 import { commissionsApi } from "@/apis/modules/commissions.api";
 import {
-    CommissionTransactionFilterInput,
-    PaginatedCommissionTransactions,
+  CommissionTransactionFilterInput,
+  PaginatedCommissionTransactions,
 } from "@/types/commissions";
 import { useQuery } from "@tanstack/react-query";
 
@@ -29,19 +29,18 @@ export function useCommissionTransactions(options?: {
   return useQuery<PaginatedCommissionTransactions>({
     queryKey: COMMISSION_KEYS.transactions({ page, limit, filters }),
     queryFn: async () => {
-      const res = await commissionsApi.getTransactions({
-        page,
-        limit,
-        filters,
-      });
+      const vars: any = { page, limit };
+      if (filters && Object.keys(filters as any).length) vars.filters = filters;
 
-      console.log(
-        "📌 COMMISSIONS API RESPONSE >>>",
-        JSON.stringify(res, null, 2)
-      );
+      console.log("🚀 commissions vars >>>", JSON.stringify(vars, null, 2));
 
-      return res;
+      return commissionsApi.getTransactions(vars);
     },
     enabled,
+    onError: (e: any) => {
+      console.log("❌ COMMISSIONS ERROR status:", e?.response?.status);
+      console.log("❌ COMMISSIONS ERROR body:", JSON.stringify(e?.response?.data, null, 2));
+    },
   });
 }
+

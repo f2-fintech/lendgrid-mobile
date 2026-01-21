@@ -48,11 +48,27 @@ export default {
       reactCompiler: true,
     },
 
-  extra: {
-    API_URL: process.env.EXPO_PUBLIC_API_URL,
-    ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL,
+    extra: {
+     API_URL: process.env.EXPO_PUBLIC_API_URL,
+     ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL,
+
+    GRAPHQL_HTTP_URL:
+      process.env.EXPO_PUBLIC_GRAPHQL_HTTP_URL ??
+      process.env.EXPO_PUBLIC_API_URL ??
+      "https://api.f2fintech.in/graphql",
+
+    GRAPHQL_WS_URL:
+      process.env.EXPO_PUBLIC_GRAPHQL_WS_URL ??
+      (process.env.EXPO_PUBLIC_API_URL
+      ? process.env.EXPO_PUBLIC_API_URL.replace("http", "ws")
+      : "wss://api.f2fintech.in/graphql"),
+
     ENV: process.env.EXPO_PUBLIC_ENV,
-    eas: { projectId: "25848bf5-1e37-4a24-bd6a-43f5aebcad8a" },
+
+    //  moved to env
+    eas: {
+      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
+    },
   },
 
   },
