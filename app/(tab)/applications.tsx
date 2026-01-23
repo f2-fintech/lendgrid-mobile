@@ -1,9 +1,10 @@
+// app/(tab)/applications.tsx
 import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
 import { Feather } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
-  Linking,
   Platform,
   ScrollView,
   Text,
@@ -16,19 +17,18 @@ import { ActivityIndicator, useTheme } from "react-native-paper";
 import { useCustomerApplications } from "@/hooks/use-customer-applications_rest";
 import { useTickets } from "@/hooks/use-tickets_rest";
 
-// 🔗 CHANGE THIS to your actual web/apply URL
-const APPLY_URL = "https://admin-f2fintech.netlify.app/login";
-
 export default function ApplicationsScreen() {
   const theme = useTheme();
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
+  const router = useRouter();
+
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"applications" | "tickets">(
-    "applications"
+    "applications",
   );
 
-  // ✅ PAGE STATES
+  // PAGE STATES
   const [appsPage, setAppsPage] = useState(1);
   const [ticketsPage, setTicketsPage] = useState(1);
 
@@ -69,9 +69,15 @@ export default function ApplicationsScreen() {
     refetch: refetchTickets,
   } = ticketsQuery;
 
-  // ------------- DEBOUNCED ROWS PER PAGE ----------------
+  // When coming back from Create Application screen -> refetch
+  useFocusEffect(
+    useCallback(() => {
+      refetchApps?.();
+      refetchTickets?.();
+    }, [refetchApps, refetchTickets]),
+  );
 
-  // Applications
+  // ------------- DEBOUNCED ROWS PER PAGE ----------------
   useEffect(() => {
     const handler = setTimeout(() => {
       const trimmed = appsRowsPerPageInput.trim();
@@ -81,12 +87,11 @@ export default function ApplicationsScreen() {
         setAppsRowsPerPage(n);
         setAppsPage(1);
       }
-    }, 500); // 500ms debounce
+    }, 500);
 
     return () => clearTimeout(handler);
   }, [appsRowsPerPageInput, appsRowsPerPage]);
 
-  // Tickets
   useEffect(() => {
     const handler = setTimeout(() => {
       const trimmed = ticketsRowsPerPageInput.trim();
@@ -116,20 +121,13 @@ export default function ApplicationsScreen() {
     ticketsData?.pages ??
     Math.max(1, Math.ceil((ticketsData?.count ?? 0) / ticketsRowsPerPage));
 
-  // ✅ Picked Applications = Total Tickets
   const pickedApplications = totalTickets;
 
-  // ✅ STATUS-WISE SUMMARY FOR TICKETS
   const ticketsSummary = useMemo(() => {
-    const summary = {
-      underCreditReview: 0,
-      approved: 0,
-      disbursed: 0,
-    };
+    const summary = { underCreditReview: 0, approved: 0, disbursed: 0 };
 
     tickets.forEach((t: any) => {
       const status = (t.ticketStatus || "").toLowerCase();
-
       if (status === "under credit review") summary.underCreditReview++;
       if (status === "approved") summary.approved++;
       if (status === "disbursed") summary.disbursed++;
@@ -157,7 +155,7 @@ export default function ApplicationsScreen() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch ((status || "").toLowerCase()) {
       case "approved":
       case "disbursed":
         return "#10B981";
@@ -192,7 +190,6 @@ export default function ApplicationsScreen() {
     );
   });
 
-  // ---------- REUSABLE STATES (LOADING / ERROR) ----------
   const renderLoading = () => (
     <View style={styles.emptyState}>
       <ActivityIndicator animating size="small" />
@@ -214,39 +211,25 @@ export default function ApplicationsScreen() {
     </View>
   );
 
-  // 🔗 OPEN WEB FORM FROM APP
   const handleApplyPress = () => {
-    Linking.openURL(APPLY_URL).catch((err) => {
-      console.warn("Failed to open URL:", err);
-    });
+    router.push("/create-application");
   };
 
-  // ✅ PAGINATION HANDLERS
   const handleAppsPrev = () => {
-    if (appsPage > 1 && !appsLoading) {
-      setAppsPage((p) => p - 1);
-    }
+    if (appsPage > 1 && !appsLoading) setAppsPage((p) => p - 1);
   };
-
   const handleAppsNext = () => {
-    if (appsPage < appsTotalPages && !appsLoading) {
-      setAppsPage((p) => p + 1);
-    }
+    if (appsPage < appsTotalPages && !appsLoading) setAppsPage((p) => p + 1);
   };
 
   const handleTicketsPrev = () => {
-    if (ticketsPage > 1 && !ticketsLoading) {
-      setTicketsPage((p) => p - 1);
-    }
+    if (ticketsPage > 1 && !ticketsLoading) setTicketsPage((p) => p - 1);
   };
-
   const handleTicketsNext = () => {
-    if (ticketsPage < ticketsTotalPages && !ticketsLoading) {
+    if (ticketsPage < ticketsTotalPages && !ticketsLoading)
       setTicketsPage((p) => p + 1);
-    }
   };
 
-  // Helpers to show "1–10 of 42"
   const getRangeLabel = (page: number, rowsPerPage: number, total: number) => {
     if (!total) return "0 of 0";
     const start = (page - 1) * rowsPerPage + 1;
@@ -254,17 +237,14 @@ export default function ApplicationsScreen() {
     return `${start}–${end} of ${total}`;
   };
 
-  // ----------------- APPLICATIONS TAB -----------------
   const renderApplicationsTab = () => (
     <View style={{ paddingHorizontal: 16 }}>
-      {/* Summary Cards - Sliding */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.metricsScrollContainer}
         style={styles.metricsScrollView}
       >
-        {/* Total Applications */}
         <View style={styles.metricCard}>
           <Text style={styles.metricTitle}>Total Applications</Text>
           <View style={styles.metricValueRow}>
@@ -278,7 +258,6 @@ export default function ApplicationsScreen() {
           </View>
         </View>
 
-        {/* Picked Applications = Total Tickets */}
         <View style={styles.metricCard}>
           <Text style={styles.metricTitle}>Picked Applications</Text>
           <View style={styles.metricValueRow}>
@@ -293,7 +272,6 @@ export default function ApplicationsScreen() {
         </View>
       </ScrollView>
 
-      {/* Search Box */}
       <View style={styles.searchContainer}>
         <Feather
           name="search"
@@ -310,9 +288,7 @@ export default function ApplicationsScreen() {
         />
       </View>
 
-      {/* Applications List */}
       <View style={styles.contentCard}>
-        {/* Header row: Title + Apply button */}
         <View
           style={{
             flexDirection: "row",
@@ -421,7 +397,6 @@ export default function ApplicationsScreen() {
           </View>
         )}
 
-        {/* Pagination Controls - Applications (ALWAYS SHOWN) */}
         <View
           style={{
             flexDirection: "row",
@@ -430,19 +405,9 @@ export default function ApplicationsScreen() {
             marginTop: 16,
           }}
         >
-          {/* Left: rows per page */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Text
-              style={{
-                fontSize: 13,
-                color: theme.colors.onSurfaceVariant,
-              }}
+              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
             >
               Rows per page
             </Text>
@@ -453,9 +418,8 @@ export default function ApplicationsScreen() {
               onEndEditing={() => {
                 const trimmed = appsRowsPerPageInput.trim();
                 const n = parseInt(trimmed, 10);
-                if (isNaN(n) || n <= 0) {
+                if (isNaN(n) || n <= 0)
                   setAppsRowsPerPageInput(String(appsRowsPerPage));
-                }
               }}
               style={{
                 minWidth: 48,
@@ -470,19 +434,9 @@ export default function ApplicationsScreen() {
             />
           </View>
 
-          {/* Right: 1–10 of X + arrows */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Text
-              style={{
-                fontSize: 13,
-                color: theme.colors.onSurfaceVariant,
-              }}
+              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
             >
               {getRangeLabel(appsPage, appsRowsPerPage, totalApplications)}
             </Text>
@@ -522,10 +476,8 @@ export default function ApplicationsScreen() {
     </View>
   );
 
-  // ----------------- TICKETS TAB -----------------
   const renderTicketsTab = () => (
     <View style={{ paddingHorizontal: 16 }}>
-      {/* Summary Cards - Sliding */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -603,7 +555,6 @@ export default function ApplicationsScreen() {
         </View>
       </ScrollView>
 
-      {/* Search Box */}
       <View style={styles.searchContainer}>
         <Feather
           name="search"
@@ -620,7 +571,6 @@ export default function ApplicationsScreen() {
         />
       </View>
 
-      {/* Tickets List */}
       <View style={styles.contentCard}>
         <Text style={styles.cardTitle}>Tickets Overview</Text>
         <Text style={styles.cardSubtitle}>
@@ -691,7 +641,6 @@ export default function ApplicationsScreen() {
           </View>
         )}
 
-        {/* Pagination Controls - Tickets (ALWAYS SHOWN) */}
         <View
           style={{
             flexDirection: "row",
@@ -700,19 +649,9 @@ export default function ApplicationsScreen() {
             marginTop: 16,
           }}
         >
-          {/* Left: rows per page */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <Text
-              style={{
-                fontSize: 13,
-                color: theme.colors.onSurfaceVariant,
-              }}
+              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
             >
               Rows per page
             </Text>
@@ -723,9 +662,8 @@ export default function ApplicationsScreen() {
               onEndEditing={() => {
                 const trimmed = ticketsRowsPerPageInput.trim();
                 const n = parseInt(trimmed, 10);
-                if (isNaN(n) || n <= 0) {
+                if (isNaN(n) || n <= 0)
                   setTicketsRowsPerPageInput(String(ticketsRowsPerPage));
-                }
               }}
               style={{
                 minWidth: 48,
@@ -740,19 +678,9 @@ export default function ApplicationsScreen() {
             />
           </View>
 
-          {/* Right: 1–10 of X + arrows */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Text
-              style={{
-                fontSize: 13,
-                color: theme.colors.onSurfaceVariant,
-              }}
+              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
             >
               {getRangeLabel(ticketsPage, ticketsRowsPerPage, totalTickets)}
             </Text>
@@ -793,7 +721,6 @@ export default function ApplicationsScreen() {
     </View>
   );
 
-  // ----------------- MAIN RENDER -----------------
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -806,7 +733,6 @@ export default function ApplicationsScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Tab Navigation */}
           <View style={styles.tabContainer}>
             <TouchableOpacity
               style={[

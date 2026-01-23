@@ -1,48 +1,35 @@
-// app/(tab)/layout.tsx
 import { ROUTES } from "@/assets/constants/routes";
 import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
-import { Tabs, usePathname, useRouter } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Button, Dialog, Portal, Text, useTheme } from "react-native-paper";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { useAppDispatch, useAppSelector } from "@/hooks/lightDark";
+import { useAppDispatch } from "@/hooks/lightDark";
 import { updateField } from "@/redux/features/profileSlice";
-import { toggleTheme } from "@/redux/features/themeSlice";
 
-// 🔹 GraphQL auth (HTTP + WS)
+// GraphQL auth
 import { setGraphqlAuthToken } from "@/apis/config/graphql_Notification_Client";
 
-//  Notifications hook (stats mode here)
-import { useNotifications } from "@/hooks/useNotifications";
+// shared header
+import {
+  AppsHeaderRight,
+  NotificationBtn,
+  NotificationsHeaderRight,
+  ThemeToggleBtn,
+} from "@/components/common/AppHeader";
 
 export default function Layout() {
   const dispatch = useAppDispatch();
-  const mode = useAppSelector((s) => s.theme.mode);
   const theme = useTheme();
   const router = useRouter();
-  const pathname = usePathname();
 
   const [logoutVisible, setLogoutVisible] = useState(false);
 
   const [rangeVisible, setRangeVisible] = useState(false);
   const [selectedRange, setSelectedRange] = useState<"7" | "30" | "90">("30");
-
-  //  UNREAD COUNT (REAL TIME) — stats mode
-  const { meta } = useNotifications({ mode: "stats" });
-
-  const unreadCount = meta?.unreadCount ?? 0;
-
-  //  FIX: Hide red dot immediately when Notifications screen is OPEN
-  // (not after back)
-  const isOnNotifications = useMemo(() => {
-    const p = String(pathname || "");
-    return p.includes("/notifications") || p.endsWith("notifications");
-  }, [pathname]);
-
-  const hasUnreadNotifications = !isOnNotifications && unreadCount > 0;
 
   const showLogoutDialog = () => setLogoutVisible(true);
   const hideLogoutDialog = () => setLogoutVisible(false);
@@ -56,9 +43,6 @@ export default function Layout() {
     return " 30 Days";
   }, [selectedRange]);
 
-  // -----------------------------------------
-  // LOGOUT
-  // -----------------------------------------
   const handleLogout = async () => {
     hideLogoutDialog();
 
@@ -67,10 +51,8 @@ export default function Layout() {
       await AsyncStorage.removeItem("user");
     } catch {}
 
-    // Clear GraphQL auth (HTTP + WS)
     setGraphqlAuthToken(null);
 
-    // Clear profile data from Redux
     dispatch(updateField({ key: "username", value: "" }));
     dispatch(updateField({ key: "email", value: "" }));
     dispatch(updateField({ key: "phone", value: "" }));
@@ -79,61 +61,6 @@ export default function Layout() {
 
     router.replace(ROUTES.signin);
   };
-
-  const ThemeToggleBtn = () => (
-    <TouchableOpacity
-      onPress={() => dispatch(toggleTheme())}
-      style={{ marginRight: 15 }}
-    >
-      <Ionicons
-        name={mode === "dark" ? "sunny-outline" : "moon-outline"}
-        size={24}
-        color={theme.colors.onSurface}
-      />
-    </TouchableOpacity>
-  );
-
-  const NotificationBtn = () => (
-    <TouchableOpacity
-      onPress={() => router.push("/notifications")}
-      style={{ marginRight: 10 }}
-      activeOpacity={0.8}
-    >
-      <View style={{ position: "relative" }}>
-        <Ionicons
-          name="notifications-outline"
-          size={24}
-          color={theme.colors.onSurface}
-        />
-
-        {/* 🔴 RED DOT INDICATOR */}
-        {hasUnreadNotifications && (
-          <View
-            style={{
-              position: "absolute",
-              top: -2,
-              right: -2,
-              width: 10,
-              height: 10,
-              borderRadius: 999,
-              backgroundColor: "#EF4444",
-              borderWidth: 2,
-              borderColor: theme.colors.background,
-              zIndex: 999,
-              elevation: 10,
-            }}
-          />
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
-  const DashboardHeaderRight = () => (
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <ThemeToggleBtn />
-      <NotificationBtn />
-    </View>
-  );
 
   const CommissionsHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -168,13 +95,6 @@ export default function Layout() {
     </View>
   );
 
-  const ApplicationsHeaderRight = () => (
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <ThemeToggleBtn />
-      <NotificationBtn />
-    </View>
-  );
-
   const ProfileHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
       <TouchableOpacity onPress={showLogoutDialog} style={{ marginRight: 12 }}>
@@ -200,23 +120,13 @@ export default function Layout() {
     </TouchableOpacity>
   );
 
-  const NotificationsHeaderRight = () => (
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <ThemeToggleBtn />
-    </View>
-  );
-
   return (
     <>
-      {/* COMMISSIONS RANGE DIALOG */}
       <Portal>
         <Dialog
           visible={rangeVisible}
           onDismiss={hideRangeDialog}
-          style={{
-            borderRadius: 16,
-            backgroundColor: theme.colors.surface,
-          }}
+          style={{ borderRadius: 16, backgroundColor: theme.colors.surface }}
         >
           <Dialog.Title
             style={{
@@ -279,15 +189,11 @@ export default function Layout() {
         </Dialog>
       </Portal>
 
-      {/* LOGOUT DIALOG */}
       <Portal>
         <Dialog
           visible={logoutVisible}
           onDismiss={hideLogoutDialog}
-          style={{
-            borderRadius: 16,
-            backgroundColor: theme.colors.surface,
-          }}
+          style={{ borderRadius: 16, backgroundColor: theme.colors.surface }}
         >
           <Dialog.Icon icon="logout" size={32} color={theme.colors.error} />
 
@@ -335,16 +241,12 @@ export default function Layout() {
         </Dialog>
       </Portal>
 
-      {/* TABS */}
       <Tabs
         screenOptions={{
           headerShown: true,
           headerStyle: { backgroundColor: theme.colors.background },
           headerTintColor: theme.colors.onSurface,
-          headerTitleStyle: {
-            fontWeight: "700",
-            fontSize: 18,
-          },
+          headerTitleStyle: { fontWeight: "700", fontSize: 18 },
           tabBarStyle: {
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.outline,
@@ -356,7 +258,7 @@ export default function Layout() {
           name="dashboard"
           options={{
             title: "Dashboard",
-            headerRight: () => <DashboardHeaderRight />,
+            headerRight: () => <AppsHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Feather name="home" size={size} color={color} />
             ),
@@ -378,7 +280,7 @@ export default function Layout() {
           name="applications"
           options={{
             title: "Applications",
-            headerRight: () => <ApplicationsHeaderRight />,
+            headerRight: () => <AppsHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Feather name="file-text" size={size} color={color} />
             ),

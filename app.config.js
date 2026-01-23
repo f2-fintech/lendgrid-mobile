@@ -49,27 +49,27 @@ export default {
     },
 
     extra: {
-     API_URL: process.env.EXPO_PUBLIC_API_URL,
-     ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL,
+      API_URL: process.env.EXPO_PUBLIC_API_URL,
+      ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL,
 
-    GRAPHQL_HTTP_URL:
-      process.env.EXPO_PUBLIC_GRAPHQL_HTTP_URL ??
-      process.env.EXPO_PUBLIC_API_URL ??
-      "https://api.f2fintech.in/graphql",
+      GRAPHQL_HTTP_URL:
+        process.env.EXPO_PUBLIC_GRAPHQL_HTTP_URL ??
+        process.env.EXPO_PUBLIC_API_URL ??
+        "https://api.f2fintech.in/graphql",
 
-    GRAPHQL_WS_URL:
-      process.env.EXPO_PUBLIC_GRAPHQL_WS_URL ??
-      (process.env.EXPO_PUBLIC_API_URL
-      ? process.env.EXPO_PUBLIC_API_URL.replace("http", "ws")
-      : "wss://api.f2fintech.in/graphql"),
+      GRAPHQL_WS_URL:
+        process.env.EXPO_PUBLIC_GRAPHQL_WS_URL ??
+        (process.env.EXPO_PUBLIC_API_URL
+          ? process.env.EXPO_PUBLIC_API_URL.replace("http", "ws")
+          : "wss://api.f2fintech.in/graphql"),
 
-    ENV: process.env.EXPO_PUBLIC_ENV,
+      ENV: process.env.EXPO_PUBLIC_ENV,
 
-    //  moved to env
-    eas: {
-      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
+      eas: {
+        projectId: "d12c2bb2-a90f-46ee-9c03-2a07ec6b6430",
+      },
+
+      router: {},
     },
-  },
-
   },
 };
