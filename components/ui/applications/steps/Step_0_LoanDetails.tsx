@@ -1,7 +1,9 @@
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Keyboard,
   Modal,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -67,6 +69,14 @@ const getLoanCategory = (type: string): "secured" | "unsecured" | "" => {
   return "";
 };
 
+// helper: "home loan" => "Home Loan"
+const toTitleCase = (s: string) =>
+  String(s || "")
+    .trim()
+    .split(/\s+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+
 export type Step0Values = {
   loanAmount: string;
   loanType: string;
@@ -100,39 +110,64 @@ export default function Step0LoanDetails({
 }: Props) {
   const theme = useTheme();
 
-  const PROVIDERS = useMemo(
-    () =>
-      providers?.length
-        ? providers
-        : [
-            "ABFL",
-            "Bajaj Finance",
-            "Bajaj Market",
-            "L&T",
-            "Tata",
-            "Godrej",
-            "Cholamandalam",
-            "HDFC",
-            "IDFC",
-            "ICICI",
-            "Incred",
-            "Indusind",
-            "Credit Saison",
-            "Paysense",
-            "Shriram",
-            "HSBC Bank",
-            "STANDARD Chartered Bank",
-            "YES Bank",
-            "Kotak Bank",
-            "Poonawala",
-            "Canara Bank",
-            "Bank of Baroda",
-            "PNB",
-            "Axis",
-            "Lending Kart",
-          ],
-    [providers],
-  );
+  // keyboard padding fix
+  const [keyboardSpace, setKeyboardSpace] = useState(0);
+
+  useEffect(() => {
+    const showEvt =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const subShow = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardSpace(Math.max(0, e.endCoordinates?.height ?? 0));
+    });
+
+    const subHide = Keyboard.addListener(hideEvt, () => setKeyboardSpace(0));
+
+    return () => {
+      subShow.remove();
+      subHide.remove();
+    };
+  }, []);
+
+  // add Others
+  const PROVIDERS = useMemo(() => {
+    const base = providers?.length
+      ? providers
+      : [
+          "ABFL",
+          "Bajaj Finance",
+          "Bajaj Market",
+          "L&T",
+          "Tata",
+          "Godrej",
+          "Cholamandalam",
+          "HDFC",
+          "IDFC",
+          "ICICI",
+          "Incred",
+          "Indusind",
+          "Credit Saison",
+          "Paysense",
+          "Shriram",
+          "HSBC Bank",
+          "STANDARD Chartered Bank",
+          "YES Bank",
+          "Kotak Bank",
+          "Poonawala",
+          "Canara Bank",
+          "Bank of Baroda",
+          "PNB",
+          "Axis",
+          "Lending Kart",
+        ];
+
+    const uniq = Array.from(new Set(base.map((x) => String(x).trim()))).filter(
+      Boolean,
+    );
+    return [...uniq, "Others"];
+  }, [providers]);
 
   const [loanTypeModalOpen, setLoanTypeModalOpen] = useState(false);
   const [tenureModalOpen, setTenureModalOpen] = useState(false);
@@ -142,26 +177,30 @@ export default function Step0LoanDetails({
 
   const [showInfo, setShowInfo] = useState(true);
 
-  //  store all validation errors (BUT show only after blur/touch)
+  // Others provider support
+  const [otherProviderText, setOtherProviderText] = useState("");
+  const isOthersSelected = value.selectedProviders.includes("Others");
+
+  // store all validation errors (BUT show only after blur/touch)
   const [allErrors, setAllErrors] = useState<Record<string, string>>({});
 
-  //  touched state
+  // touched state
   const [touched, setTouched] = useState({
     amount: false,
     loanType: false,
     tenure: false,
     providers: false,
     providerAmounts: false,
+    otherProvider: false,
   });
 
   const tenureList = useMemo(() => {
     return value.loanCategory ? tenureOptions[value.loanCategory] : [];
   }, [value.loanCategory]);
 
-  //  validate whenever value changes (rules from imported step0Schema)
+  // validate whenever value changes (rules from imported step0Schema)
   useEffect(() => {
     const payload = {
-      // mapping mobile -> schema keys
       amount: value.loanAmount,
       loanType: value.loanType,
       tenure: value.tenure,
@@ -187,7 +226,7 @@ export default function Step0LoanDetails({
     value.providerAmounts,
   ]);
 
-  //  show errors only when touched
+  // show errors only when touched
   const showAmountError = touched.amount ? allErrors["amount"] : "";
   const showLoanTypeError = touched.loanType ? allErrors["loanType"] : "";
   const showTenureError = touched.tenure ? allErrors["tenure"] : "";
@@ -213,11 +252,45 @@ export default function Step0LoanDetails({
 
   const handleLoanType = (lt: string) => {
     const cat = getLoanCategory(lt);
-    onChange({ ...value, loanType: lt, loanCategory: cat, tenure: "" });
+    onChange({
+      ...value,
+      loanType: String(lt).toLowerCase(),
+      loanCategory: cat,
+      tenure: "",
+    });
+  };
+
+  const addCustomProviderAndSelect = () => {
+    const custom = otherProviderText.trim();
+    setTouched((t) => ({ ...t, otherProvider: true }));
+    if (!custom) return;
+
+    const selectedProviders = Array.from(
+      new Set(
+        value.selectedProviders.filter((x) => x !== "Others").concat([custom]),
+      ),
+    );
+    const exists = value.providerAmounts.some((x) => x.provider === custom);
+
+    const providerAmounts = exists
+      ? value.providerAmounts
+      : [
+          ...value.providerAmounts.filter((x) => x.provider !== "Others"),
+          { provider: custom, amount: value.loanAmount || "" },
+        ];
+
+    onChange({ ...value, selectedProviders, providerAmounts });
+    setOtherProviderText("");
+    Keyboard.dismiss();
   };
 
   const toggleProvider = (p: string) => {
     const isSelected = value.selectedProviders.includes(p);
+
+    if (p === "Others" && isSelected) {
+      setOtherProviderText("");
+      setTouched((t) => ({ ...t, otherProvider: false }));
+    }
 
     const selectedProviders = isSelected
       ? value.selectedProviders.filter((x) => x !== p)
@@ -243,8 +316,10 @@ export default function Step0LoanDetails({
     });
   };
 
+  const loanTypeDisplay = value.loanType ? toTitleCase(value.loanType) : "";
+
   return (
-    <View>
+    <View style={{ paddingBottom: keyboardSpace ? keyboardSpace - 40 : 0 }}>
       {/* info card */}
       {showInfo && (
         <View
@@ -258,15 +333,13 @@ export default function Step0LoanDetails({
             gap: 10,
           }}
         >
-          {/* left icon */}
           <Feather
             name="info"
             size={18}
             color={theme.colors.onPrimaryContainer}
-            style={{ marginTop: 2 }} // aligns with first line of text
+            style={{ marginTop: 2 }}
           />
 
-          {/* text */}
           <Text
             style={{
               flex: 1,
@@ -279,15 +352,10 @@ export default function Step0LoanDetails({
             customize amount per provider.
           </Text>
 
-          {/* close button */}
           <TouchableOpacity
             onPress={() => setShowInfo(false)}
             activeOpacity={0.7}
-            style={{
-              padding: 4,
-              borderRadius: 999,
-              marginTop: -2,
-            }}
+            style={{ padding: 4, borderRadius: 999, marginTop: -2 }}
           >
             <Feather
               name="x"
@@ -384,13 +452,13 @@ export default function Step0LoanDetails({
         <Text
           style={{
             marginLeft: 10,
-            color: value.loanType
+            color: loanTypeDisplay
               ? theme.colors.onSurface
               : theme.colors.onSurfaceVariant,
             fontSize: 15,
           }}
         >
-          {value.loanType ? value.loanType : "Choose loan type"}
+          {loanTypeDisplay ? loanTypeDisplay : "Choose loan type"}
         </Text>
         <View style={{ marginLeft: "auto" }}>
           <Feather
@@ -533,6 +601,85 @@ export default function Step0LoanDetails({
         </Text>
       )}
 
+      {/* Others input */}
+      {isOthersSelected && (
+        <View
+          style={{
+            marginTop: 12,
+            borderWidth: 1.5,
+            borderColor: theme.colors.outline,
+            borderRadius: 12,
+            padding: 12,
+            backgroundColor: theme.colors.surface,
+          }}
+        >
+          <Text style={{ color: theme.colors.onSurface, fontWeight: "800" }}>
+            Specify Provider
+          </Text>
+
+          <View
+            style={{
+              marginTop: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor: theme.colors.outline,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              backgroundColor: theme.colors.surfaceVariant,
+            }}
+          >
+            <Feather
+              name="edit-3"
+              size={16}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <TextInput
+              value={otherProviderText}
+              onChangeText={setOtherProviderText}
+              onBlur={() => setTouched((t) => ({ ...t, otherProvider: true }))}
+              placeholder="Type provider name (e.g. SBI, AU Small Finance...)"
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                paddingHorizontal: 10,
+                color: theme.colors.onSurface,
+                fontSize: 14,
+              }}
+              returnKeyType="done"
+              onSubmitEditing={addCustomProviderAndSelect}
+              //  helps on iOS a bit
+              blurOnSubmit
+            />
+          </View>
+
+          <TouchableOpacity
+            onPress={addCustomProviderAndSelect}
+            activeOpacity={0.85}
+            style={{
+              marginTop: 10,
+              paddingVertical: 12,
+              borderRadius: 12,
+              backgroundColor: theme.colors.primary,
+              alignItems: "center",
+              opacity: otherProviderText.trim() ? 1 : 0.6,
+            }}
+            disabled={!otherProviderText.trim()}
+          >
+            <Text style={{ color: "#000", fontWeight: "900" }}>
+              Add Provider
+            </Text>
+          </TouchableOpacity>
+
+          {touched.otherProvider && !otherProviderText.trim() ? (
+            <Text style={{ color: "#EF4444", marginTop: 8, fontSize: 12 }}>
+              Please enter provider name.
+            </Text>
+          ) : null}
+        </View>
+      )}
+
       {/* Provider Amounts */}
       {value.selectedProviders.length > 0 && (
         <View
@@ -556,87 +703,92 @@ export default function Step0LoanDetails({
           </Text>
 
           <View style={{ gap: 10 }}>
-            {value.selectedProviders.map((provider) => {
-              const amt =
-                value.providerAmounts.find((x) => x.provider === provider)
-                  ?.amount || value.loanAmount;
+            {value.selectedProviders
+              .filter((p) => p !== "Others") // don't show amounts for placeholder "Others"
+              .map((provider) => {
+                const amt =
+                  value.providerAmounts.find((x) => x.provider === provider)
+                    ?.amount || value.loanAmount;
 
-              const perErr = providerAmountErrorFor(provider);
+                const perErr = providerAmountErrorFor(provider);
 
-              return (
-                <View key={provider}>
-                  <View
-                    style={{
-                      padding: 12,
-                      borderRadius: 12,
-                      backgroundColor: theme.colors.surfaceVariant,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.colors.onSurface,
-                        fontWeight: "700",
-                      }}
-                    >
-                      {provider}
-                    </Text>
-
+                return (
+                  <View key={provider}>
                     <View
                       style={{
+                        padding: 12,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.surfaceVariant,
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 10,
+                        justifyContent: "space-between",
                       }}
                     >
+                      <Text
+                        style={{
+                          color: theme.colors.onSurface,
+                          fontWeight: "700",
+                        }}
+                      >
+                        {provider}
+                      </Text>
+
                       <View
                         style={{
-                          paddingHorizontal: 10,
-                          paddingVertical: 6,
-                          borderRadius: 999,
-                          borderWidth: 1,
-                          borderColor: theme.colors.primary,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 10,
                         }}
                       >
-                        <Text
+                        <View
                           style={{
-                            color: theme.colors.primary,
-                            fontWeight: "800",
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 999,
+                            borderWidth: 1,
+                            borderColor: theme.colors.primary,
                           }}
                         >
-                          ₹{amt || "Not set"}
-                        </Text>
+                          <Text
+                            style={{
+                              color: theme.colors.primary,
+                              fontWeight: "800",
+                            }}
+                          >
+                            ₹{amt || "Not set"}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity
+                          onPress={() => {
+                            setEditingProvider(provider);
+                            setAmountDialogOpen(true);
+                            setTouched((t) => ({
+                              ...t,
+                              providerAmounts: true,
+                            }));
+                          }}
+                          style={{ padding: 6 }}
+                        >
+                          <Feather
+                            name="edit-2"
+                            size={16}
+                            color={theme.colors.onSurface}
+                          />
+                        </TouchableOpacity>
                       </View>
-
-                      <TouchableOpacity
-                        onPress={() => {
-                          setEditingProvider(provider);
-                          setAmountDialogOpen(true);
-                          setTouched((t) => ({ ...t, providerAmounts: true }));
-                        }}
-                        style={{ padding: 6 }}
-                      >
-                        <Feather
-                          name="edit-2"
-                          size={16}
-                          color={theme.colors.onSurface}
-                        />
-                      </TouchableOpacity>
                     </View>
-                  </View>
 
-                  {!!perErr && (
-                    <Text
-                      style={{ color: "#EF4444", marginTop: 6, fontSize: 12 }}
-                    >
-                      {perErr}
-                    </Text>
-                  )}
-                </View>
-              );
-            })}
+                    {!!perErr && (
+                      <Text
+                        style={{ color: "#EF4444", marginTop: 6, fontSize: 12 }}
+                      >
+                        {perErr}
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
           </View>
         </View>
       )}
@@ -702,7 +854,7 @@ export default function Step0LoanDetails({
                 <TouchableOpacity
                   key={x.value}
                   onPress={() => {
-                    handleLoanType(x.value);
+                    handleLoanType(x.value); // stored lowercase
                     setLoanTypeModalOpen(false);
                     setTouched((t) => ({ ...t, loanType: true }));
                   }}

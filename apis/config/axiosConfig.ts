@@ -23,24 +23,24 @@ export const restApi = axios.create({
   },
 });
 
+export const coreApi = axios.create({
+  baseURL: extra?.CORE_REST_URL, //  http://192.168.1.46:8080/api/v1
+  timeout: 20000,
+  headers: { "Content-Type": "application/json" },
+});
+
 // Attach token + companyId to BOTH instances
-[gqlApi, restApi].forEach((instance) => {
+[gqlApi, restApi, coreApi].forEach((instance) => {
   instance.interceptors.request.use(async (config) => {
     const token = await AsyncStorage.getItem("token");
-    const companyId = await AsyncStorage.getItem("companyId"); // <- store this after login
+    const companyId = await AsyncStorage.getItem("companyId");
 
     config.headers = config.headers || {};
+    if (token) config.headers.Authorization = `Bearer ${token}`;
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    if (companyId) {
-      // Nest @Headers('Companyid') will read this
-      (config.headers as any)["companyid"] = companyId;
-    }
+    //  backend is reading req.headers.companyid
+    if (companyId) (config.headers as any)["companyid"] = companyId;
 
     return config;
   });
 });
-  

@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import Constants from "expo-constants";
 import { useEffect, useMemo, useState } from "react";
-
 import {
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -14,6 +15,7 @@ import {
 import { useTheme } from "react-native-paper";
 
 import { step1Schema } from "../applicationSchemas";
+import IndianStatePicker from "./CommonDetails";
 
 export type Step1Values = {
   title: "" | "Mr" | "Mrs" | "Miss" | "Dr" | "Ca";
@@ -34,7 +36,7 @@ export type Step1Values = {
 
   employment_type: "" | "salaried" | "business" | "professional";
 
-  dob?: string; // ISO string
+  dob?: string;
   consent_tc: boolean;
   consent_marketing: boolean;
 };
@@ -74,6 +76,15 @@ const toFieldErrors = (issues: any[]) => {
   return out;
 };
 
+//  DOB max date = today - 20 years
+const getMaxDobDate = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 20);
+  // keep time stable
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
 export default function Step1BasicDetails({
   value,
   onChange,
@@ -85,16 +96,20 @@ export default function Step1BasicDetails({
   const [empModal, setEmpModal] = useState(false);
   const [showDobPicker, setShowDobPicker] = useState(false);
 
-  //  touched flags (so error doesn't show initially)
+  //  pressed states for fade effect on link buttons
+  const [privacyPressed, setPrivacyPressed] = useState(false);
+  const [termsPressed, setTermsPressed] = useState(false);
+
+  // touched flags (so error doesn't show initially)
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  //  all raw errors from zod (always computed, but shown only if touched)
+  // all raw errors from zod (always computed, but shown only if touched)
   const [rawErrors, setRawErrors] = useState<Record<string, string>>({});
 
   const markTouched = (key: string) =>
     setTouched((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
 
-  //  Convert current Step1Values -> schema input (website rules)
+  // Convert current Step1Values -> schema input (website rules)
   const schemaInput = useMemo(() => {
     return {
       title: value.title || undefined,
@@ -110,12 +125,11 @@ export default function Step1BasicDetails({
       city: value.city ?? "",
       state: value.state ?? "",
       employment_type: value.employment_type || undefined,
-      dob: value.dob ? new Date(value.dob) : undefined, //  schema expects Date
-      // NOTE: website schema doesn't include consent fields, so we don't validate them here.
+      dob: value.dob ? new Date(value.dob) : undefined, // schema expects Date
     };
   }, [value]);
 
-  //  Validate using global schema
+  // Validate using global schema
   useEffect(() => {
     const res = step1Schema.safeParse(schemaInput);
 
@@ -159,6 +173,7 @@ export default function Step1BasicDetails({
     val: string,
     onText: (v: string) => void,
     placeholder: string,
+    iconName: any,
     opts?: {
       keyboardType?: any;
       autoCapitalize?: any;
@@ -167,25 +182,42 @@ export default function Step1BasicDetails({
   ) => (
     <View style={{ marginBottom: 16 }}>
       {fieldLabel(label)}
-      <TextInput
-        value={val}
-        onChangeText={onText}
-        onBlur={() => markTouched(key)}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.onSurfaceVariant}
-        keyboardType={opts?.keyboardType}
-        autoCapitalize={opts?.autoCapitalize}
-        maxLength={opts?.maxLength}
+      <View
         style={{
-          padding: 14,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingHorizontal: 12,
           borderWidth: 1.5,
           borderColor: errorFor(key) ? "#EF4444" : theme.colors.outline,
           borderRadius: 12,
-          fontSize: 15,
-          color: theme.colors.onSurface,
           backgroundColor: theme.colors.surface,
         }}
-      />
+      >
+        <Feather
+          name={iconName}
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+        />
+        <TextInput
+          value={val}
+          onChangeText={onText}
+          onBlur={() => markTouched(key)}
+          placeholder={placeholder}
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          keyboardType={opts?.keyboardType}
+          autoCapitalize={opts?.autoCapitalize}
+          maxLength={opts?.maxLength}
+          style={{
+            flex: 1,
+            paddingVertical: 12,
+            paddingHorizontal: 4,
+            fontSize: 15,
+            color: theme.colors.onSurface,
+            backgroundColor: "transparent",
+          }}
+        />
+      </View>
       {errorText(errorFor(key))}
     </View>
   );
@@ -195,6 +227,7 @@ export default function Step1BasicDetails({
     label: string,
     valueLabel: string,
     onPress: () => void,
+    iconName: any,
   ) => (
     <View style={{ marginBottom: 16 }}>
       {fieldLabel(label)}
@@ -212,8 +245,14 @@ export default function Step1BasicDetails({
           backgroundColor: theme.colors.surface,
           flexDirection: "row",
           alignItems: "center",
+          gap: 10,
         }}
       >
+        <Feather
+          name={iconName}
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+        />
         <Text
           style={{
             flex: 1,
@@ -223,6 +262,7 @@ export default function Step1BasicDetails({
             fontSize: 15,
             fontWeight: "600",
           }}
+          numberOfLines={1}
         >
           {valueLabel || "Select"}
         </Text>
@@ -240,52 +280,66 @@ export default function Step1BasicDetails({
     key: string,
     checked: boolean,
     onToggle: () => void,
-    text: string,
+    rightLinkLabel: string,
+    onLinkPress: () => void,
+    pressed: boolean,
+    setPressed: (v: boolean) => void,
   ) => (
-    <View style={{ marginTop: 10 }}>
-      <TouchableOpacity
-        onPress={() => {
-          markTouched(key);
-          onToggle();
-        }}
-        activeOpacity={0.85}
-        style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}
-      >
-        <View
-          style={{
-            width: 18,
-            height: 18,
-            borderRadius: 4,
-            borderWidth: 1.5,
-            borderColor: checked ? theme.colors.primary : theme.colors.outline,
-            backgroundColor: checked ? theme.colors.primary : "transparent",
-            marginTop: 2,
-            justifyContent: "center",
-            alignItems: "center",
+    <View style={{ marginTop: 12 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <TouchableOpacity
+          onPress={() => {
+            markTouched(key);
+            onToggle();
+          }}
+          activeOpacity={0.85}
+          style={{ flexDirection: "row", alignItems: "center" }}
+        >
+          <View
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 4,
+              borderWidth: 1.5,
+              borderColor: checked
+                ? theme.colors.primary
+                : theme.colors.outline,
+              backgroundColor: checked ? theme.colors.primary : "transparent",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            {checked && <Feather name="check" size={14} color="#000" />}
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={() => {
+            setPressed(true);
+            onLinkPress();
+            setTimeout(() => setPressed(false), 350);
           }}
         >
-          {checked && <Feather name="check" size={14} color="#000" />}
-        </View>
+          <Text
+            style={{
+              color: theme.colors.primary,
+              fontWeight: "900",
+              textDecorationLine: "underline",
+              opacity: pressed ? 0.65 : 1,
+            }}
+          >
+            {rightLinkLabel}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        <Text
-          style={{
-            flex: 1,
-            color: theme.colors.onSurface,
-            fontSize: 12.5,
-            lineHeight: 18,
-          }}
-        >
-          {text}
-        </Text>
-      </TouchableOpacity>
-
-      {/* currently website schema doesn't validate these two.
-          If you later add them to zod, error will auto show via errorFor(key). */}
       {errorText(errorFor(key))}
     </View>
   );
 
   const set = (patch: Partial<Step1Values>) => onChange({ ...value, ...patch });
+
   const [showUserInfo, setShowUserInfo] = useState(true);
 
   const onDobChange = (event: any, selectedDate?: Date) => {
@@ -293,8 +347,19 @@ export default function Step1BasicDetails({
     if (event?.type === "dismissed") return;
 
     if (selectedDate) {
-      set({ dob: selectedDate.toISOString() });
+      const maxDob = getMaxDobDate();
+      const finalDate = selectedDate > maxDob ? maxDob : selectedDate; // ✅ clamp
+
+      set({ dob: finalDate.toISOString() });
       markTouched("dob");
+    }
+  };
+
+  const openLink = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      // ignore
     }
   };
 
@@ -312,7 +377,6 @@ export default function Step1BasicDetails({
             gap: 10,
           }}
         >
-          {/* icon */}
           <Feather
             name="user"
             size={18}
@@ -320,7 +384,6 @@ export default function Step1BasicDetails({
             style={{ marginTop: 2 }}
           />
 
-          {/* text */}
           <Text
             style={{
               flex: 1,
@@ -332,7 +395,6 @@ export default function Step1BasicDetails({
             Fill customer personal & contact details. Minimum age: 20 years.
           </Text>
 
-          {/* close button */}
           <TouchableOpacity
             onPress={() => setShowUserInfo(false)}
             activeOpacity={0.7}
@@ -354,7 +416,13 @@ export default function Step1BasicDetails({
       {/* Title + Name */}
       <View style={{ flexDirection: "row", gap: 12 }}>
         <View style={{ flex: 1 }}>
-          {pickRow("title", "Title*", value.title, () => setTitleModal(true))}
+          {pickRow(
+            "title",
+            "Title*",
+            value.title,
+            () => setTitleModal(true),
+            "user",
+          )}
         </View>
 
         <View style={{ flex: 2 }}>
@@ -364,6 +432,7 @@ export default function Step1BasicDetails({
             value.name,
             (v) => set({ name: v }),
             "Enter full name",
+            "user",
             { autoCapitalize: "words" },
           )}
         </View>
@@ -376,6 +445,7 @@ export default function Step1BasicDetails({
         value.contact,
         (v) => set({ contact: v }),
         "Enter contact number",
+        "phone",
         { keyboardType: "phone-pad" },
       )}
 
@@ -385,6 +455,7 @@ export default function Step1BasicDetails({
         value.email,
         (v) => set({ email: v }),
         "Enter email address",
+        "mail",
         { keyboardType: "email-address", autoCapitalize: "none" },
       )}
 
@@ -395,6 +466,7 @@ export default function Step1BasicDetails({
         value.pan,
         (v) => set({ pan: v.toUpperCase() }),
         "ABCDE1234F",
+        "credit-card",
         { autoCapitalize: "characters", maxLength: 10 },
       )}
 
@@ -405,6 +477,7 @@ export default function Step1BasicDetails({
         value.father_name,
         (v) => set({ father_name: v }),
         "Enter father's name",
+        "users",
         { autoCapitalize: "words" },
       )}
 
@@ -414,6 +487,7 @@ export default function Step1BasicDetails({
         value.mother_name,
         (v) => set({ mother_name: v }),
         "Enter mother's name",
+        "users",
         { autoCapitalize: "words" },
       )}
 
@@ -424,6 +498,7 @@ export default function Step1BasicDetails({
         value.working_address,
         (v) => set({ working_address: v }),
         "Enter working address",
+        "briefcase",
         { autoCapitalize: "sentences" },
       )}
 
@@ -433,6 +508,7 @@ export default function Step1BasicDetails({
         value.permanent_address,
         (v) => set({ permanent_address: v }),
         "Enter permanent address",
+        "home",
         { autoCapitalize: "sentences" },
       )}
 
@@ -442,29 +518,30 @@ export default function Step1BasicDetails({
         value.current_address,
         (v) => set({ current_address: v }),
         "Enter current address",
+        "map-pin",
         { autoCapitalize: "sentences" },
       )}
 
-      {/* City + State */}
+      {/* City */}
       {input(
         "city",
         "City*",
         value.city,
         (v) => set({ city: v }),
         "Enter city",
-        {
-          autoCapitalize: "words",
-        },
-      )}
-
-      {input(
-        "state",
-        "State*",
-        value.state,
-        (v) => set({ state: v }),
-        "Enter state",
+        "map",
         { autoCapitalize: "words" },
       )}
+
+      {/* State dropdown (rendered ONLY ONCE) */}
+      <IndianStatePicker
+        label="State*"
+        value={value.state}
+        placeholder="Search and select state"
+        error={errorFor("state")}
+        onTouched={() => markTouched("state")}
+        onSelect={(s) => set({ state: s })}
+      />
 
       {/* Employment Type */}
       {pickRow(
@@ -472,6 +549,7 @@ export default function Step1BasicDetails({
         "Employment Type*",
         value.employment_type ? value.employment_type : "",
         () => setEmpModal(true),
+        "activity",
       )}
 
       {/* DOB */}
@@ -526,10 +604,10 @@ export default function Step1BasicDetails({
 
         {showDobPicker && (
           <DateTimePicker
-            value={value.dob ? new Date(value.dob) : new Date(2000, 0, 1)}
+            value={value.dob ? new Date(value.dob) : getMaxDobDate()}
             mode="date"
             display={Platform.OS === "ios" ? "spinner" : "default"}
-            maximumDate={new Date()}
+            maximumDate={getMaxDobDate()} // ✅ blocks selecting < 20
             onChange={onDobChange}
           />
         )}
@@ -550,22 +628,34 @@ export default function Step1BasicDetails({
         )}
       </View>
 
-      {/* Terms (not in web schema; kept as-is) */}
-      <View style={{ marginTop: 8 }}>
-        {checkboxRow(
-          "consent_tc",
-          value.consent_tc,
-          () => set({ consent_tc: !value.consent_tc }),
-          "I agree to opt for the product and service of F2fintech. By opting for F2fintech, I agree to have read, understood and explicitly consent to the T&C, Privacy Policy and F2fintech Credit Terms.",
-        )}
+      {/* ONLY link buttons next to checkboxes (no long text) */}
+      {checkboxRow(
+        "consent_tc",
+        value.consent_tc,
+        () => set({ consent_tc: !value.consent_tc }),
+        "Privacy Policy",
+        () =>
+          openLink(
+            Constants.expoConfig?.extra?.PRIVACY_URL ||
+              "https://lendgrid.in/privacy-policy",
+          ),
+        privacyPressed,
+        setPrivacyPressed,
+      )}
 
-        {checkboxRow(
-          "consent_marketing",
-          value.consent_marketing,
-          () => set({ consent_marketing: !value.consent_marketing }),
-          "I further consent to receive the loan and product updates of F2fintech on WhatsApp and allow F2fintech and/or their authorized third party service providers to contact me for marketing purposes via SMS, Call, WhatsApp, and Email.",
-        )}
-      </View>
+      {checkboxRow(
+        "consent_marketing",
+        value.consent_marketing,
+        () => set({ consent_marketing: !value.consent_marketing }),
+        "Terms of Service",
+        () =>
+          openLink(
+            Constants.expoConfig?.extra?.TERMS_URL ||
+              "https://lendgrid.in/terms-of-service",
+          ),
+        termsPressed,
+        setTermsPressed,
+      )}
 
       {/* Title Modal */}
       <Modal visible={titleModal} transparent animationType="slide">

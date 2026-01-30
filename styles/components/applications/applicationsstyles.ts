@@ -58,25 +58,28 @@ export const commissionsStyles = (theme: MD3Theme) =>
       gap: 12,
       marginVertical: 16,
     },
-    // 🔹 WIDER CARD FOR TOTAL & PICKED APPLICATIONS
     metricCard: {
-      width: 165, // ⬅️ increased from 140
+      width: 165,
       backgroundColor: theme.colors.surface,
       padding: 14,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: theme.colors.outline,
       marginRight: 10,
+      minHeight: 92, // ✅ add
     },
+
     ticketMetricCard: {
-      width: 180,
+      width: 185,
       backgroundColor: theme.colors.surface,
-      padding: 16,
+      padding: 14,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: theme.colors.outline,
-      marginRight: 12,
+      marginRight: 10,
+      minHeight: 92, // ✅ add
     },
+
     metricTitle: {
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,

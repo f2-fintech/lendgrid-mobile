@@ -1,5 +1,4 @@
-// components/ui/applications/MultiStepApplicationForm.tsx
-
+import { coreApi } from "@/apis/config/axiosConfig";
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -24,17 +23,18 @@ import Step4AdditionalDetails, {
   Step4Values,
 } from "./steps/Step_4_AdditionalDetails";
 
-// ✅ REVIEW REMOVED
-// import Step5Review from "./steps/Step_5_Review";
-
 type Props = {
   onClose: () => void;
   onSuccess?: () => void;
 };
 
-// ✅ REVIEW STEP REMOVED (total steps now = 5, last index = 4)
 const STEPS: StepConfig[] = [
-  { id: "loan-details", title: "Loan Details", icon: "dollar-sign" },
+  {
+    id: "loan-details",
+    title: "Loan Details",
+    iconLib: "fa5",
+    icon: "rupee-sign",
+  },
   { id: "basic-details", title: "Basic Info", icon: "user" },
   { id: "statement", title: "Statement", icon: "file-text" },
   { id: "proof", title: "ID Proof", icon: "credit-card" },
@@ -82,7 +82,8 @@ const ConfettiParticle = ({ delay, theme }: any) => {
         }),
       ]),
     ]).start();
-  }, [delay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const rotateInterpolate = rotate.interpolate({
     inputRange: [0, 1],
@@ -108,6 +109,10 @@ const ConfettiParticle = ({ delay, theme }: any) => {
   );
 };
 
+function generateApplicationNumber() {
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+
 export default function MultiStepApplicationForm({
   onClose,
   onSuccess,
@@ -121,7 +126,12 @@ export default function MultiStepApplicationForm({
 
   const formScrollRef = useRef<ScrollView>(null);
 
-  // ✅ Success toast state + animations
+  //  Server-like state
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [applicationNumbers, setApplicationNumbers] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  //  Success toast state + animations
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0.3)).current;
@@ -134,7 +144,6 @@ export default function MultiStepApplicationForm({
   const playSuccessToast = () => {
     setShowSuccessToast(true);
 
-    // Reset all animations
     overlayOpacity.setValue(0);
     cardScale.setValue(0.3);
     cardOpacity.setValue(0);
@@ -143,14 +152,12 @@ export default function MultiStepApplicationForm({
     circleScale.setValue(0);
     pulseAnim.setValue(1);
 
-    // Step 1: Fade in overlay
     Animated.timing(overlayOpacity, {
       toValue: 1,
       duration: 300,
       useNativeDriver: true,
     }).start();
 
-    // Step 2: Card entrance with bounce
     setTimeout(() => {
       Animated.parallel([
         Animated.spring(cardScale, {
@@ -167,7 +174,6 @@ export default function MultiStepApplicationForm({
       ]).start();
     }, 100);
 
-    // Step 3: Circle grows
     setTimeout(() => {
       Animated.spring(circleScale, {
         toValue: 1,
@@ -177,7 +183,6 @@ export default function MultiStepApplicationForm({
       }).start();
     }, 400);
 
-    // Step 4: Checkmark animates in with rotation
     setTimeout(() => {
       Animated.parallel([
         Animated.spring(checkScale, {
@@ -194,7 +199,6 @@ export default function MultiStepApplicationForm({
         }),
       ]).start();
 
-      // Pulse animation for check circle
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -213,7 +217,6 @@ export default function MultiStepApplicationForm({
       ).start();
     }, 600);
 
-    // Auto hide and close after 3.5 seconds
     setTimeout(() => {
       Animated.parallel([
         Animated.timing(overlayOpacity, {
@@ -234,7 +237,6 @@ export default function MultiStepApplicationForm({
     }, 3500);
   };
 
-  // ✅ Fix "opens from middle" — always go top on step change
   useEffect(() => {
     requestAnimationFrame(() => {
       formScrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -297,12 +299,8 @@ export default function MultiStepApplicationForm({
   const isStep2Skipped = !!skipped[2];
   const isStep3Skipped = !!skipped[3];
 
-  // -----------------------------
-  // HELPERS
-  // -----------------------------
   const s = (v?: string | null) => String(v ?? "").trim();
 
-  // ✅ Step 1 validity
   const step1Valid = useMemo(() => {
     const isTitleOk = s(step1.title).length > 0;
     const isNameOk = s(step1.name).length >= 2;
@@ -341,7 +339,6 @@ export default function MultiStepApplicationForm({
     );
   }, [step1]);
 
-  // ✅ Step 2 & 3 Go Next enabled only if: uploaded at least 1 doc OR skipped
   const step2HasAtLeastOneDoc = step2Files.length >= 1;
 
   const step3HasAtLeastOneDoc =
@@ -353,7 +350,6 @@ export default function MultiStepApplicationForm({
   const step2EffectiveValid = isStep2Skipped || step2HasAtLeastOneDoc;
   const step3EffectiveValid = isStep3Skipped || step3HasAtLeastOneDoc;
 
-  // ✅ if user uploads after skip, remove skipped flag automatically
   useEffect(() => {
     if (skipped[2] && step2Files.length > 0) {
       setSkipped((prev) => {
@@ -380,7 +376,6 @@ export default function MultiStepApplicationForm({
     }
   }, [skipped, step3]);
 
-  // ✅ max step allowed (last step now index 4)
   const maxStepAllowed = useMemo(() => {
     let allowed = 0;
 
@@ -396,26 +391,21 @@ export default function MultiStepApplicationForm({
     if (step3EffectiveValid) allowed = 4;
     else return allowed;
 
-    // ✅ Review removed, so step4Valid doesn't unlock any further step
-    // (still used for enabling Submit)
     return allowed;
   }, [step0Valid, step1Valid, step2EffectiveValid, step3EffectiveValid]);
 
-  // ✅ canGoNext for steps 0..3 only
   const canGoNext = useMemo(() => {
     if (step === 0) return step0Valid;
     if (step === 1) return step1Valid;
     if (step === 2) return step2EffectiveValid;
     if (step === 3) return step3EffectiveValid;
-    // step 4 doesn't have "Go Next" anymore
     return true;
   }, [step, step0Valid, step1Valid, step2EffectiveValid, step3EffectiveValid]);
 
-  // ✅ canSubmit only on step 4
   const canSubmit = useMemo(() => {
     if (step !== 4) return false;
-    return step4Valid; // you can also add extra conditions if needed
-  }, [step, step4Valid]);
+    return step4Valid && !isSubmitting;
+  }, [step, step4Valid, isSubmitting]);
 
   // -----------------------------
   // NAV ACTIONS
@@ -439,22 +429,110 @@ export default function MultiStepApplicationForm({
     setStep((s0) => Math.min(STEPS.length - 1, s0 + 1));
   };
 
+  // -----------------------------
+  // SUBMIT (CORE API FLOW)
+  // -----------------------------
+  const randomFourDigit = 8462; // you can make dynamic later
+  const password = `${step1.name.replace(/\s/g, "")}@${randomFourDigit}`;
+
   const submit = async () => {
     if (!canSubmit) return;
 
-    const payload = {
-      step0,
-      step1,
-      statements: step2Files,
-      idProof: step3,
-      additional: step4,
-      skipped,
-    };
+    setIsSubmitting(true);
 
-    console.log("FINAL SUBMIT PAYLOAD:", payload);
+    try {
+      // 1) create-customer
+      const customerRes = await coreApi.post("/create-customer", {
+        title: step1.title,
+        name: `${step1.title} ${step1.name}`.trim(),
+        email: step1.email,
+        contact: step1.contact,
+        dob: step1.dob,
+        password,
+        status: "active",
+      });
 
-    // ✅ show success toast in center, then close automatically
-    playSuccessToast();
+      const customerId =
+        customerRes?.data?.data?.id ||
+        customerRes?.data?.data?.customerId ||
+        customerRes?.data?.id;
+
+      if (!customerId) throw new Error("CustomerId not returned from API");
+
+      // 2) create-customer-info
+      await coreApi.post("/create-customer-info", {
+        customer_id: customerId,
+        pan: step1.pan,
+        father_name: step1.father_name,
+        mother_name: step1.mother_name,
+        working_address: step1.working_address,
+        permanent_address: step1.permanent_address,
+        current_address: step1.current_address,
+        city: step1.city,
+        state: step1.state,
+        employment_type: step1.employment_type,
+      });
+
+      // 3) create application per provider
+      // step0.providerAmounts = [{provider, amount}]
+      if (!step0.providerAmounts?.length) {
+        throw new Error("No provider selected for application");
+      }
+
+      const createdApplicationIds: string[] = [];
+
+      for (const pa of step0.providerAmounts) {
+        const application_no = generateApplicationNumber();
+
+        const appRes = await coreApi.post("/create-application", {
+          application_no,
+          customer_id: customerId,
+          provider: pa.provider,
+          amount: pa.amount || step0.loanAmount,
+          loan_type: step0.loanType,
+          loan_category: step0.loanCategory, // "secured" | "unsecured"
+          tenure: step0.tenure,
+
+          // optional fields if backend has them:
+          lead_type: "mobile",
+          loan_category_type: step0.loanCategory, // if backend wants different key
+          application_date: new Date().toISOString(),
+        });
+
+        const applicationId =
+          appRes?.data?.data?.applicationId ||
+          appRes?.data?.data?.id ||
+          appRes?.data?.id;
+
+        if (!applicationId) {
+          throw new Error(
+            appRes?.data?.message ||
+              `Application create failed for ${pa.provider}`,
+          );
+        }
+
+        createdApplicationIds.push(String(applicationId));
+
+        // 4) loan tracking (optional if your backend has endpoint)
+        // if you have /create-loan-tracking working:
+        try {
+          await coreApi.post("/create-loan-tracking", {
+            customer_application_id: applicationId,
+            status: "submitted",
+          });
+        } catch (e) {
+          // tracking optional -> ignore
+        }
+      }
+
+      console.log("✅ Applications created:", createdApplicationIds);
+
+      playSuccessToast();
+    } catch (e: any) {
+      console.log("❌ SUBMIT ERROR:", e?.response?.data || e?.message || e);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const checkRotateInterpolate = checkRotate.interpolate({
@@ -535,12 +613,10 @@ export default function MultiStepApplicationForm({
           }}
           pointerEvents="box-none"
         >
-          {/* Confetti particles */}
           {Array.from({ length: 30 }).map((_, i) => (
             <ConfettiParticle key={i} delay={i * 50} theme={theme} />
           ))}
 
-          {/* Success Card */}
           <Animated.View
             style={{
               opacity: cardOpacity,
@@ -559,7 +635,6 @@ export default function MultiStepApplicationForm({
               elevation: 20,
             }}
           >
-            {/* Animated Check Circle */}
             <Animated.View
               style={{
                 width: 100,
@@ -577,7 +652,6 @@ export default function MultiStepApplicationForm({
                 elevation: 8,
               }}
             >
-              {/* Pulse effect */}
               <Animated.View
                 style={{
                   position: "absolute",
@@ -590,7 +664,6 @@ export default function MultiStepApplicationForm({
                 }}
               />
 
-              {/* Checkmark icon */}
               <Animated.View
                 style={{
                   transform: [
@@ -603,7 +676,6 @@ export default function MultiStepApplicationForm({
               </Animated.View>
             </Animated.View>
 
-            {/* Success Text */}
             <Text
               style={{
                 color: theme.colors.onSurface,
@@ -640,7 +712,6 @@ export default function MultiStepApplicationForm({
               successfully submitted for processing
             </Text>
 
-            {/* Decorative line */}
             <View
               style={{
                 marginTop: 20,
@@ -697,7 +768,6 @@ export default function MultiStepApplicationForm({
           </Text>
         </TouchableOpacity>
 
-        {/* ✅ Step 4: Show SUBMIT (Review removed) */}
         {step === 4 ? (
           <TouchableOpacity
             onPress={submit}
@@ -725,12 +795,11 @@ export default function MultiStepApplicationForm({
                 letterSpacing: 0.3,
               }}
             >
-              Submit Application
+              {isSubmitting ? "Submitting..." : "Submit Application"}
             </Text>
           </TouchableOpacity>
         ) : (
           <>
-            {/* Skip only on step 2 & 3 */}
             {(step === 2 || step === 3) && (
               <TouchableOpacity
                 onPress={skipThisStep}

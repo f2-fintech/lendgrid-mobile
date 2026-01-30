@@ -1,8 +1,8 @@
 // app/(tab)/applications.tsx
 import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
-import { Feather } from "@expo/vector-icons";
+import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { ActivityIndicator, useTheme } from "react-native-paper";
+import PagerView from "react-native-pager-view";
 
 import { useCustomerApplications } from "@/hooks/use-customer-applications_rest";
 import { useTickets } from "@/hooks/use-tickets_rest";
@@ -22,6 +23,7 @@ export default function ApplicationsScreen() {
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
   const router = useRouter();
+  const pagerRef = useRef<PagerView>(null);
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"applications" | "tickets">(
@@ -68,6 +70,12 @@ export default function ApplicationsScreen() {
     isError: ticketsError,
     refetch: refetchTickets,
   } = ticketsQuery;
+
+  // Switch tab helper (tap buttons)
+  const setTab = (tab: "applications" | "tickets") => {
+    setActiveTab(tab);
+    pagerRef.current?.setPage(tab === "applications" ? 0 : 1);
+  };
 
   // When coming back from Create Application screen -> refetch
   useFocusEffect(
@@ -343,6 +351,7 @@ export default function ApplicationsScreen() {
               <View style={styles.commissionHeader}>
                 <View>
                   <Text style={styles.applicationId}>
+                    Application No -{" "}
                     {String(app.applicationNumber || app.applicationId)}
                   </Text>
                   <Text style={styles.lenderName}>
@@ -495,9 +504,6 @@ export default function ApplicationsScreen() {
               style={styles.metricIcon}
             />
           </View>
-          <Text style={[styles.metricChange, { color: "#10B981" }]}>
-            +12% from last month
-          </Text>
         </View>
 
         <View style={styles.ticketMetricCard}>
@@ -513,9 +519,6 @@ export default function ApplicationsScreen() {
               style={styles.metricIcon}
             />
           </View>
-          <Text style={[styles.metricChange, { color: "#10B981" }]}>
-            +5% from last month
-          </Text>
         </View>
 
         <View style={styles.ticketMetricCard}>
@@ -531,9 +534,6 @@ export default function ApplicationsScreen() {
               style={styles.metricIcon}
             />
           </View>
-          <Text style={[styles.metricChange, { color: "#10B981" }]}>
-            +18% from last month
-          </Text>
         </View>
 
         <View style={styles.ticketMetricCard}>
@@ -542,16 +542,13 @@ export default function ApplicationsScreen() {
             <Text style={[styles.metricValue, { color: "#8B5CF6" }]}>
               {ticketsSummary.disbursed}
             </Text>
-            <Feather
-              name="dollar-sign"
-              size={24}
+            <FontAwesome5
+              name="rupee-sign"
+              size={22}
               color="#8B5CF6"
               style={styles.metricIcon}
             />
           </View>
-          <Text style={[styles.metricChange, { color: "#10B981" }]}>
-            +22% from last month
-          </Text>
         </View>
       </ScrollView>
 
@@ -589,7 +586,7 @@ export default function ApplicationsScreen() {
               <View style={styles.commissionHeader}>
                 <View>
                   <Text style={styles.applicationId}>
-                    {String(ticket.ticketId)}
+                    Ticket no - F2FIN-{String(ticket.ticketId)}
                   </Text>
                   <Text style={styles.lenderName}>{ticket.customerName}</Text>
                 </View>
@@ -728,68 +725,88 @@ export default function ApplicationsScreen() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 80}
     >
       <View style={styles.container}>
-        <ScrollView
-          style={styles.scrollView}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
+        {/* Keep Tabs always visible */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === "applications" && styles.activeTab,
+            ]}
+            onPress={() => setTab("applications")}
+          >
+            <Feather
+              name="file-text"
+              size={18}
+              color={
+                activeTab === "applications"
+                  ? "#000"
+                  : theme.colors.onSurfaceVariant
+              }
+              style={{ marginRight: 8 }}
+            />
+            <Text
               style={[
-                styles.tab,
-                activeTab === "applications" && styles.activeTab,
+                styles.tabText,
+                activeTab === "applications" && styles.activeTabText,
               ]}
-              onPress={() => setActiveTab("applications")}
             >
-              <Feather
-                name="file-text"
-                size={18}
-                color={
-                  activeTab === "applications"
-                    ? "#000"
-                    : theme.colors.onSurfaceVariant
-                }
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === "applications" && styles.activeTabText,
-                ]}
-              >
-                Applications
-              </Text>
-            </TouchableOpacity>
+              Applications
+            </Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.tab, activeTab === "tickets" && styles.activeTab]}
-              onPress={() => setActiveTab("tickets")}
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "tickets" && styles.activeTab]}
+            onPress={() => setTab("tickets")}
+          >
+            <Feather
+              name="clipboard"
+              size={18}
+              color={
+                activeTab === "tickets" ? "#000" : theme.colors.onSurfaceVariant
+              }
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "tickets" && styles.activeTabText,
+              ]}
             >
-              <Feather
-                name="clipboard"
-                size={18}
-                color={
-                  activeTab === "tickets"
-                    ? "#000"
-                    : theme.colors.onSurfaceVariant
-                }
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === "tickets" && styles.activeTabText,
-                ]}
-              >
-                Tickets
-              </Text>
-            </TouchableOpacity>
+              Tickets
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/*Swipe between tabs */}
+        <PagerView
+          ref={pagerRef}
+          style={{ flex: 1 }}
+          initialPage={0}
+          onPageSelected={(e) => {
+            const index = e.nativeEvent.position;
+            setActiveTab(index === 0 ? "applications" : "tickets");
+          }}
+        >
+          <View key="applications">
+            <ScrollView
+              style={styles.scrollView}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {renderApplicationsTab()}
+            </ScrollView>
           </View>
 
-          {activeTab === "applications"
-            ? renderApplicationsTab()
-            : renderTicketsTab()}
-        </ScrollView>
+          <View key="tickets">
+            <ScrollView
+              style={styles.scrollView}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {renderTicketsTab()}
+            </ScrollView>
+          </View>
+        </PagerView>
       </View>
     </KeyboardAvoidingView>
   );
