@@ -20,7 +20,7 @@ export default function CommissionsScreen() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | string>("all");
   const [selectedTab, setSelectedTab] = useState<"trends" | "history">(
-    "trends"
+    "trends",
   );
   const [page] = useState(1);
   const [pageSize] = useState(50);
@@ -141,14 +141,14 @@ export default function CommissionsScreen() {
 
     const totalEarned = transactions.reduce(
       (sum, t) => sum + t.commissionAmount,
-      0
+      0,
     );
 
     const pendingAmount = transactions
       .filter(
         (t) =>
           t.status === CommissionStatus.PENDING ||
-          t.status === CommissionStatus.CALCULATED
+          t.status === CommissionStatus.CALCULATED,
       )
       .reduce((sum, t) => sum + t.commissionAmount, 0);
 
@@ -228,7 +228,7 @@ export default function CommissionsScreen() {
         disbursedDate: formatDate(t.calculatedAt),
         paidDate: t.paidAt ? formatDate(t.paidAt) : null,
       })),
-    [transactions]
+    [transactions],
   );
 
   // ---------- Filters ----------

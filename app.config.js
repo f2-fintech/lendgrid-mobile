@@ -51,6 +51,10 @@ export default {
     extra: {
       API_URL: process.env.EXPO_PUBLIC_API_URL,
       ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL,
+      CORE_REST_URL: process.env.EXPO_PUBLIC_CORE_REST_URL,
+
+      PRIVACY_URL: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
+      TERMS_URL: process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL,
 
       GRAPHQL_HTTP_URL:
         process.env.EXPO_PUBLIC_GRAPHQL_HTTP_URL ??

@@ -137,7 +137,7 @@ export default function HorizontalStepper({
                     renderIcon({
                       iconLib: step.iconLib,
                       icon: step.icon,
-                      size: isActive ? 22 : 18,
+                      size: isActive ? 20 : 17,
                       color: isActive
                         ? theme.colors.onPrimary
                         : theme.colors.onSurfaceVariant,

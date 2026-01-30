@@ -1,6 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { zodResolver } from "@hookform/resolvers/zod";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Buffer } from "buffer";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   Image,
@@ -10,18 +14,29 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 import { Snackbar } from "react-native-paper";
 
+import { setGraphqlAuthToken } from "@/apis/config/graphql_Notification_Client";
 import { ROUTES } from "@/assets/constants/routes";
+import { useLogin } from "@/hooks/useAuth";
 import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
 
-import { setGraphqlAuthToken } from "@/apis/config/graphql_Notification_Client";
-import { useLogin } from "@/hooks/useAuth";
-import { zodResolver } from "@hookform/resolvers/zod";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useForm } from "react-hook-form";
+// Decode JWT payload (companyId token me hi hai)
+const parseJwt = (token: string) => {
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+
+    const json = Buffer.from(padded, "base64").toString("utf-8");
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
 
 export default function SignIn() {
   const router = useRouter();
@@ -29,7 +44,6 @@ export default function SignIn() {
 
   const { mutateAsync: login, isPending } = useLogin();
 
-  // Snackbar state
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
@@ -44,10 +58,7 @@ export default function SignIn() {
     formState: { errors },
   } = useForm<SignInSchemaType>({
     resolver: zodResolver(signInSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   const onSubmit = async (data: SignInSchemaType) => {
@@ -57,22 +68,35 @@ export default function SignIn() {
         password: data.password,
       });
 
-      if (response.success && response.access_token) {
-        // Persist token for future app launches
-        await AsyncStorage.setItem("token", response.access_token);
-        // console.log("🔥 ACCESS TOKEN =", response.access_token);
+      //console.log("LOGIN RESPONSE:", response);
 
+      if (response?.success && response?.access_token) {
+        const token = response.access_token;
 
-        //  Tell GraphQL (HTTP + WebSocket) about the token
-        setGraphqlAuthToken(response.access_token);
+        //  Save token
+        await AsyncStorage.setItem("token", token);
 
-        //  Navigate to dashboard
+        //  Extract companyId from token payload
+        const payload = parseJwt(token);
+        const companyId = payload?.companyId;
+
+        if (companyId !== undefined && companyId !== null) {
+          await AsyncStorage.setItem("companyId", String(companyId));
+          // console.log("Stored companyId:", companyId);
+        } else {
+          console.warn("⚠️ companyId not found in login response/token");
+        }
+
+        // GraphQL auth
+        setGraphqlAuthToken(token);
+
+        // Navigate
         router.replace(ROUTES.Dashboard);
       } else {
-        showError(response.message || "Login failed");
+        showError(response?.message || "Login failed");
       }
     } catch (err: any) {
-      showError(err.message || "Invalid email or password");
+      showError(err?.message || "Invalid email or password");
     }
   };
 
@@ -106,6 +130,8 @@ export default function SignIn() {
             placeholderTextColor="#888"
             onChangeText={(text) => setValue("email", text)}
             style={signInStyles.input}
+            autoCapitalize="none"
+            keyboardType="email-address"
           />
           {errors.email && (
             <Text style={{ color: "red", marginBottom: 10 }}>
@@ -139,7 +165,6 @@ export default function SignIn() {
             </Text>
           )}
 
-          {/* LOGIN BUTTON WITH LOADER */}
           <TouchableOpacity
             style={[signInStyles.signInButton, isPending && { opacity: 0.6 }]}
             disabled={isPending}
@@ -173,7 +198,6 @@ export default function SignIn() {
         </View>
       </ScrollView>
 
-      {/* SNACKBAR */}
       <View
         style={{
           position: "absolute",
