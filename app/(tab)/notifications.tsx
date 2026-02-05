@@ -1,6 +1,7 @@
 // app/(tab)/notifications.tsx
 import { useMutation } from "@apollo/client/react";
 import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -19,15 +20,14 @@ import {
 } from "@/apis/modules/notifications.api";
 import { useNotifications } from "@/hooks/useNotifications";
 
-//  Mobile routes (use expo-router paths)
+// Mobile routes (use expo-router paths)
 const MOBILE_ROUTES = {
   dashboard: "/dashboard",
   applications: "/applications",
   commissions: "/commissions",
-  // notifications: "/notifications", // current screen
 } as const;
 
-//  Map website actionUrl -> mobile screen
+// Map website actionUrl -> mobile screen
 const mapWebsiteActionUrlToMobile = (actionUrl?: string | null) => {
   if (!actionUrl) return null;
 
@@ -45,7 +45,7 @@ const mapWebsiteActionUrlToMobile = (actionUrl?: string | null) => {
   return null;
 };
 
-//  decide final navigation target
+// decide final navigation target
 const getNotificationTarget = (n: any) => {
   // 1) actionUrl mapping
   const fromAction = mapWebsiteActionUrlToMobile(n?.actionUrl);
@@ -64,7 +64,7 @@ const getIconComponent = (iconName: string) => (
   <Ionicons name={iconName as any} size={22} color="#FFFFFF" />
 );
 
-//  Animated notification item component
+// Animated notification item component
 const AnimatedNotificationItem = ({
   notification,
   theme,
@@ -113,7 +113,7 @@ const AnimatedNotificationItem = ({
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-          {/*  Clickable area (opens route) */}
+          {/* Clickable area (opens route) */}
           <TouchableOpacity
             onPress={() => onOpen?.(notification)}
             activeOpacity={0.75}
@@ -214,7 +214,7 @@ const AnimatedNotificationItem = ({
             </View>
           </TouchableOpacity>
 
-          {/*  Cross icon (delete single) */}
+          {/* Cross icon (delete single) */}
           <TouchableOpacity
             onPress={handleDelete}
             activeOpacity={0.75}
@@ -252,11 +252,11 @@ const AnimatedNotificationItem = ({
   );
 };
 
-//  Small helper: batch delete
+// Small helper: batch delete
 const runBatches = async <T,>(
   items: T[],
   batchSize: number,
-  worker: (item: T) => Promise<any>
+  worker: (item: T) => Promise<any>,
 ) => {
   for (let i = 0; i < items.length; i += batchSize) {
     const chunk = items.slice(i, i + batchSize);
@@ -267,6 +267,7 @@ const runBatches = async <T,>(
 export default function NotificationsScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const { notifications, meta, loading, error, refetch } = useNotifications({
     mode: "list",
@@ -342,21 +343,47 @@ export default function NotificationsScreen() {
     });
   };
 
-  //  open notification route
+  //  React-Query cache invalidation based on route
+  const invalidateForRoute = async (to: string, n?: any) => {
+    // Always safe: dashboard summary + chart + commissions
+    if (to === MOBILE_ROUTES.dashboard) {
+      await Promise.allSettled([
+        queryClient.invalidateQueries({ queryKey: ["application-count"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard-ticket-stats"] }),
+        queryClient.invalidateQueries({ queryKey: ["disbursed-by-month"] }),
+        queryClient.invalidateQueries({ queryKey: ["commissions"] }),
+      ]);
+      return;
+    }
+
+    if (to === MOBILE_ROUTES.applications) {
+      // Ticket updates usually affect stats too
+      await Promise.allSettled([
+        queryClient.invalidateQueries({ queryKey: ["dashboard-ticket-stats"] }),
+        // if you have a tickets/applications query key, add it here too:
+        // queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+        // queryClient.invalidateQueries({ queryKey: ["applications"] }),
+      ]);
+      return;
+    }
+
+    if (to === MOBILE_ROUTES.commissions) {
+      await queryClient.invalidateQueries({ queryKey: ["commissions"] });
+      return;
+    }
+  };
+
+  // open notification route (invalidate -> navigate)
   const openNotification = useCallback(
-    (n: any) => {
+    async (n: any) => {
       const to = getNotificationTarget(n);
 
-      // If in future you create detail screens, you can pass params here.
-      // Example:
-      // if (to === MOBILE_ROUTES.applications && n?.ticketId) {
-      //   router.push({ pathname: "/applications", params: { ticketId: String(n.ticketId) } });
-      //   return;
-      // }
+      // Make target screen fetch fresh data
+      await invalidateForRoute(to, n);
 
       router.push(to as any);
     },
-    [router]
+    [router, queryClient],
   );
 
   const visibleTotal = visibleNotifications.length;
@@ -581,7 +608,7 @@ export default function NotificationsScreen() {
             notification={notification}
             theme={theme}
             onDelete={removeOneOptimistic}
-            onOpen={openNotification} //  click navigation
+            onOpen={openNotification}
             isLast={index === visibleNotifications.length - 1}
           />
         ))}

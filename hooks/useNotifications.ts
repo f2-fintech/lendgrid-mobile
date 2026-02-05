@@ -1,6 +1,7 @@
 // hooks/useNotifications.ts
 import { useMutation, useQuery, useSubscription } from "@apollo/client/react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, AppStateStatus } from "react-native";
@@ -75,9 +76,10 @@ export const useNotifications = ({
   filters = {},
 }: UseNotificationsParams = {}) => {
   const isListMode = mode === "list";
+  const queryClient = useQueryClient();
 
   // ----------------------------------------------------
-  // ✅ Token bootstrap (frontend safe)
+  //  Token bootstrap (frontend safe)
   // ----------------------------------------------------
   const [tokenReady, setTokenReady] = useState(false);
   const [hasToken, setHasToken] = useState<boolean>(!!getGraphqlAuthToken());
@@ -149,7 +151,7 @@ export const useNotifications = ({
       nextFetchPolicy: "cache-first",
       skip: !tokenReady || !hasToken || isListMode,
       notifyOnNetworkStatusChange: true,
-    }
+    },
   );
 
   const loading = isListMode ? listQuery.loading : statsQuery.loading;
@@ -162,7 +164,44 @@ export const useNotifications = ({
   }, [tokenReady, hasToken, isListMode, listQuery, statsQuery]);
 
   // ----------------------------------------------------
-  // ✅ Subscription attempt
+  //  Bridge: Notification event -> React Query invalidate
+  // ----------------------------------------------------
+  const invalidateForNotification = useCallback(
+    (n: any) => {
+      const type = String(n?.type || "").toUpperCase();
+      const newStatus = String(
+        n?.newStatus || n?.ticketStatus || "",
+      ).toLowerCase();
+      const actionUrl = String(n?.actionUrl || "");
+
+      const invalidate = (key: any[]) =>
+        queryClient.invalidateQueries({ queryKey: key });
+
+      //  commissions
+      if (
+        type === "COMMISSION_STATUS_CHANGE" ||
+        actionUrl.includes("commissions")
+      ) {
+        invalidate(["commissions"]);
+      }
+
+      //  dashboard stats
+      if (
+        type === "TICKET_STATUS_CHANGE" ||
+        actionUrl.includes("applications")
+      ) {
+        invalidate(["dashboard-ticket-stats"]);
+        invalidate(["application-count"]);
+        // chart changes on disbursed
+        //  safest: chart can change on any ticket update (esp disbursed/backdated)
+        invalidate(["disbursed-by-month"]);
+      }
+    },
+    [queryClient],
+  );
+
+  // ----------------------------------------------------
+  //  Subscription attempt
   // ----------------------------------------------------
   const subFiredOnceRef = useRef(false);
 
@@ -171,9 +210,16 @@ export const useNotifications = ({
     onData: ({ data }) => {
       const n = data?.data?.notificationCreated;
       if (!n) return;
+
       subFiredOnceRef.current = true;
-      console.log("[SUB] notificationCreated =>", n._id);
+      console.log("[SUB] notificationCreated =>", n._id, n.type);
+
+      // 1) refresh notifications list/stats (Apollo)
       refetch();
+
+      // 2) refresh dashboard/commissions (React Query)
+      // fire and forget is ok (but we keep it safe)
+      invalidateForNotification(n);
     },
     onError: (e) => {
       console.warn("[SUB] subscription error =>", e?.message || e);
@@ -221,7 +267,15 @@ export const useNotifications = ({
         nextState === "inactive" || nextState === "background";
 
       if (becameActive) {
+        // refresh notifications
         refetch();
+
+        // also refresh main screens data when app returns
+        queryClient.invalidateQueries({ queryKey: ["commissions"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-ticket-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["application-count"] });
+        queryClient.invalidateQueries({ queryKey: ["disbursed-by-month"] });
+
         startPolling();
       } else if (becameBackground) {
         stopPolling();
@@ -232,13 +286,13 @@ export const useNotifications = ({
       sub.remove();
       stopPolling();
     };
-  }, [tokenReady, hasToken, startPolling, stopPolling, refetch]);
+  }, [tokenReady, hasToken, startPolling, stopPolling, refetch, queryClient]);
 
   // ----------------------------------------------------
-  // ✅ Mark-all-read mutation (only on list screen blur)
+  //  Mark-all-read mutation (only on list screen blur)
   // ----------------------------------------------------
   const [markAllAsRead] = useMutation<MarkAllAsReadResult>(
-    MARK_ALL_NOTIFICATIONS_AS_READ
+    MARK_ALL_NOTIFICATIONS_AS_READ,
   );
 
   useFocusEffect(
@@ -263,12 +317,12 @@ export const useNotifications = ({
           } catch (e: any) {
             console.warn(
               "[NOTIFICATIONS] markAllAsRead error =>",
-              e?.message || e
+              e?.message || e,
             );
           }
         })();
       };
-    }, [isListMode, markAllAsRead, page, limit, filters])
+    }, [isListMode, markAllAsRead, page, limit, filters]),
   );
 
   // ----------------------------------------------------
@@ -291,7 +345,6 @@ export const useNotifications = ({
         icon,
         iconBg: bg,
 
-        // ✅ Add these for routing
         actionUrl: (n as any).actionUrl ?? null,
         type: (n as any).type ?? null,
         ticketId: (n as any).ticketId ?? null,

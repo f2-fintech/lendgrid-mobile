@@ -41,7 +41,9 @@ export const CommissionItem = ({
     <View style={styles.commissionItem}>
       {/* ---------- TOP ROW: ID + STATUS BADGE ---------- */}
       <View style={styles.commissionHeader}>
-        <Text style={styles.applicationId}>{item.applicationId}</Text>
+        <Text style={styles.applicationId}>
+          {"Ticket ID - F2FIN-" + item.applicationId}
+        </Text>
 
         <View
           style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}

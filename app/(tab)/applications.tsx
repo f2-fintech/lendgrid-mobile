@@ -12,8 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ActivityIndicator, useTheme } from "react-native-paper";
 import PagerView from "react-native-pager-view";
+import { ActivityIndicator, useTheme } from "react-native-paper";
 
 import { useCustomerApplications } from "@/hooks/use-customer-applications_rest";
 import { useTickets } from "@/hooks/use-tickets_rest";
@@ -586,7 +586,7 @@ export default function ApplicationsScreen() {
               <View style={styles.commissionHeader}>
                 <View>
                   <Text style={styles.applicationId}>
-                    Ticket no - F2FIN-{String(ticket.ticketId)}
+                    Ticket ID - F2FIN-{String(ticket.ticketId)}
                   </Text>
                   <Text style={styles.lenderName}>{ticket.customerName}</Text>
                 </View>

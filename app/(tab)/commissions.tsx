@@ -1,69 +1,123 @@
-import { useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { useIsFocused } from "@react-navigation/native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  AppState,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { useTheme } from "react-native-paper";
 
 import { CommissionHistory } from "../../components/ui/commissions/CommissionHistory";
 import { CommissionMetrics } from "../../components/ui/commissions/CommissionMetrics";
 import { CommissionTabs } from "../../components/ui/commissions/CommissionTabs";
 import { CommissionTrends } from "../../components/ui/commissions/CommissionTrends";
-
 import { commissionsStyles } from "../../styles/components/commissions/commissions.styles";
 
-import { useMyAggregatorProfile } from "@/hooks/useAggregator";
-import { useCommissionTransactions } from "@/hooks/useCommissions";
+import { useCommissionTransactionsInfinite } from "@/hooks/useCommissions";
 import { CommissionStatus, CommissionTransaction } from "@/types/commissions";
 
 export default function CommissionsScreen() {
   const theme = useTheme();
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
+  const isFocused = useIsFocused();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | string>("all");
   const [selectedTab, setSelectedTab] = useState<"trends" | "history">(
     "trends",
   );
-  const [page] = useState(1);
   const [pageSize] = useState(50);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // 1) Aggregator profile (may be null right now – that’s okay)
-  const {
-    data: myProfile,
-    isLoading: isProfileLoading,
-    isError: isProfileError,
-  } = useMyAggregatorProfile();
-
-  // 2) Fetch commissions (currently no filter; later you can add { aggregatorId })
-  const {
-    data: commissionsData,
-    isLoading: isCommissionsLoading,
-    isError: isCommissionsError,
-  } = useCommissionTransactions({
-    page,
+  // Infinite commissions (no polling)
+  const commissions = useCommissionTransactionsInfinite({
     limit: pageSize,
-    // filters: aggregatorId ? { aggregatorId } : undefined,
     filters: undefined,
     enabled: true,
   });
 
-  const isLoading = isProfileLoading || isCommissionsLoading;
+  // Flatten all loaded pages -> one array
+  const transactions: CommissionTransaction[] = useMemo(() => {
+    const pages = commissions.data?.pages ?? [];
+    return pages.flatMap((p) => (p?.data ?? []) as any);
+  }, [commissions.data]);
+
+  const total = useMemo(() => {
+    // total is available in each page; take latest one
+    const last = commissions.data?.pages?.[commissions.data.pages.length - 1];
+    return Number(last?.total ?? 0);
+  }, [commissions.data]);
+
+  // Refetch when tab gets focus
+  useEffect(() => {
+    if (isFocused) commissions.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused]);
+
+  // Refetch when app resumes (background -> active)
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active" && isFocused) {
+        commissions.refetch();
+      }
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused]);
+
+  const isLoading = commissions.isLoading;
+  const isFetchingNext = commissions.isFetchingNextPage;
+  const hasNext = !!commissions.hasNextPage;
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await commissions.refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [commissions]);
+
+  // fetch next page when user scrolls near bottom (only for history tab)
+  const onScroll = useCallback(
+    (e: any) => {
+      if (selectedTab !== "history") return;
+      if (!hasNext || isFetchingNext) return;
+
+      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      const paddingToBottom = 220; // tweak if needed
+      const reachedBottom =
+        layoutMeasurement.height + contentOffset.y >=
+        contentSize.height - paddingToBottom;
+
+      if (reachedBottom) {
+        commissions.fetchNextPage();
+      }
+    },
+    [selectedTab, hasNext, isFetchingNext, commissions],
+  );
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 0,
-    }).format(amount);
+    }).format(Number(amount || 0));
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("en-IN", {
+    const d = new Date(dateString);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
   };
 
-  //  Correct mapping from backend enum → UI label
   const getStatusLabel = (status: CommissionStatus | string) => {
     switch (status) {
       case CommissionStatus.PAID:
@@ -88,14 +142,14 @@ export default function CommissionsScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Paid":
-        return "#10B981"; // green
+        return "#10B981";
       case "Pending":
       case "Calculated":
-        return "#F59E0B"; // orange
+        return "#F59E0B";
       case "Approved":
-        return "#3B82F6"; // blue
+        return "#3B82F6";
       case "Disputed":
-        return "#EF4444"; // red
+        return "#EF4444";
       case "Rejected":
       case "Cancelled":
         return theme.colors.onSurfaceVariant;
@@ -104,7 +158,6 @@ export default function CommissionsScreen() {
     }
   };
 
-  // Icons based on UI label
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Paid":
@@ -112,7 +165,7 @@ export default function CommissionsScreen() {
       case "Pending":
         return "pending";
       case "Calculated":
-        return "schedule"; // clock icon
+        return "schedule";
       case "Approved":
         return "check-circle";
       case "Disputed":
@@ -125,10 +178,6 @@ export default function CommissionsScreen() {
     }
   };
 
-  const transactions: CommissionTransaction[] = commissionsData?.data || [];
-
-  // ---------- Metrics ----------
-
   const metrics = useMemo(() => {
     if (!transactions.length) {
       return {
@@ -140,37 +189,35 @@ export default function CommissionsScreen() {
     }
 
     const totalEarned = transactions.reduce(
-      (sum, t) => sum + t.commissionAmount,
+      (sum, t) => sum + Number((t as any).commissionAmount ?? 0),
       0,
     );
 
     const pendingAmount = transactions
       .filter(
         (t) =>
-          t.status === CommissionStatus.PENDING ||
-          t.status === CommissionStatus.CALCULATED,
+          (t as any).status === CommissionStatus.PENDING ||
+          (t as any).status === CommissionStatus.CALCULATED,
       )
-      .reduce((sum, t) => sum + t.commissionAmount, 0);
+      .reduce((sum, t) => sum + Number((t as any).commissionAmount ?? 0), 0);
 
     const paidAmount = transactions
-      .filter((t) => t.status === CommissionStatus.PAID)
-      .reduce((sum, t) => sum + t.commissionAmount, 0);
+      .filter((t) => (t as any).status === CommissionStatus.PAID)
+      .reduce((sum, t) => sum + Number((t as any).commissionAmount ?? 0), 0);
 
     const avgRate =
-      transactions.reduce((sum, t) => sum + t.commissionRate, 0) /
-      transactions.length;
+      transactions.reduce(
+        (sum, t) => sum + Number((t as any).commissionRate ?? 0),
+        0,
+      ) / transactions.length;
 
-    const result = {
+    return {
       totalEarned,
       pendingAmount,
       paidAmount,
       avgCommissionRate: Number(avgRate.toFixed(2)),
     };
-
-    return result;
   }, [transactions]);
-
-  // ---------- Trends ----------
 
   const commissionTrends = useMemo(() => {
     if (!transactions.length) return [];
@@ -180,99 +227,61 @@ export default function CommissionsScreen() {
       { earned: number; paid: number; pending: number }
     > = {};
 
-    transactions.forEach((t) => {
+    transactions.forEach((t: any) => {
       const baseDate = t.calculatedAt || t.createdAt;
+      if (!baseDate) return;
+
       const d = new Date(baseDate);
+      if (Number.isNaN(d.getTime())) return;
+
       const key = d.toLocaleDateString("en-US", {
         month: "short",
         year: "numeric",
       });
 
-      if (!monthly[key]) {
-        monthly[key] = { earned: 0, paid: 0, pending: 0 };
-      }
+      if (!monthly[key]) monthly[key] = { earned: 0, paid: 0, pending: 0 };
 
-      monthly[key].earned += t.commissionAmount;
-
-      if (t.status === CommissionStatus.PAID) {
-        monthly[key].paid += t.commissionAmount;
-      } else {
-        monthly[key].pending += t.commissionAmount;
-      }
+      const amt = Number(t.commissionAmount ?? 0);
+      monthly[key].earned += amt;
+      if (t.status === CommissionStatus.PAID) monthly[key].paid += amt;
+      else monthly[key].pending += amt;
     });
 
-    const arr = Object.entries(monthly)
-      .map(([month, v]) => ({
-        month: month.split(" ")[0],
-        ...v,
-      }))
+    return Object.entries(monthly)
+      .map(([month, v]) => ({ month: month.split(" ")[0], ...v }))
       .slice(-6);
-
-    console.log("📈 COMMISSION TRENDS >>>", arr);
-    return arr;
   }, [transactions]);
-
-  // ---------- History mapping (appId forced to string) ----------
 
   const commissionHistory = useMemo(
     () =>
-      transactions.map((t) => ({
+      transactions.map((t: any) => ({
         id: t.id,
-        applicationId: String(t.ticketId), // always string
+        applicationId: String(t.ticketId),
         lenderName: t.provider || "N/A",
         loanType: t.productType || "N/A",
-        disbursedAmount: t.disbursedAmount,
-        commissionRate: t.commissionRate,
-        commissionAmount: t.commissionAmount,
-        status: getStatusLabel(t.status), // label like "Calculated"
+        disbursedAmount: Number(t.disbursedAmount ?? 0),
+        commissionRate: Number(t.commissionRate ?? 0),
+        commissionAmount: Number(t.commissionAmount ?? 0),
+        status: getStatusLabel(t.status),
         disbursedDate: formatDate(t.calculatedAt),
         paidDate: t.paidAt ? formatDate(t.paidAt) : null,
       })),
     [transactions],
   );
 
-  // ---------- Filters ----------
-
-  const filteredCommissions = commissionHistory.filter((c) => {
-    const appId = (c.applicationId ?? "").toString().toLowerCase();
-    const lender = (c.lenderName ?? "").toString().toLowerCase();
+  const filteredCommissions = useMemo(() => {
     const search = (searchTerm ?? "").toLowerCase();
 
-    const matchesSearch = appId.includes(search) || lender.includes(search);
+    return commissionHistory.filter((c) => {
+      const appId = (c.applicationId ?? "").toLowerCase();
+      const lender = (c.lenderName ?? "").toLowerCase();
 
-    const matchesStatus = filterStatus === "all" || c.status === filterStatus;
+      const matchesSearch = appId.includes(search) || lender.includes(search);
+      const matchesStatus = filterStatus === "all" || c.status === filterStatus;
 
-    return matchesSearch && matchesStatus;
-  });
-
-  const renderSelectedTab = () => {
-    switch (selectedTab) {
-      case "trends":
-        return (
-          <CommissionTrends
-            trends={commissionTrends}
-            formatCurrency={formatCurrency}
-          />
-        );
-      case "history":
-        return (
-          <CommissionHistory
-            commissions={filteredCommissions}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            filterStatus={filterStatus}
-            setFilterStatus={setFilterStatus}
-            formatCurrency={formatCurrency}
-            getStatusColor={getStatusColor}
-            getStatusIcon={getStatusIcon}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
-  // ---------- Loading / Error ----------
+      return matchesSearch && matchesStatus;
+    });
+  }, [commissionHistory, searchTerm, filterStatus]);
 
   if (isLoading) {
     return (
@@ -282,7 +291,7 @@ export default function CommissionsScreen() {
     );
   }
 
-  if (isProfileError || isCommissionsError) {
+  if (commissions.isError) {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
         <Text style={{ color: theme.colors.error, textAlign: "center" }}>
@@ -292,27 +301,66 @@ export default function CommissionsScreen() {
     );
   }
 
-  // ---------- Main UI ----------
-
   return (
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={{
-          paddingTop: 14,
-          paddingBottom: 20,
-        }}
+        contentContainerStyle={{ paddingTop: 14, paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
+          />
+        }
       >
         <CommissionMetrics metrics={metrics} formatCurrency={formatCurrency} />
 
-        {/* Tabs stay same as before: Trends + Payment History */}
         <CommissionTabs
           selectedTab={selectedTab}
           setSelectedTab={setSelectedTab}
         />
 
-        {renderSelectedTab()}
+        {selectedTab === "trends" ? (
+          <CommissionTrends
+            trends={commissionTrends}
+            formatCurrency={formatCurrency}
+          />
+        ) : (
+          <>
+            <CommissionHistory
+              commissions={filteredCommissions}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              filterStatus={filterStatus}
+              setFilterStatus={setFilterStatus}
+              formatCurrency={formatCurrency}
+              getStatusColor={getStatusColor}
+              getStatusIcon={getStatusIcon}
+            />
+
+            {/*  Pagination footer */}
+            <View style={{ paddingTop: 12, alignItems: "center" }}>
+              {isFetchingNext ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : hasNext ? (
+                <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                  Scroll to load more ({filteredCommissions.length}/
+                  {total || "?"})
+                </Text>
+              ) : (
+                <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                  No more records ({filteredCommissions.length}/
+                  {total || filteredCommissions.length})
+                </Text>
+              )}
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );

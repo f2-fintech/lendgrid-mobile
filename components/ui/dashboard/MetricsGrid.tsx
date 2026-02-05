@@ -1,60 +1,121 @@
 import { dashboardStyles } from "@/styles/components/dashboard/dashboard.styles";
-import { Feather, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { ScrollView, Text, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
-const metrics = [
-  {
-    title: "Total Disbursed",
-    value: "₹ 0",
-    icon: "money-bill-wave",
-    library: FontAwesome5,
-    trend: "+12.5%",
-    color: "#10B981",
-  },
-  {
-    title: "Commission Earned",
-    value: "₹ 0",
-    icon: "trending-up",
-    library: MaterialIcons,
-    trend: "+8.2%",
-    color: "#F59E0B",
-  },
-  {
-    title: "Pending Payouts",
-    value: "₹ 0",
-    icon: "credit-card",
-    library: FontAwesome5,
-    color: "#F97316",
-  },
-  {
-    title: "Active Lenders",
-    value: "8",
-    icon: "business",
-    library: MaterialIcons,
-    trend: "+2 new",
-    color: "#3B82F6",
-  },
-];
+const formatINR = (n: number) => {
+  const num = Number(n ?? 0);
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(num);
+};
 
-export default function MetricsGrid() {
+type MetricsInput = {
+  applicationsSubmitted: number;
+  approvedCount: number;
+  approvedAmount: number;
+  disbursedCount: number;
+  disbursedAmount: number;
+  rejectedCount: number;
+  commissionTransactions: number;
+  commissionEarned: number;
+  commissionPaid: number;
+  commissionPending: number;
+};
+
+type Metric = {
+  title: string;
+  value?: string;
+  topText?: string;
+  icon: any;
+  library: any;
+  color: string;
+};
+
+export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
   const theme = useTheme();
   const isDarkMode = theme.dark;
+
+  const cards: Metric[] = [
+    {
+      title: "Applications Submitted",
+      topText: `${metrics.applicationsSubmitted} tickets`,
+      value: "",
+      icon: "file-text",
+      library: Feather,
+      color: "#2563EB",
+    },
+    {
+      title: "Approved Loans",
+      topText: `${metrics.approvedCount} approved`,
+      value: formatINR(metrics.approvedAmount),
+      icon: "check-circle",
+      library: Feather,
+      color: "#10B981",
+    },
+    {
+      title: "Disbursed Loans",
+      topText: `${metrics.disbursedCount} disbursed`,
+      value: formatINR(metrics.disbursedAmount),
+      icon: "credit-card",
+      library: Feather,
+      color: "#14B8A6",
+    },
+    {
+      title: "Rejected Applications",
+      topText: `${metrics.rejectedCount} rejected`,
+      value: "",
+      icon: "x-circle",
+      library: Feather,
+      color: "#6B7280",
+    },
+    {
+      title: "Commission Transactions",
+      topText: `${metrics.commissionTransactions} tickets`,
+      value: "",
+      icon: "clipboard",
+      library: Feather,
+      color: "#2563EB",
+    },
+    {
+      title: "Commission Earned",
+      value: formatINR(metrics.commissionEarned),
+      icon: "currency-rupee",
+      library: MaterialIcons,
+      color: "#F59E0B",
+    },
+    {
+      title: "Commission Paid",
+      value: formatINR(metrics.commissionPaid),
+      icon: "trending-up",
+      library: Feather,
+      color: "#22C55E",
+    },
+    {
+      title: "Commission Pending",
+      value: formatINR(metrics.commissionPending),
+      icon: "clock",
+      library: Feather,
+      color: "#6B7280",
+    },
+  ];
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{
-        paddingHorizontal: 16, 
-        paddingVertical: 0, 
+        paddingHorizontal: 16,
+        paddingVertical: 0,
       }}
       style={{
-        marginTop: 0, 
+        marginTop: 0,
         marginBottom: 8,
       }}
     >
-      {metrics.map((m, i) => (
+      {cards.map((m, i) => (
         <View
           key={i}
           style={[
@@ -65,38 +126,46 @@ export default function MetricsGrid() {
                 : theme.colors.surface,
               borderWidth: 1,
               borderColor: theme.colors.outline,
-              marginRight: i === metrics.length - 1 ? 0 : 12,
+              marginRight: i === cards.length - 1 ? 0 : 12,
             },
           ]}
         >
           <View style={dashboardStyles.metricContent}>
             <View style={dashboardStyles.metricTextContainer}>
+              {m.topText ? (
+                <Text
+                  style={[
+                    dashboardStyles.metricTitle,
+                    { color: theme.colors.onSurfaceVariant, marginBottom: 6 },
+                  ]}
+                >
+                  {m.topText}
+                </Text>
+              ) : null}
+
+              {m.value ? (
+                <Text
+                  style={[
+                    dashboardStyles.metricValue,
+                    { color: theme.colors.onSurface },
+                  ]}
+                >
+                  {m.value}
+                </Text>
+              ) : null}
+
               <Text
                 style={[
                   dashboardStyles.metricTitle,
-                  { color: theme.colors.onSurfaceVariant },
+                  {
+                    color: theme.colors.onSurfaceVariant,
+                    marginTop: m.value ? 8 : 0,
+                    fontWeight: "700",
+                  },
                 ]}
               >
                 {m.title}
               </Text>
-              <Text
-                style={[
-                  dashboardStyles.metricValue,
-                  { color: theme.colors.onSurface },
-                ]}
-              >
-                {m.value}
-              </Text>
-              {m.trend && (
-                <View style={dashboardStyles.trendContainer}>
-                  <Feather name="arrow-up" size={12} color="#10B981" />
-                  <Text
-                    style={[dashboardStyles.trendText, { color: "#10B981" }]}
-                  >
-                    {m.trend}
-                  </Text>
-                </View>
-              )}
             </View>
 
             <View
