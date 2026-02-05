@@ -41,6 +41,19 @@ export const coreApi = axios.create({
     //  backend is reading req.headers.companyid
     if (companyId) (config.headers as any)["companyid"] = companyId;
 
+    // FULL URL LOGGER (baseURL + path + query)
+    // const fullUrl =
+    //   (config.baseURL || "") +
+    //   (config.url || "") +
+    //   (config.params
+    //     ? "?" + new URLSearchParams(config.params as any).toString()
+    //     : "");
+
+    // console.log("➡️ [API REQUEST]", fullUrl, {
+    //   companyIdHeader: companyId,
+    //   hasToken: !!token,
+    // });
+
     return config;
   });
 });

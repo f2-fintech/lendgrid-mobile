@@ -1,7 +1,8 @@
 import { dashboardStyles } from "@/styles/components/dashboard/dashboard.styles";
 import { Feather } from "@expo/vector-icons";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   ScrollView,
   Text,
@@ -10,79 +11,82 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "react-native-paper";
-import ApplicationItem from "./ApplicationItem";
+import CommissionHistoryItem from "./CommissionItem";
 
-const mockApplications = [
-  {
-    id: "APP001",
-    lenderName: "HDFC Bank",
-    loanType: "Personal Loan",
-    disbursedAmount: 0,
-    disbursedDate: "2025-01-15",
-    commissionPercent: 4,
-    calculatedCommission: 0,
-    payoutStatus: "Paid",
-    payoutDate: "2025-01-20",
-  },
-  {
-    id: "APP002",
-    lenderName: "ICICI Bank",
-    loanType: "Home Loan",
-    disbursedAmount: 0,
-    disbursedDate: "2025-01-18",
-    commissionPercent: 3.5,
-    calculatedCommission: 0,
-    payoutStatus: "Pending",
-    payoutDate: null,
-  },
-  {
-    id: "APP003",
-    lenderName: "Axis Bank",
-    loanType: "Car Loan",
-    disbursedAmount: 0,
-    disbursedDate: "2025-01-22",
-    commissionPercent: 5,
-    calculatedCommission: 0,
-    payoutStatus: "Paid",
-    payoutDate: "2025-01-25",
-  },
-  {
-    id: "APP004",
-    lenderName: "Bajaj Finserv",
-    loanType: "Business Loan",
-    disbursedAmount: 0,
-    disbursedDate: "2025-02-01",
-    commissionPercent: 6,
-    calculatedCommission: 0,
-    payoutStatus: "Pending",
-    payoutDate: null,
-  },
-  
-];
+type Props = {
+  data: any[];
 
-export default function ApplicationsList() {
+  //  NEW: pass these from dashboard (direct from useInfiniteQuery)
+  fetchNextPage?: () => Promise<any>;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+
+  //  for: shown/total
+  totalCount?: number;
+};
+
+export default function CommissionHistoryList({
+  data,
+  fetchNextPage,
+  hasNextPage,
+  isFetchingNextPage,
+  totalCount,
+}: Props) {
   const theme = useTheme();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLender, setFilterLender] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  const filtered = mockApplications.filter((app) => {
-    const matchesSearch =
-      app.lenderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.loanType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.id.toLowerCase().includes(searchTerm.toLowerCase());
+  //  local button loading (prevents "whole screen reload feel")
+  const [btnLoading, setBtnLoading] = useState(false);
 
-    const matchesLender =
-      filterLender === "all" ||
-      app.lenderName.toLowerCase().includes(filterLender.toLowerCase());
+  const filtered = useMemo(() => {
+    const s = searchTerm.trim().toLowerCase();
+    return (data ?? []).filter((row) => {
+      const matchesSearch =
+        !s ||
+        String(row.ticketId ?? row.id ?? "")
+          .toLowerCase()
+          .includes(s) ||
+        String(row.provider ?? "")
+          .toLowerCase()
+          .includes(s) ||
+        String(row.productType ?? "")
+          .toLowerCase()
+          .includes(s);
 
-    const matchesStatus =
-      filterStatus === "all" ||
-      app.payoutStatus.toLowerCase() === filterStatus.toLowerCase();
+      const matchesLender =
+        filterLender === "all" ||
+        String(row.provider ?? "")
+          .toLowerCase()
+          .includes(filterLender.toLowerCase());
 
-    return matchesSearch && matchesLender && matchesStatus;
-  });
+      return matchesSearch && matchesLender;
+    });
+  }, [data, searchTerm, filterLender]);
+
+  const shown = filtered.length;
+  const total = Number.isFinite(Number(totalCount))
+    ? Number(totalCount)
+    : shown;
+
+  const canLoadMore =
+    !!hasNextPage && !isFetchingNextPage && !btnLoading && !!fetchNextPage;
+
+  const noMore = !hasNextPage && total > 0 && shown >= total;
+
+  const handleLoadMore = async () => {
+    if (!canLoadMore) return;
+    try {
+      setBtnLoading(true);
+      await fetchNextPage?.();
+    } finally {
+      setBtnLoading(false);
+    }
+  };
+
+  const loadingMore = !!isFetchingNextPage || btnLoading;
 
   return (
     <View style={dashboardStyles.applicationsSection}>
@@ -108,11 +112,10 @@ export default function ApplicationsList() {
               flex: 1,
               color: theme.colors.onSurface,
               paddingVertical: 12,
-              // ONLY THESE TWO LINES FIX THE BLINKING CURSOR
               includeFontPadding: false,
               textAlignVertical: "center",
             }}
-            placeholder="Search applications"
+            placeholder="Search commission history"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             value={searchTerm}
             onChangeText={setSearchTerm}
@@ -157,9 +160,10 @@ export default function ApplicationsList() {
             >
               Lender
             </Text>
+
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={dashboardStyles.filterOptions}>
-                {["all", "HDFC", "ICICI", "Axis", "Bajaj", "SBI"].map(
+                {["all", "hdfc", "icici", "axis", "bajaj", "tata"].map(
                   (lender) => (
                     <TouchableOpacity
                       key={lender}
@@ -168,7 +172,7 @@ export default function ApplicationsList() {
                         {
                           backgroundColor:
                             filterLender === lender
-                              ? theme.colors.surfaceVariant
+                              ? theme.colors.primary
                               : theme.colors.surfaceVariant,
                           borderColor: theme.colors.outline,
                         },
@@ -187,53 +191,8 @@ export default function ApplicationsList() {
                         {lender === "all" ? "All Lenders" : lender}
                       </Text>
                     </TouchableOpacity>
-                  )
+                  ),
                 )}
-              </View>
-            </ScrollView>
-          </View>
-
-          <View style={[dashboardStyles.filterSection, { marginTop: 16 }]}>
-            <Text
-              style={[
-                dashboardStyles.filterLabel,
-                { color: theme.colors.onSurface },
-              ]}
-            >
-              Status
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={dashboardStyles.filterOptions}>
-                {["all", "paid", "pending"].map((status) => (
-                  <TouchableOpacity
-                    key={status}
-                    style={[
-                      dashboardStyles.filterOption,
-                      {
-                        backgroundColor:
-                          filterStatus === status
-                            ? theme.colors.primary
-                            : theme.colors.surfaceVariant,
-                        borderColor: theme.colors.outline,
-                      },
-                    ]}
-                    onPress={() => setFilterStatus(status)}
-                  >
-                    <Text
-                      style={{
-                        color:
-                          filterStatus === status
-                            ? "#FFFFFF"
-                            : theme.colors.onSurface,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {status === "all"
-                        ? "All Status"
-                        : status.charAt(0).toUpperCase() + status.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
               </View>
             </ScrollView>
           </View>
@@ -248,19 +207,20 @@ export default function ApplicationsList() {
             { color: theme.colors.onSurface },
           ]}
         >
-          Disbursed Applications
+          Commission History
         </Text>
+
         <Text
           style={[
             dashboardStyles.resultsCount,
             { color: theme.colors.onSurfaceVariant },
           ]}
         >
-          {filtered.length} results
+          {shown}/{total} results
         </Text>
       </View>
 
-      {/* Empty State or List */}
+      {/* List */}
       {filtered.length === 0 ? (
         <View style={dashboardStyles.emptyState}>
           <Feather
@@ -274,7 +234,7 @@ export default function ApplicationsList() {
               { color: theme.colors.onSurface, marginTop: 16 },
             ]}
           >
-            No applications found
+            No commission history found
           </Text>
           <Text
             style={[
@@ -286,13 +246,72 @@ export default function ApplicationsList() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={filtered}
-          renderItem={({ item }) => <ApplicationItem item={item} />}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-        />
+        <>
+          <FlatList
+            data={filtered}
+            renderItem={({ item }) => <CommissionHistoryItem item={item} />}
+            keyExtractor={(item, idx) =>
+              String(item.id ?? item.ticketId ?? idx)
+            }
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
+          />
+
+          {/*  Pagination Footer (same design) */}
+          <View style={{ paddingTop: 12, alignItems: "center" }}>
+            {loadingMore ? (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 8,
+                }}
+              >
+                <ActivityIndicator color={theme.colors.primary} />
+                <Text
+                  style={{
+                    marginLeft: 10,
+                    color: theme.colors.onSurfaceVariant,
+                    fontWeight: "600",
+                  }}
+                >
+                  Loading more...
+                </Text>
+              </View>
+            ) : hasNextPage ? (
+              <TouchableOpacity
+                disabled={!canLoadMore}
+                onPress={handleLoadMore}
+                activeOpacity={0.85}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: theme.colors.outline,
+                  backgroundColor: theme.colors.surface,
+                  opacity: canLoadMore ? 1 : 0.6,
+                }}
+              >
+                <Text
+                  style={{ fontWeight: "800", color: theme.colors.primary }}
+                >
+                  See more ( {Math.max(total - shown, 0)} left )
+                </Text>
+              </TouchableOpacity>
+            ) : noMore ? (
+              <Text
+                style={{
+                  paddingVertical: 10,
+                  color: theme.colors.onSurfaceVariant,
+                  fontWeight: "700",
+                }}
+              >
+                No more records
+              </Text>
+            ) : null}
+          </View>
+        </>
       )}
     </View>
   );
