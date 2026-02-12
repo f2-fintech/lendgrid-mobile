@@ -22,6 +22,8 @@ import { useLogin } from "@/hooks/useAuth";
 import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
 
+import TurnstileCaptcha from "@/components/login_Signup/TurnstileCaptcha"; // ✅ add this
+
 // Decode JWT payload (companyId token me hi hai)
 const parseJwt = (token: string) => {
   try {
@@ -47,6 +49,10 @@ export default function SignIn() {
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
+  // Turnstile token
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaRefreshKey, setCaptchaRefreshKey] = useState(0);
+
   const showError = (msg: string) => {
     setSnackbarMessage(msg);
     setSnackbarVisible(true);
@@ -62,41 +68,47 @@ export default function SignIn() {
   });
 
   const onSubmit = async (data: SignInSchemaType) => {
+    //  Block if not verified
+    if (!captchaToken) {
+      showError("Please verify that you are not a bot.");
+      return;
+    }
+
     try {
       const response = await login({
         email: data.email,
         password: data.password,
+        captchaToken,
       });
-
-      //console.log("LOGIN RESPONSE:", response);
 
       if (response?.success && response?.access_token) {
         const token = response.access_token;
 
-        //  Save token
         await AsyncStorage.setItem("token", token);
 
-        //  Extract companyId from token payload
         const payload = parseJwt(token);
         const companyId = payload?.companyId;
 
         if (companyId !== undefined && companyId !== null) {
           await AsyncStorage.setItem("companyId", String(companyId));
-          // console.log("Stored companyId:", companyId);
-        } else {
-          console.warn("⚠️ companyId not found in login response/token");
         }
 
-        // GraphQL auth
         setGraphqlAuthToken(token);
 
-        // Navigate
         router.replace(ROUTES.Dashboard);
       } else {
         showError(response?.message || "Login failed");
+
+        //  reset captcha on failure
+        setCaptchaToken(null);
+        setCaptchaRefreshKey((k) => k + 1);
       }
     } catch (err: any) {
       showError(err?.message || "Invalid email or password");
+
+      //  reset captcha on error
+      setCaptchaToken(null);
+      setCaptchaRefreshKey((k) => k + 1);
     }
   };
 
@@ -116,10 +128,18 @@ export default function SignIn() {
           >
             <Image
               source={require("@/assets/images/logo.png")}
-              style={{ width: 60, height: 60, marginBottom: 5 }}
+              style={{ width: 130, height: 130, marginBottom: 0 }}
               resizeMode="contain"
             />
-            <Text style={{ color: "#FFD600", fontWeight: "700", fontSize: 24 }}>
+
+            <Text
+              style={{
+                color: "#4c7dff",
+                fontWeight: "800",
+                fontSize: 36,
+                marginTop: -25,
+              }}
+            >
               LendGrid
             </Text>
           </View>
@@ -165,9 +185,28 @@ export default function SignIn() {
             </Text>
           )}
 
+          {/*  Turnstile */}
+          <View
+            style={{ marginTop: 14, marginBottom: 8, alignItems: "center" }}
+          >
+            <TurnstileCaptcha
+              theme="dark"
+              refreshKey={captchaRefreshKey}
+              onToken={(t) => setCaptchaToken(t)}
+            />
+            {!captchaToken ? (
+              <Text style={{ color: "#888", fontSize: 12, marginTop: 6 }}>
+                Please complete verification to continue
+              </Text>
+            ) : null}
+          </View>
+
           <TouchableOpacity
-            style={[signInStyles.signInButton, isPending && { opacity: 0.6 }]}
-            disabled={isPending}
+            style={[
+              signInStyles.signInButton,
+              (isPending || !captchaToken) && { opacity: 0.6 },
+            ]}
+            disabled={isPending || !captchaToken}
             onPress={handleSubmit(onSubmit)}
           >
             {isPending ? (

@@ -1,15 +1,13 @@
-import {
-  MaterialCommunityIcons
-} from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { Image, TouchableOpacity, View } from 'react-native';
-import { Card, Surface, Text, useTheme } from 'react-native-paper';
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React from "react";
+import { Image, TouchableOpacity, View } from "react-native";
+import { Card, Surface, Text, useTheme } from "react-native-paper";
 
-import { ROUTES } from '@/assets/constants/routes';
-import { lendGridStyles as styles } from '@/styles/components/landing/landingStyles';
+import { ROUTES } from "@/assets/constants/routes";
+import { lendGridStyles as styles } from "@/styles/components/landing/landingStyles";
 
-const LogoImage = require('@/assets/images/logo.png');
+const LogoImage = require("@/assets/images/logo.png");
 
 type Props = {
   isSmallScreen: boolean;
@@ -18,7 +16,6 @@ type Props = {
 const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
   const router = useRouter();
   const theme = useTheme();
-  const isDark = theme.dark;
 
   const handleJoin = () => router.push(ROUTES.signup);
   const handleSignIn = () => router.push(ROUTES.signin);
@@ -39,29 +36,14 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
       >
         {/* HERO HEADER */}
         <View>
-          <Text
-            style={[
-              styles.heroTitle,
-              isSmallScreen && styles.heroTitleSmall,
-              { color: theme.colors.onSurface },
-            ]}
-          >
-            Grow your loan distribution.{'\n'}Track, earn, repeat.
-          </Text>
-
-          <Text
-            style={[
-              styles.heroSubtitle,
-              isSmallScreen && styles.heroSubtitleSmall,
-              { color: theme.colors.onSurfaceVariant },
-            ]}
-          >
-            Connect aggregators with lenders. Automate commissions and grow smarter.
-          </Text>
-
-          {/* Logo */}
-          <View style={styles.logoWrapper}>
-            <Image source={LogoImage} style={styles.logo} resizeMode="contain" />
+          {/*  Logo (same as previous screens) */}
+          <View style={styles.brandWrap}>
+            <Image
+              source={LogoImage}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.brandText}>LendGrid</Text>
           </View>
 
           {/* ACTION BUTTONS */}
@@ -82,7 +64,7 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
                     { color: theme.colors.onPrimary },
                   ]}
                 >
-                  Join LendGrid
+                  Join
                 </Text>
               </View>
             </TouchableOpacity>
@@ -93,7 +75,7 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
                 isSmallScreen && styles.secondaryButtonSmall,
                 {
                   borderColor: theme.colors.onSurface,
-                  backgroundColor: 'transparent',
+                  backgroundColor: "transparent",
                 },
               ]}
               activeOpacity={0.9}
@@ -120,7 +102,7 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
             { color: theme.colors.onSurface },
           ]}
         >
-          Why Choose LendGrid?
+          Why Choose F2 Fintech LendGrid?
         </Text>
 
         <Text
@@ -137,12 +119,12 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
           <MaterialCommunityIcons
             name="chart-line"
             size={26}
-            color={theme.colors.tertiary ?? '#FFD700'}
+            color={theme.colors.tertiary ?? "#FFD700"}
           />
           <Text
             style={[
               styles.benefitTitle,
-              { color: theme.colors.tertiary ?? '#FFD700' },
+              { color: theme.colors.tertiary ?? "#FFD700" },
             ]}
           >
             Aggregator Benefits
@@ -152,19 +134,19 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
         {/* BENEFIT CARDS */}
         {[
           {
-            icon: 'chart-box',
-            title: 'Higher commission',
-            desc: 'Earn up to 4% per disbursal with clear, real-time tracking.',
+            icon: "chart-box",
+            title: "Higher commission",
+            desc: "Earn up to 4% per disbursal with clear, real-time tracking.",
           },
           {
-            icon: 'shield-check',
-            title: 'Premium lender access',
-            desc: 'Work with top banks & NBFCs without juggling multiple portals.',
+            icon: "shield-check",
+            title: "Premium lender access",
+            desc: "Work with top banks & NBFCs without juggling multiple portals.",
           },
           {
-            icon: 'lightning-bolt',
-            title: 'Automated payouts',
-            desc: 'Get smart alerts when payouts are due or delayed.',
+            icon: "lightning-bolt",
+            title: "Automated payouts",
+            desc: "Get smart alerts when payouts are due or delayed.",
           },
         ].map((item, idx) => (
           <Card
@@ -179,7 +161,7 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
                 <MaterialCommunityIcons
                   name={item.icon as any}
                   size={22}
-                  color={theme.colors.tertiary ?? '#FFD700'}
+                  color={theme.colors.tertiary ?? "#FFD700"}
                 />
                 <View style={styles.benefitText}>
                   <Text

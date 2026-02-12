@@ -6,13 +6,49 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENV": "development",
+        "EXPO_PUBLIC_GRAPHQL_HTTP_URL": "https://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_GRAPHQL_WS_URL": "ws://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_API_URL": "https://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_CORE_REST_URL": "https://web.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_ADMIN_API_URL": "https://admin.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://lendgrid.in/privacy-policy",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://lendgrid.in/terms-of-service"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "preview",
+        "EXPO_PUBLIC_GRAPHQL_HTTP_URL": "https://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_GRAPHQL_WS_URL": "ws://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_API_URL": "https://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_CORE_REST_URL": "https://web.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_ADMIN_API_URL": "https://admin.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://lendgrid.in/privacy-policy",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://lendgrid.in/terms-of-service"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_GRAPHQL_HTTP_URL": "https://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_GRAPHQL_WS_URL": "ws://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_API_URL": "https://lendgrid-server.onrender.com/graphql",
+        "EXPO_PUBLIC_CORE_REST_URL": "https://web.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_ADMIN_API_URL": "https://admin.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://lendgrid.in/privacy-policy",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://lendgrid.in/terms-of-service"
+      }
     }
   },
   "submit": {

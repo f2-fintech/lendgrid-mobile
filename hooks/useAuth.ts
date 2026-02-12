@@ -17,7 +17,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
  * LOGIN
  */
 export const useLogin = () =>
-  useMutation<LoginResponse, Error, { email: string; password: string }>({
+  useMutation<
+    LoginResponse,
+    Error,
+    { email: string; password: string; captchaToken: string }
+  >({
     mutationFn: signInApi,
   });
 
@@ -25,7 +29,7 @@ export const useLogin = () =>
  * SIGN UP
  */
 export const useSignUp = () =>
-  useMutation<SignUpResponse, Error, any>({
+  useMutation<SignUpResponse, Error, any & { captchaToken: string }>({
     mutationFn: signUpApi,
   });
 
@@ -48,9 +52,7 @@ export const useUpdateUser = () => {
   return useMutation({
     mutationFn: updateUserApi,
     onSuccess: () => {
-      // refresh current profile
       qc.invalidateQueries({ queryKey: ["profile"] });
-      // optional: if you show users list somewhere, keep it fresh too
       qc.invalidateQueries({ queryKey: ["users"] });
       qc.invalidateQueries({ queryKey: ["usersByRole"] });
     },
@@ -76,7 +78,7 @@ export const useUsers = (params?: {
  */
 export const useUsersByRole = (
   role: string,
-  params?: { page?: number; limit?: number }
+  params?: { page?: number; limit?: number },
 ) =>
   useQuery({
     queryKey: ["usersByRole", role, params],

@@ -1,38 +1,43 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, Text, View } from 'react-native';
-import { Headline } from 'react-native-paper';
+// CustomSplashScreen.tsx
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
-import { splashStyles as styles } from '@/styles/components/splash/splash.style';
-import { COLORS } from '@/styles/components/splash/token';
+import { COLORS } from "@/styles/components/splash/token";
 
-const LogoImage = require('@/assets/images/logo.png');
+const LogoImage = require("@/assets/images/logo.png");
 
 type IconItem = { name: string; label: string };
 
 type Props = {
   nextRoute?: string;
   iconDurationMs?: number;
-  holdMs?: number;         
-  repeatCount?: number;   
+  holdMs?: number;
+  repeatCount?: number;
   sequence?: IconItem[];
 };
 
 const DEFAULT_SEQUENCE: IconItem[] = [
-  { name: 'account-cash', label: 'Lending' },
-  { name: 'finance', label: 'Growth' },
-  { name: 'lock-open-check', label: 'Secured' }
+  { name: "account-cash", label: "Lending" },
+  { name: "finance", label: "Growth" },
+  { name: "lock-open-check", label: "Secured" },
 ];
 
 export default function CustomSplashScreen({
-  nextRoute = '/(tab)',
+  nextRoute = "/(tab)",
   iconDurationMs = 800,
   holdMs = 300,
   repeatCount = 1,
-  sequence = DEFAULT_SEQUENCE
+  sequence = DEFAULT_SEQUENCE,
 }: Props) {
-  const anim = useRef(new Animated.Value(0)).current;
+  // icon loop animation
+  const iconAnim = useRef(new Animated.Value(0)).current;
+
+  //  intro animations
+  const logoDrop = useRef(new Animated.Value(0)).current;
+  const textSlide = useRef(new Animated.Value(0)).current;
+
   const [index, setIndex] = useState(0);
   const loopsDoneRef = useRef(0);
   const isUnmountedRef = useRef(false);
@@ -40,79 +45,204 @@ export default function CustomSplashScreen({
   useEffect(() => {
     isUnmountedRef.current = false;
 
-    const playIcon = (i: number) => {
-      if (isUnmountedRef.current) return;
+    const playIconLoop = () => {
+      const playIcon = (i: number) => {
+        if (isUnmountedRef.current) return;
 
-      // animate: fade/scale in → hold → fade/scale out
-      const half = Math.max(1, Math.floor(iconDurationMs / 2));
+        const half = Math.max(1, Math.floor(iconDurationMs / 2));
 
-      const seq = Animated.sequence([
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: half,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true
-        }),
-        Animated.delay(holdMs),
-        Animated.timing(anim, {
-          toValue: 0,
-          duration: half,
-          easing: Easing.in(Easing.ease),
-          useNativeDriver: true
-        })
-      ]);
+        const seq = Animated.sequence([
+          Animated.timing(iconAnim, {
+            toValue: 1,
+            duration: half,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.delay(holdMs),
+          Animated.timing(iconAnim, {
+            toValue: 0,
+            duration: half,
+            easing: Easing.in(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]);
 
-      seq.start(({ finished }) => {
-        if (!finished || isUnmountedRef.current) return;
+        seq.start(({ finished }) => {
+          if (!finished || isUnmountedRef.current) return;
 
-        const nextIdx = (i + 1) % sequence.length;
+          const nextIdx = (i + 1) % sequence.length;
 
-        if (nextIdx === 0) {
-          loopsDoneRef.current += 1;
-          if (loopsDoneRef.current >= Math.max(1, repeatCount)) {
-            router.replace(nextRoute);
-            return;
+          if (nextIdx === 0) {
+            loopsDoneRef.current += 1;
+            if (loopsDoneRef.current >= Math.max(1, repeatCount)) {
+              router.replace(nextRoute);
+              return;
+            }
           }
-        }
 
-        setIndex(nextIdx);
-        playIcon(nextIdx);
-      });
+          setIndex(nextIdx);
+          playIcon(nextIdx);
+        });
+      };
+
+      setIndex(0);
+      loopsDoneRef.current = 0;
+      iconAnim.setValue(0);
+      playIcon(0);
     };
 
-    playIcon(0);
+    // intro first, then icon loop
+    logoDrop.setValue(0);
+    textSlide.setValue(0);
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(logoDrop, {
+          toValue: 1,
+          duration: 650,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(textSlide, {
+          toValue: 1,
+          duration: 650,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.delay(120),
+    ]).start(({ finished }) => {
+      if (!finished || isUnmountedRef.current) return;
+      playIconLoop();
+    });
 
     return () => {
       isUnmountedRef.current = true;
-      anim.stopAnimation();
+      iconAnim.stopAnimation();
+      logoDrop.stopAnimation();
+      textSlide.stopAnimation();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [iconDurationMs, holdMs, repeatCount, nextRoute, JSON.stringify(sequence)]);
+  }, [
+    iconDurationMs,
+    holdMs,
+    repeatCount,
+    nextRoute,
+    JSON.stringify(sequence),
+  ]);
 
   const current = sequence[index];
 
   const iconStyle = {
-    opacity: anim,
+    opacity: iconAnim,
     transform: [
       {
-        scale: anim.interpolate({
+        scale: iconAnim.interpolate({
           inputRange: [0, 1],
-          outputRange: [0.9, 1.15]
-        })
-      }
-    ]
+          outputRange: [0.9, 1.15],
+        }),
+      },
+    ],
+  };
+
+  const logoStyle = {
+    opacity: logoDrop.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    }),
+    transform: [
+      {
+        translateY: logoDrop.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-45, 0],
+        }),
+      },
+    ],
+  };
+
+  const textStyle = {
+    opacity: textSlide.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    }),
+    transform: [
+      {
+        translateX: textSlide.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-60, 0],
+        }),
+      },
+    ],
   };
 
   return (
     <View style={styles.container}>
-      <Image source={LogoImage} style={styles.logo} resizeMode="contain" />
-      <Headline style={styles.title}>LendGrid</Headline>
+      {/*  compact branding */}
+      <View style={styles.brandWrap}>
+        <Animated.Image
+          source={LogoImage}
+          style={[styles.brandLogo, logoStyle]}
+          resizeMode="contain"
+        />
+        <Animated.Text style={[styles.brandText, textStyle]}>
+          LendGrid
+        </Animated.Text>
+      </View>
 
+      {/*  tighter gap to icon */}
       <Animated.View style={[styles.iconContainer, iconStyle]}>
-        <MaterialCommunityIcons name={current.name as any} size={80} color={COLORS.brandAccent} />
+        <MaterialCommunityIcons
+          name={current.name as any}
+          size={80}
+          color={COLORS.brandAccent}
+        />
       </Animated.View>
 
+      {/*  tighter gap to subtitle */}
       <Text style={styles.subtitle}>{current.label} Finance</Text>
     </View>
   );
 }
+
+/**  FULL STYLES (tighter spacing) */
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.brandBg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  //  Reduced logo->text->icon gaps
+  brandWrap: {
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4, // tighter
+  },
+  brandLogo: {
+    width: 130,
+    height: 130,
+    marginBottom: 0,
+  },
+  brandText: {
+    color: "#4c7dff",
+    fontWeight: "800",
+    fontSize: 36,
+    marginTop: -25,
+  },
+
+  iconContainer: {
+    width: 100, // 80 + padding feel
+    height: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8, // tighter than before
+  },
+
+  subtitle: {
+    fontSize: 18,
+    color: COLORS.textMuted,
+    marginTop: 4, // tighter
+    height: 25,
+  },
+});
