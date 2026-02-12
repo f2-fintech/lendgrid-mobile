@@ -1,8 +1,12 @@
-import React from 'react';
-import { StatusBar, View } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import React from "react";
+import { StatusBar, View } from "react-native";
+import { useTheme } from "react-native-paper";
 
-export default function ScreenContainer({ children }: { children: React.ReactNode }) {
+export default function ScreenContainer({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const theme = useTheme();
 
   return (
@@ -14,7 +18,7 @@ export default function ScreenContainer({ children }: { children: React.ReactNod
       }}
     >
       <StatusBar
-        barStyle={theme.dark ? 'light-content' : 'dark-content'}
+        barStyle={theme.dark ? "light-content" : "dark-content"}
         backgroundColor={theme.colors.background}
       />
       {children}

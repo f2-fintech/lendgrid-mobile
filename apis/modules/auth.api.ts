@@ -13,14 +13,18 @@ export interface SignUpResponse {
   user: User;
 }
 
-// LOGIN
+/**
+ *  LOGIN
+ * Now requires captchaToken (Cloudflare Turnstile token)
+ */
 export const signInApi = async (payload: {
   email: string;
   password: string;
+  captchaToken: string;
 }) => {
   const query = `
-    mutation Login($email: String!, $password: String!) {
-      login(loginInput: { email: $email, password: $password }) {
+    mutation Login($email: String!, $password: String!, $captchaToken: String!) {
+      login(loginInput: { email: $email, password: $password, captchaToken: $captchaToken }) {
         success
         message
         access_token
@@ -29,12 +33,16 @@ export const signInApi = async (payload: {
   `;
 
   return gqlRequest<{ login: LoginResponse }>(query, payload).then(
-    (d) => d.login
+    (d) => d.login,
   );
 };
 
-// SIGNUP
-export const signUpApi = async (payload: any) => {
+/**
+ *  SIGNUP
+ * We are passing captchaToken inside createUserInput.
+ * (This assumes CreateUserDto includes captchaToken in backend.)
+ */
+export const signUpApi = async (payload: any & { captchaToken: string }) => {
   const query = `
     mutation CreateUser($createUserInput: CreateUserDto!) {
       createUser(createUserInput: $createUserInput) {
@@ -75,7 +83,7 @@ export const getProfileApi = async () => {
 };
 
 export const updateUserApi = async (payload: {
-  id: string; 
+  id: string;
   username?: string;
   email?: string;
   contact?: string;
@@ -98,14 +106,14 @@ export const updateUserApi = async (payload: {
   `;
 
   return gqlRequest<{ updateUser: User }>(query, {
-    updateUserInput: payload, 
+    updateUserInput: payload,
   }).then((d) => d.updateUser);
 };
 
 //  USERS BY ROLE
 export const findUsersByRoleApi = async (
   role: string,
-  params?: { page?: number; limit?: number }
+  params?: { page?: number; limit?: number },
 ) => {
   const query = `
     query UsersByRole($role: Role!, $page: Int, $limit: Int) {
@@ -133,7 +141,7 @@ export const findUsersByRoleApi = async (
   }).then((d) => d.usersByRole);
 };
 
-//  GET USERS (PAGINATED)
+// GET USERS (PAGINATED)
 export const getUsersApi = async (params?: {
   page?: number;
   limit?: number;
@@ -170,6 +178,6 @@ export const removeUserApi = async (id: string) => {
     }
   `;
   return gqlRequest<{ removeUser: any }>(query, { id }).then(
-    (d) => d.removeUser
+    (d) => d.removeUser,
   );
 };

@@ -9,80 +9,78 @@ export const signUpStyles = StyleSheet.create({
   backText: {
     color: "#FFD600",
     marginBottom: 10,
-  },
-
-  logoContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-
-  logo: {
-    width: 45,
-    height: 45,
-    marginRight: 8,
-  },
-
-  logoText: {
-    color: "#FFD600",
-    fontWeight: "700",
-    fontSize: 20,
-  },
-
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 5,
-  },
-
-  subtitle: {
-    color: "#ccc",
-    textAlign: "center",
-    marginBottom: 25,
     fontSize: 14,
+    fontWeight: "600",
+  },
+
+  // Optional subtitle (used in your screen)
+  subtitle: {
+    color: "#A7B3C7",
+    textAlign: "center",
+    marginBottom: 16,
+    fontSize: 15,
   },
 
   label: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 14,
     marginBottom: 6,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
+  // 🔹 Two column row layout
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+
+  colLeft: {
+    flex: 1,
+    marginRight: 8,
+  },
+
+  colRight: {
+    flex: 1,
+    marginLeft: 8,
+  },
+
+  // 🔹 Input Styling (Dark modern)
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    color: "#000",
-    paddingHorizontal: 15,
+    backgroundColor: "#0E1626",
+    borderRadius: 14,
+    color: "#EAF0FF",
+    paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    marginBottom: 15,
   },
 
+  // 🔹 Password container (with eye icon)
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    marginBottom: 15,
-    paddingRight: 10,
+    backgroundColor: "#0E1626",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    marginBottom: 10,
   },
 
   passwordInput: {
     flex: 1,
-    marginBottom: 0,
+    paddingVertical: 12,
+    color: "#EAF0FF",
+    fontSize: 14,
   },
 
   eyeIcon: {
     paddingLeft: 8,
   },
 
+  // 🔹 Button
   signUpButton: {
     paddingVertical: 14,
     alignItems: "center",
+    marginTop: 10,
   },
 
   signUpButtonText: {
@@ -91,10 +89,11 @@ export const signUpStyles = StyleSheet.create({
     fontSize: 16,
   },
 
+  // 🔹 Footer text
   footerText: {
     textAlign: "center",
     color: "#ccc",
-    marginTop: 25,
+    marginTop: 10,
     fontSize: 14,
   },
 
@@ -102,10 +101,12 @@ export const signUpStyles = StyleSheet.create({
     color: "#FFD600",
     fontWeight: "600",
   },
+
+  // 🔹 Error text
   error: {
     color: "#ff4d4d",
-    fontSize: 13,
-    marginTop: -8,
-    marginBottom: 10,
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 6,
   },
 });

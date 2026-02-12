@@ -4,7 +4,7 @@ export default {
     slug: "lendgrid-mobile",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
+    icon: "./assets/images/adaptive-icon_1.png",
     scheme: "lendgridmobile",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
@@ -12,7 +12,7 @@ export default {
     android: {
       package: "com.lendgrid.mobile",
       adaptiveIcon: {
-        foregroundImage: "./assets/images/adaptive-icon.png",
+        foregroundImage: "./assets/images/adaptive-icon_1.png",
         backgroundColor: "#1D0A33",
       },
       edgeToEdgeEnabled: true,
@@ -34,7 +34,7 @@ export default {
       [
         "expo-splash-screen",
         {
-          image: "./assets/images/icon.png",
+          image: "./assets/images/adaptive-icon_1.png",
           imageWidth: 200,
           resizeMode: "contain",
           backgroundColor: "#1D0A33",
@@ -55,6 +55,8 @@ export default {
 
       PRIVACY_URL: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
       TERMS_URL: process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL,
+
+      CAPTCHA_SITE_KEY: process.env.EXPO_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY,
 
       GRAPHQL_HTTP_URL:
         process.env.EXPO_PUBLIC_GRAPHQL_HTTP_URL ??

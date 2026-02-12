@@ -1,0 +1,1136 @@
+// components/ApplicationsTicketsView.tsx
+import { Feather, FontAwesome5 } from "@expo/vector-icons";
+import React, { useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  UIManager,
+  View,
+} from "react-native";
+import PagerView from "react-native-pager-view";
+import { ActivityIndicator } from "react-native-paper";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+type Props = {
+  theme: any;
+  styles: any;
+  router: any;
+  pagerRef: React.RefObject<PagerView>;
+
+  activeTab: "applications" | "tickets";
+  setTab: (t: "applications" | "tickets") => void;
+  setActiveTab: (t: "applications" | "tickets") => void;
+
+  search: string;
+  setSearch: (v: string) => void;
+
+  appsData: any;
+  appsLoading: boolean;
+  appsError: boolean;
+  refetchApps: any;
+  appsPage: number;
+  setAppsPage: (n: any) => void;
+  appsRowsPerPage: number;
+  appsRowsPerPageInput: string;
+  setAppsRowsPerPageInput: (v: string) => void;
+
+  ticketsData: any;
+  ticketsLoading: boolean;
+  ticketsError: boolean;
+  refetchTickets: any;
+  ticketsPage: number;
+  setTicketsPage: (n: any) => void;
+  ticketsRowsPerPage: number;
+  ticketsRowsPerPageInput: string;
+  setTicketsRowsPerPageInput: (v: string) => void;
+};
+
+function AppTicketCard({
+  styles,
+  theme,
+  title,
+  subtitle,
+  status,
+  statusColor,
+  lender,
+  amount,
+  dateLabel,
+
+  // NEW
+  showHistoryIcon,
+  history = [],
+}: any) {
+  const [openHistory, setOpenHistory] = useState(false);
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handleToggleHistory = () => {
+    const newValue = !openHistory;
+
+    if (newValue) {
+      // Opening animation
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 0.95,
+          useNativeDriver: true,
+          friction: 7,
+        }),
+      ]).start(() => {
+        setOpenHistory(true);
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            friction: 7,
+          }),
+        ]).start();
+      });
+    } else {
+      // Closing animation
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 0.95,
+          useNativeDriver: true,
+          friction: 7,
+        }),
+      ]).start(() => {
+        setOpenHistory(false);
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            friction: 7,
+          }),
+        ]).start();
+      });
+    }
+  };
+
+  const formatDateTime = (iso?: string) => {
+    if (!iso) return "NA";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const safeHistory = Array.isArray(history) ? history : [];
+
+  const getHistoryStatusColor = (s: string) => {
+    switch ((s || "").toLowerCase()) {
+      case "approved":
+      case "disbursed":
+        return "#10B981";
+      case "pending":
+      case "under credit review":
+      case "in-progress":
+        return "#F59E0B";
+      case "rejected":
+        return "#EF4444";
+      default:
+        return theme?.colors?.onSurfaceVariant || "#94A3B8";
+    }
+  };
+
+  return (
+    <Animated.View
+      style={[
+        styles.commissionItem,
+        {
+          transform: [{ scale: scaleAnim }],
+        },
+      ]}
+    >
+      {!openHistory ? (
+        /* ================= Current Ticket View ================= */
+        <TouchableOpacity activeOpacity={0.7} onPress={handleToggleHistory}>
+          <Animated.View
+            style={{
+              opacity: fadeAnim,
+            }}
+          >
+            <View style={styles.commissionHeader}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.applicationId}>{title}</Text>
+                {!!subtitle && (
+                  <Text style={styles.lenderName}>{subtitle}</Text>
+                )}
+              </View>
+
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
+                {/* Status badge */}
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: `${statusColor}22` },
+                  ]}
+                >
+                  <Text
+                    style={[styles.statusText, { color: statusColor }]}
+                    numberOfLines={1}
+                  >
+                    {status}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Lender</Text>
+              <Text style={styles.detailValue}>{lender || "NA"}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Loan Amount</Text>
+              <Text style={styles.detailValue}>{amount || "NA"}</Text>
+            </View>
+
+            {!!dateLabel && (
+              <View
+                style={[
+                  styles.dateRow,
+                  {
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  },
+                ]}
+              >
+                <Text style={styles.dateText}>{dateLabel}</Text>
+
+                {/*  History icon - in the same row as created text, right corner */}
+                {showHistoryIcon && (
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 999,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 1,
+                      borderColor: theme.colors.outline,
+                      backgroundColor: theme.colors.surface,
+                    }}
+                  >
+                    <Feather
+                      name="clock"
+                      size={16}
+                      color={theme.colors.primary}
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+          </Animated.View>
+        </TouchableOpacity>
+      ) : (
+        /* ================= History Panel ================= */
+        <TouchableOpacity activeOpacity={0.7} onPress={handleToggleHistory}>
+          <Animated.View
+            style={{
+              opacity: fadeAnim,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: theme.colors.surfaceVariant,
+                padding: 16,
+                borderRadius: 12,
+              }}
+            >
+              {/* Header */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 12,
+                  paddingBottom: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.outline,
+                }}
+              >
+                <Feather name="clock" size={16} color={theme.colors.primary} />
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    { fontSize: 15, margin: 0, marginLeft: 8 },
+                  ]}
+                >
+                  Ticket History
+                </Text>
+              </View>
+
+              {/* Ticket Info Summary */}
+              <View
+                style={{
+                  marginBottom: 16,
+                  paddingBottom: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.outline,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: theme.colors.onSurface,
+                    marginBottom: 4,
+                  }}
+                >
+                  {title}
+                </Text>
+                {!!subtitle && (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: theme.colors.onSurfaceVariant,
+                    }}
+                  >
+                    {subtitle}
+                  </Text>
+                )}
+              </View>
+
+              {safeHistory.length === 0 ? (
+                <View style={[styles.emptyState, { paddingVertical: 20 }]}>
+                  <Feather
+                    name="inbox"
+                    size={32}
+                    color={theme.colors.onSurfaceVariant}
+                    style={{ marginBottom: 8 }}
+                  />
+                  <Text style={styles.emptyStateText}>No history found</Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    History will appear once status updates happen.
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ gap: 14 }}>
+                  {safeHistory.map((h: any, idx: number) => {
+                    const hStatus = h.status || h.ticketStatus || "Updated";
+                    const hColor = getHistoryStatusColor(hStatus);
+                    const phase = h.phase || h.stage || h.step || "";
+
+                    return (
+                      <View
+                        key={`${idx}`}
+                        style={{ flexDirection: "row", gap: 12 }}
+                      >
+                        {/* Dot + line */}
+                        <View style={{ alignItems: "center", width: 12 }}>
+                          <View
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: 999,
+                              backgroundColor: hColor,
+                              borderWidth: 2,
+                              borderColor: theme.colors.surface,
+                            }}
+                          />
+                          {idx !== safeHistory.length - 1 && (
+                            <View
+                              style={{
+                                width: 2,
+                                flex: 1,
+                                backgroundColor: theme.colors.outline,
+                                marginTop: 6,
+                                minHeight: 30,
+                              }}
+                            />
+                          )}
+                        </View>
+
+                        {/* Content */}
+                        <View style={{ flex: 1, paddingBottom: 4 }}>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "700",
+                              color: theme.colors.onSurface,
+                              marginBottom: 4,
+                            }}
+                          >
+                            {phase ? `${phase} • ${hStatus}` : hStatus}
+                          </Text>
+
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: theme.colors.onSurfaceVariant,
+                              marginBottom: 4,
+                            }}
+                          >
+                            {formatDateTime(
+                              h.time || h.createdAt || h.updatedAt,
+                            )}
+                          </Text>
+
+                          {!!h.note && (
+                            <View
+                              style={{
+                                backgroundColor: theme.colors.surface,
+                                padding: 8,
+                                borderRadius: 6,
+                                marginTop: 4,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 12,
+                                  color: theme.colors.onSurfaceVariant,
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                {h.note}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* ✅ Close icon at bottom right - matching history icon position */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  marginTop: 16,
+                }}
+              >
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 999,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 1,
+                    borderColor: theme.colors.outline,
+                    backgroundColor: theme.colors.surface,
+                  }}
+                >
+                  <Feather
+                    name="x"
+                    size={16}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
+
+export default function ApplicationsTicketsView(props: Props) {
+  const {
+    theme,
+    styles,
+    router,
+    pagerRef,
+    activeTab,
+    setTab,
+    setActiveTab,
+    search,
+    setSearch,
+
+    appsData,
+    appsLoading,
+    appsError,
+    refetchApps,
+    appsPage,
+    setAppsPage,
+    appsRowsPerPage,
+    appsRowsPerPageInput,
+    setAppsRowsPerPageInput,
+
+    ticketsData,
+    ticketsLoading,
+    ticketsError,
+    refetchTickets,
+    ticketsPage,
+    setTicketsPage,
+    ticketsRowsPerPage,
+    ticketsRowsPerPageInput,
+    setTicketsRowsPerPageInput,
+  } = props;
+
+  const applications = appsData?.results ?? [];
+  const tickets = ticketsData?.results ?? [];
+
+  const totalApplications = appsData?.count ?? 0;
+  const totalTickets = ticketsData?.count ?? 0;
+
+  const appsTotalPages =
+    appsData?.pages ??
+    Math.max(1, Math.ceil(totalApplications / appsRowsPerPage));
+
+  const ticketsTotalPages =
+    ticketsData?.pages ??
+    Math.max(1, Math.ceil(totalTickets / ticketsRowsPerPage));
+
+  const pickedApplications = totalTickets;
+
+  const ticketsSummary = useMemo(() => {
+    const summary = { underCreditReview: 0, approved: 0, disbursed: 0 };
+    tickets.forEach((t: any) => {
+      const status = (t.ticketStatus || "").toLowerCase();
+      if (status === "under credit review") summary.underCreditReview++;
+      if (status === "approved") summary.approved++;
+      if (status === "disbursed") summary.disbursed++;
+    });
+    return summary;
+  }, [tickets]);
+
+  const formatCurrency = (amt: number) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(amt || 0);
+
+  const formatDate = (iso?: string) => {
+    if (!iso) return "NA";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch ((status || "").toLowerCase()) {
+      case "approved":
+      case "disbursed":
+        return "#10B981";
+      case "pending":
+      case "under credit review":
+      case "in-progress":
+        return "#F59E0B";
+      case "rejected":
+        return "#EF4444";
+      case "applied":
+        return theme.colors.primary;
+      default:
+        return theme.colors.onSurfaceVariant;
+    }
+  };
+
+  const filteredApps = useMemo(() => {
+    const q = search.toLowerCase();
+    return applications.filter((a: any) => {
+      return (
+        a.customerName?.toLowerCase().includes(q) ||
+        String(a.applicationNumber ?? a.applicationId)
+          .toLowerCase()
+          .includes(q)
+      );
+    });
+  }, [applications, search]);
+
+  const filteredTickets = useMemo(() => {
+    const q = search.toLowerCase();
+    return tickets.filter((t: any) => {
+      return (
+        t.customerName?.toLowerCase().includes(q) ||
+        String(t.ticketId).toLowerCase().includes(q)
+      );
+    });
+  }, [tickets, search]);
+
+  const renderLoading = () => (
+    <View style={styles.emptyState}>
+      <ActivityIndicator animating size="small" />
+      <Text style={styles.emptyStateText}>Loading...</Text>
+    </View>
+  );
+
+  const renderError = (onRetry?: () => void) => (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyStateText}>Something went wrong</Text>
+      <Text style={styles.emptyStateSubtext}>
+        Please check your connection and try again.
+      </Text>
+      {onRetry && (
+        <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  const getRangeLabel = (page: number, rowsPerPage: number, total: number) => {
+    if (!total) return "0 of 0";
+    const start = (page - 1) * rowsPerPage + 1;
+    const end = Math.min(page * rowsPerPage, total);
+    return `${start}–${end} of ${total}`;
+  };
+
+  const handleApplyPress = () => router.push("/create-application");
+
+  const handleAppsPrev = () =>
+    appsPage > 1 && !appsLoading && setAppsPage((p: number) => p - 1);
+  const handleAppsNext = () =>
+    appsPage < appsTotalPages &&
+    !appsLoading &&
+    setAppsPage((p: number) => p + 1);
+
+  const handleTicketsPrev = () =>
+    ticketsPage > 1 && !ticketsLoading && setTicketsPage((p: number) => p - 1);
+  const handleTicketsNext = () =>
+    ticketsPage < ticketsTotalPages &&
+    !ticketsLoading &&
+    setTicketsPage((p: number) => p + 1);
+
+  const renderApplicationsTab = () => (
+    <View style={{ paddingHorizontal: 16 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.metricsScrollContainer}
+        style={styles.metricsScrollView}
+      >
+        <View style={styles.metricCard}>
+          <Text style={styles.metricTitle}>Total Applications</Text>
+          <View style={styles.metricValueRow}>
+            <Text style={styles.metricValue}>{totalApplications}</Text>
+            <Feather
+              name="file-text"
+              size={24}
+              color={theme.colors.primary}
+              style={styles.metricIcon}
+            />
+          </View>
+        </View>
+
+        <View style={styles.metricCard}>
+          <Text style={styles.metricTitle}>Picked Applications</Text>
+          <View style={styles.metricValueRow}>
+            <Text style={styles.metricValue}>{pickedApplications}</Text>
+            <Feather
+              name="check-circle"
+              size={24}
+              color={theme.colors.primary}
+              style={styles.metricIcon}
+            />
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={styles.searchContainer}>
+        <Feather
+          name="search"
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search by Name or App ID..."
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          style={styles.searchInput}
+        />
+      </View>
+
+      <View style={styles.contentCard}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 4,
+          }}
+        >
+          <Text style={styles.cardTitle}>Fresh Applications</Text>
+
+          <TouchableOpacity
+            onPress={handleApplyPress}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: theme.colors.primary,
+            }}
+          >
+            <Feather
+              name="external-link"
+              size={14}
+              color={theme.colors.primary}
+              style={{ marginRight: 6 }}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                color: theme.colors.primary,
+                fontWeight: "600",
+              }}
+            >
+              Apply
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.cardSubtitle}>Recent submissions</Text>
+
+        {appsLoading && renderLoading()}
+        {appsError && !appsData && renderError(refetchApps)}
+
+        {filteredApps.map((app: any) => {
+          const status = "Applied";
+          const statusColor = getStatusColor(status);
+
+          return (
+            <AppTicketCard
+              key={String(app.applicationId)}
+              styles={styles}
+              theme={theme}
+              title={`Application No - ${String(
+                app.applicationNumber || app.applicationId,
+              )}`}
+              subtitle={`${app.customerName} • ${app.loanType}`}
+              status={status}
+              statusColor={statusColor}
+              lender={app.applicationProvider}
+              amount={formatCurrency(app.applicationAmount)}
+              dateLabel={`Submitted: ${formatDate(app.applicationDate)}`}
+              // no history icon here
+            />
+          );
+        })}
+
+        {!appsLoading && !appsError && filteredApps.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No applications found</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Try different search keywords
+            </Text>
+          </View>
+        )}
+
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 16,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text
+              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
+            >
+              Rows per page
+            </Text>
+
+            <TextInput
+              value={appsRowsPerPageInput}
+              keyboardType="numeric"
+              onChangeText={setAppsRowsPerPageInput}
+              onEndEditing={() => {
+                const n = parseInt(appsRowsPerPageInput.trim(), 10);
+                if (isNaN(n) || n <= 0)
+                  setAppsRowsPerPageInput(String(appsRowsPerPage));
+              }}
+              style={{
+                minWidth: 48,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderWidth: 1,
+                borderColor: theme.colors.outline,
+                borderRadius: 6,
+                color: theme.colors.onSurface,
+                textAlign: "center",
+              }}
+            />
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text
+              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
+            >
+              {getRangeLabel(appsPage, appsRowsPerPage, totalApplications)}
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleAppsPrev}
+              disabled={appsPage === 1 || appsLoading}
+              style={{
+                paddingHorizontal: 4,
+                opacity: appsPage === 1 || appsLoading ? 0.4 : 1,
+              }}
+            >
+              <Feather
+                name="chevron-left"
+                size={18}
+                color={theme.colors.onSurface}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleAppsNext}
+              disabled={appsPage === appsTotalPages || appsLoading}
+              style={{
+                paddingHorizontal: 4,
+                opacity: appsPage === appsTotalPages || appsLoading ? 0.4 : 1,
+              }}
+            >
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={theme.colors.onSurface}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderTicketsTab = () => (
+    <View style={{ paddingHorizontal: 16 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.metricsScrollContainer}
+        style={styles.metricsScrollView}
+      >
+        <View style={styles.ticketMetricCard}>
+          <Text style={styles.metricTitle}>Total Tickets</Text>
+          <View style={styles.metricValueRow}>
+            <Text style={styles.metricValue}>{totalTickets}</Text>
+            <Feather
+              name="clipboard"
+              size={24}
+              color={theme.colors.primary}
+              style={styles.metricIcon}
+            />
+          </View>
+        </View>
+
+        <View style={styles.ticketMetricCard}>
+          <Text style={styles.metricTitle}>Under Credit Review</Text>
+          <View style={styles.metricValueRow}>
+            <Text style={[styles.metricValue, { color: "#F59E0B" }]}>
+              {ticketsSummary.underCreditReview}
+            </Text>
+            <Feather
+              name="clock"
+              size={24}
+              color="#F59E0B"
+              style={styles.metricIcon}
+            />
+          </View>
+        </View>
+
+        <View style={styles.ticketMetricCard}>
+          <Text style={styles.metricTitle}>Approved</Text>
+          <View style={styles.metricValueRow}>
+            <Text style={[styles.metricValue, { color: "#10B981" }]}>
+              {ticketsSummary.approved}
+            </Text>
+            <Feather
+              name="check-circle"
+              size={24}
+              color="#10B981"
+              style={styles.metricIcon}
+            />
+          </View>
+        </View>
+
+        <View style={styles.ticketMetricCard}>
+          <Text style={styles.metricTitle}>Disbursed</Text>
+          <View style={styles.metricValueRow}>
+            <Text style={[styles.metricValue, { color: "#8B5CF6" }]}>
+              {ticketsSummary.disbursed}
+            </Text>
+            <FontAwesome5
+              name="rupee-sign"
+              size={22}
+              color="#8B5CF6"
+              style={styles.metricIcon}
+            />
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={styles.searchContainer}>
+        <Feather
+          name="search"
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search tickets..."
+          placeholderTextColor={theme.colors.onSurfaceVariant}
+          style={styles.searchInput}
+        />
+      </View>
+
+      <View style={styles.contentCard}>
+        <Text style={styles.cardTitle}>Tickets Overview</Text>
+        <Text style={styles.cardSubtitle}>
+          Track and manage all loan tickets
+        </Text>
+
+        {ticketsLoading && renderLoading()}
+        {ticketsError && !ticketsData && renderError(refetchTickets)}
+
+        {filteredTickets.map((ticket: any) => {
+          const status = ticket.ticketStatus || "No status";
+          const statusColor = getStatusColor(status);
+
+          return (
+            <AppTicketCard
+              key={String(ticket.ticketId)}
+              styles={styles}
+              theme={theme}
+              title={`Ticket ID - F2FIN-${String(ticket.ticketId)}`}
+              subtitle={`${ticket.customerName}`}
+              status={status}
+              statusColor={statusColor}
+              lender={ticket.applicationProvider}
+              amount={formatCurrency(ticket.applicationAmount)}
+              dateLabel={`Created: ${formatDate(
+                ticket.created_at || ticket.createdAt,
+              )}`}
+              // ✅ NEW: history behavior
+              showHistoryIcon
+              history={
+                ticket.history ||
+                ticket.ticketHistory ||
+                ticket.timeline ||
+                ticket.statusHistory ||
+                []
+              }
+            />
+          );
+        })}
+
+        {!ticketsLoading && !ticketsError && filteredTickets.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No tickets found</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Try different search keywords
+            </Text>
+          </View>
+        )}
+
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: 16,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text
+              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
+            >
+              Rows per page
+            </Text>
+
+            <TextInput
+              value={ticketsRowsPerPageInput}
+              keyboardType="numeric"
+              onChangeText={setTicketsRowsPerPageInput}
+              onEndEditing={() => {
+                const n = parseInt(ticketsRowsPerPageInput.trim(), 10);
+                if (isNaN(n) || n <= 0)
+                  setTicketsRowsPerPageInput(String(ticketsRowsPerPage));
+              }}
+              style={{
+                minWidth: 48,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderWidth: 1,
+                borderColor: theme.colors.outline,
+                borderRadius: 6,
+                color: theme.colors.onSurface,
+                textAlign: "center",
+              }}
+            />
+          </View>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text
+              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
+            >
+              {getRangeLabel(ticketsPage, ticketsRowsPerPage, totalTickets)}
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleTicketsPrev}
+              disabled={ticketsPage === 1 || ticketsLoading}
+              style={{
+                paddingHorizontal: 4,
+                opacity: ticketsPage === 1 || ticketsLoading ? 0.4 : 1,
+              }}
+            >
+              <Feather
+                name="chevron-left"
+                size={18}
+                color={theme.colors.onSurface}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleTicketsNext}
+              disabled={ticketsPage === ticketsTotalPages || ticketsLoading}
+              style={{
+                paddingHorizontal: 4,
+                opacity:
+                  ticketsPage === ticketsTotalPages || ticketsLoading ? 0.4 : 1,
+              }}
+            >
+              <Feather
+                name="chevron-right"
+                size={18}
+                color={theme.colors.onSurface}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  return (
+    <>
+      {/* Tabs always visible */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "applications" && styles.activeTab]}
+          onPress={() => setTab("applications")}
+        >
+          <Feather
+            name="file-text"
+            size={18}
+            color={
+              activeTab === "applications"
+                ? "#000"
+                : theme.colors.onSurfaceVariant
+            }
+            style={{ marginRight: 8 }}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "applications" && styles.activeTabText,
+            ]}
+          >
+            Applications
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "tickets" && styles.activeTab]}
+          onPress={() => setTab("tickets")}
+        >
+          <Feather
+            name="clipboard"
+            size={18}
+            color={
+              activeTab === "tickets" ? "#000" : theme.colors.onSurfaceVariant
+            }
+            style={{ marginRight: 8 }}
+          />
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "tickets" && styles.activeTabText,
+            ]}
+          >
+            Tickets
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Swipe pages */}
+      <PagerView
+        ref={pagerRef}
+        style={{ flex: 1 }}
+        initialPage={0}
+        onPageSelected={(e) => {
+          const index = e.nativeEvent.position;
+          setActiveTab(index === 0 ? "applications" : "tickets");
+        }}
+      >
+        <View key="applications">
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {renderApplicationsTab()}
+          </ScrollView>
+        </View>
+
+        <View key="tickets">
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {renderTicketsTab()}
+          </ScrollView>
+        </View>
+      </PagerView>
+    </>
+  );
+}
