@@ -22,6 +22,9 @@ export default {
     ios: {
       bundleIdentifier: "com.lendgrid.mobile",
       supportsTablet: true,
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
 
     web: {

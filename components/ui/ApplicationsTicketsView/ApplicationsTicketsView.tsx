@@ -1,9 +1,10 @@
-// components/ApplicationsTicketsView.tsx
+import { useTicketHistory } from "@/hooks/use-ticket-history_rest";
 import { Feather, FontAwesome5 } from "@expo/vector-icons";
 import React, { useMemo, useRef, useState } from "react";
 import {
   Animated,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -55,6 +56,72 @@ type Props = {
   setTicketsRowsPerPageInput: (v: string) => void;
 };
 
+// -------------------- Helpers --------------------
+const clamp = (n: number, min = 0, max = 255) =>
+  Math.max(min, Math.min(max, n));
+
+const hexToRgb = (hex: string) => {
+  const h = (hex || "").replace("#", "");
+  const full =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
+  return {
+    r: parseInt(full.substring(0, 2) || "00", 16),
+    g: parseInt(full.substring(2, 4) || "00", 16),
+    b: parseInt(full.substring(4, 6) || "00", 16),
+  };
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${clamp(r)}, ${clamp(g)}, ${clamp(b)}, ${alpha})`;
+};
+
+// Theme-aware palette: light stays light, dark becomes dark (like ticket view)
+const getHistoryPalette = (accent: string, isDark: boolean) => {
+  if (isDark) {
+    // dark card like your ticket view
+    const cardBg = "#0B0F1A";
+    return {
+      cardBg,
+      headerBg: "#111827",
+      border: hexToRgba(accent, 0.35),
+      titleText: "#FFFFFF",
+      mutedText: "rgba(255,255,255,0.75)",
+      softText: "rgba(255,255,255,0.90)",
+      surface: "rgba(255,255,255,0.06)",
+      surface2: "rgba(255,255,255,0.10)",
+      icon: "#FFFFFF",
+      dot: "#FFFFFF",
+      divider: "rgba(255,255,255,0.12)",
+    };
+  }
+
+  // light mode (your current good look)
+  const base = "#FFFFFF";
+  const soft = "#F8FAFC";
+  return {
+    cardBg: base,
+    headerBg: soft,
+    border: hexToRgba(accent, 0.22),
+    titleText: "#0B0F1A",
+    mutedText: "rgba(15,23,41,0.70)",
+    softText: "rgba(15,23,41,0.85)",
+    surface: "rgba(15,23,41,0.04)",
+    surface2: "rgba(15,23,41,0.08)",
+    icon: "#0B0F1A",
+    dot: accent,
+    divider: "rgba(15,23,41,0.10)",
+  };
+};
+
+// fixed height of history card body (scroll inside)
+const HISTORY_CARD_MAX_HEIGHT = 250;
+
 function AppTicketCard({
   styles,
   theme,
@@ -65,22 +132,25 @@ function AppTicketCard({
   lender,
   amount,
   dateLabel,
-
-  // NEW
   showHistoryIcon,
-  history = [],
+  ticketId,
 }: any) {
   const [openHistory, setOpenHistory] = useState(false);
 
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const {
+    data: historyList = [],
+    isFetching: historyLoading,
+    isError: historyError,
+    refetch: refetchHistory,
+  } = useTicketHistory(ticketId ?? null, openHistory);
 
   const handleToggleHistory = () => {
     const newValue = !openHistory;
 
     if (newValue) {
-      // Opening animation
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -108,7 +178,6 @@ function AppTicketCard({
         ]).start();
       });
     } else {
-      // Closing animation
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -151,23 +220,12 @@ function AppTicketCard({
     });
   };
 
-  const safeHistory = Array.isArray(history) ? history : [];
+  const cleanText = (t?: string | null) =>
+    (t || "").replace(/<\/?[^>]+(>|$)/g, "").trim();
 
-  const getHistoryStatusColor = (s: string) => {
-    switch ((s || "").toLowerCase()) {
-      case "approved":
-      case "disbursed":
-        return "#10B981";
-      case "pending":
-      case "under credit review":
-      case "in-progress":
-        return "#F59E0B";
-      case "rejected":
-        return "#EF4444";
-      default:
-        return theme?.colors?.onSurfaceVariant || "#94A3B8";
-    }
-  };
+  const accent = statusColor || theme.colors?.primary || "#0EA5E9";
+  const isDark = !!theme?.dark;
+  const p = getHistoryPalette(accent, isDark);
 
   return (
     <Animated.View
@@ -179,13 +237,9 @@ function AppTicketCard({
       ]}
     >
       {!openHistory ? (
-        /* ================= Current Ticket View ================= */
+        // ================= Current Ticket View =================
         <TouchableOpacity activeOpacity={0.7} onPress={handleToggleHistory}>
-          <Animated.View
-            style={{
-              opacity: fadeAnim,
-            }}
-          >
+          <Animated.View style={{ opacity: fadeAnim }}>
             <View style={styles.commissionHeader}>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={styles.applicationId}>{title}</Text>
@@ -197,7 +251,6 @@ function AppTicketCard({
               <View
                 style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
               >
-                {/* Status badge */}
                 <View
                   style={[
                     styles.statusBadge,
@@ -237,232 +290,308 @@ function AppTicketCard({
               >
                 <Text style={styles.dateText}>{dateLabel}</Text>
 
-                {/*  History icon - in the same row as created text, right corner */}
                 {showHistoryIcon && (
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 999,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 1,
-                      borderColor: theme.colors.outline,
-                      backgroundColor: theme.colors.surface,
-                    }}
-                  >
-                    <Feather
-                      name="clock"
-                      size={16}
-                      color={theme.colors.primary}
-                    />
-                  </View>
+                  <Pressable onPress={handleToggleHistory}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: theme.colors.primary,
+                        backgroundColor: theme.colors.surface,
+                        gap: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "700",
+                          color: theme.colors.primary,
+                        }}
+                      >
+                        History
+                      </Text>
+
+                      <Feather
+                        name="clock"
+                        size={14}
+                        color={theme.colors.primary}
+                      />
+                    </View>
+                  </Pressable>
                 )}
               </View>
             )}
           </Animated.View>
         </TouchableOpacity>
       ) : (
-        /* ================= History Panel ================= */
-        <TouchableOpacity activeOpacity={0.7} onPress={handleToggleHistory}>
-          <Animated.View
+        // ================= History Panel (dark in dark mode; inner scroll only) =================
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <View
             style={{
-              opacity: fadeAnim,
+              borderRadius: 12,
+              overflow: "hidden",
+              backgroundColor: p.cardBg,
+              borderWidth: 1,
+              borderColor: p.border,
             }}
           >
-            <View
-              style={{
-                backgroundColor: theme.colors.surfaceVariant,
-                padding: 16,
-                borderRadius: 12,
-              }}
-            >
-              {/* Header */}
+            {/* Header + Summary (tap here to close) */}
+            <Pressable onPress={handleToggleHistory}>
               <View
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 12,
-                  paddingBottom: 12,
+                  padding: 16,
+                  backgroundColor: p.headerBg,
                   borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.outline,
+                  borderBottomColor: isDark ? p.divider : p.border,
                 }}
               >
-                <Feather name="clock" size={16} color={theme.colors.primary} />
-                <Text
-                  style={[
-                    styles.cardTitle,
-                    { fontSize: 15, margin: 0, marginLeft: 8 },
-                  ]}
+                {/* Header Row */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 12,
+                  }}
                 >
-                  Ticket History
-                </Text>
-              </View>
+                  <Feather name="clock" size={16} color={p.icon} />
 
-              {/* Ticket Info Summary */}
-              <View
-                style={{
-                  marginBottom: 16,
-                  paddingBottom: 12,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.outline,
-                }}
-              >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      marginLeft: 8,
+                      fontWeight: "800",
+                      color: p.titleText,
+                      flex: 1, // ✅ pushes right elements to end
+                    }}
+                    numberOfLines={1}
+                  >
+                    Ticket History
+                  </Text>
+
+                  {historyError && (
+                    <TouchableOpacity
+                      onPress={() => refetchHistory()}
+                      style={{
+                        marginRight: 10,
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: p.border,
+                        backgroundColor: p.surface,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: p.titleText,
+                          fontWeight: "700",
+                        }}
+                      >
+                        Retry
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* ✅ TOP RIGHT CLOSE BUTTON */}
+                  <Pressable onPress={handleToggleHistory} hitSlop={10}>
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 999,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 1,
+                        borderColor: p.border,
+                        backgroundColor: p.surface,
+                      }}
+                    >
+                      <Feather name="x" size={16} color={p.icon} />
+                    </View>
+                  </Pressable>
+                </View>
+
+                {/* Ticket Info */}
                 <Text
                   style={{
                     fontSize: 13,
-                    fontWeight: "600",
-                    color: theme.colors.onSurface,
+                    fontWeight: "800",
+                    color: p.titleText,
                     marginBottom: 4,
                   }}
+                  numberOfLines={2}
                 >
                   {title}
                 </Text>
+
                 {!!subtitle && (
                   <Text
                     style={{
                       fontSize: 12,
-                      color: theme.colors.onSurfaceVariant,
+                      color: p.mutedText,
+                      fontWeight: "600",
                     }}
+                    numberOfLines={2}
                   >
                     {subtitle}
                   </Text>
                 )}
               </View>
+            </Pressable>
 
-              {safeHistory.length === 0 ? (
-                <View style={[styles.emptyState, { paddingVertical: 20 }]}>
-                  <Feather
-                    name="inbox"
-                    size={32}
-                    color={theme.colors.onSurfaceVariant}
-                    style={{ marginBottom: 8 }}
-                  />
-                  <Text style={styles.emptyStateText}>No history found</Text>
-                  <Text style={styles.emptyStateSubtext}>
-                    History will appear once status updates happen.
-                  </Text>
-                </View>
-              ) : (
-                <View style={{ gap: 14 }}>
-                  {safeHistory.map((h: any, idx: number) => {
-                    const hStatus = h.status || h.ticketStatus || "Updated";
-                    const hColor = getHistoryStatusColor(hStatus);
-                    const phase = h.phase || h.stage || h.step || "";
-
-                    return (
-                      <View
-                        key={`${idx}`}
-                        style={{ flexDirection: "row", gap: 12 }}
-                      >
-                        {/* Dot + line */}
-                        <View style={{ alignItems: "center", width: 12 }}>
-                          <View
-                            style={{
-                              width: 12,
-                              height: 12,
-                              borderRadius: 999,
-                              backgroundColor: hColor,
-                              borderWidth: 2,
-                              borderColor: theme.colors.surface,
-                            }}
-                          />
-                          {idx !== safeHistory.length - 1 && (
+            {/* Body (scroll inside ONLY) */}
+            <View style={{ maxHeight: HISTORY_CARD_MAX_HEIGHT }}>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+                contentContainerStyle={{ padding: 16, paddingBottom: 18 }}
+                // ✅ IMPORTANT: capture touch so parent scroll doesn't move
+                onStartShouldSetResponderCapture={() => true}
+              >
+                {historyLoading ? (
+                  <View style={[styles.emptyState, { paddingVertical: 10 }]}>
+                    <ActivityIndicator
+                      animating
+                      size="small"
+                      color={p.titleText}
+                    />
+                    <Text
+                      style={{
+                        marginTop: 8,
+                        color: p.softText,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Loading history...
+                    </Text>
+                  </View>
+                ) : historyError ? (
+                  <View style={[styles.emptyState, { paddingVertical: 10 }]}>
+                    <Feather
+                      name="alert-circle"
+                      size={28}
+                      color="#EF4444"
+                      style={{ marginBottom: 8 }}
+                    />
+                    <Text
+                      style={{
+                        color: p.titleText,
+                        fontSize: 14,
+                        fontWeight: "800",
+                      }}
+                    >
+                      Failed to load history
+                    </Text>
+                    <Text
+                      style={{
+                        color: p.mutedText,
+                        marginTop: 4,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Tap retry or check connection.
+                    </Text>
+                  </View>
+                ) : historyList.length === 0 ? (
+                  <View style={[styles.emptyState, { paddingVertical: 10 }]}>
+                    <Feather
+                      name="inbox"
+                      size={32}
+                      color={p.mutedText}
+                      style={{ marginBottom: 8 }}
+                    />
+                    <Text
+                      style={{
+                        color: p.titleText,
+                        fontSize: 14,
+                        fontWeight: "800",
+                      }}
+                    >
+                      No history found
+                    </Text>
+                    <Text
+                      style={{
+                        color: p.mutedText,
+                        marginTop: 4,
+                        fontWeight: "600",
+                      }}
+                    >
+                      History will appear once status updates happen.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 14 }}>
+                    {historyList.map((h: any, idx: number) => {
+                      const action = cleanText(h.action) || "Updated";
+                      return (
+                        <View
+                          key={String(h.id ?? idx)}
+                          style={{ flexDirection: "row", gap: 12 }}
+                        >
+                          <View style={{ alignItems: "center", width: 12 }}>
                             <View
                               style={{
-                                width: 2,
-                                flex: 1,
-                                backgroundColor: theme.colors.outline,
-                                marginTop: 6,
-                                minHeight: 30,
+                                width: 12,
+                                height: 12,
+                                borderRadius: 999,
+                                backgroundColor: p.dot,
+                                borderWidth: 2,
+                                borderColor: p.surface2,
                               }}
                             />
-                          )}
-                        </View>
-
-                        {/* Content */}
-                        <View style={{ flex: 1, paddingBottom: 4 }}>
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "700",
-                              color: theme.colors.onSurface,
-                              marginBottom: 4,
-                            }}
-                          >
-                            {phase ? `${phase} • ${hStatus}` : hStatus}
-                          </Text>
-
-                          <Text
-                            style={{
-                              fontSize: 12,
-                              color: theme.colors.onSurfaceVariant,
-                              marginBottom: 4,
-                            }}
-                          >
-                            {formatDateTime(
-                              h.time || h.createdAt || h.updatedAt,
-                            )}
-                          </Text>
-
-                          {!!h.note && (
-                            <View
-                              style={{
-                                backgroundColor: theme.colors.surface,
-                                padding: 8,
-                                borderRadius: 6,
-                                marginTop: 4,
-                              }}
-                            >
-                              <Text
+                            {idx !== historyList.length - 1 && (
+                              <View
                                 style={{
-                                  fontSize: 12,
-                                  color: theme.colors.onSurfaceVariant,
-                                  fontStyle: "italic",
+                                  width: 2,
+                                  flex: 1,
+                                  backgroundColor: isDark
+                                    ? p.divider
+                                    : p.border,
+                                  marginTop: 6,
+                                  minHeight: 30,
                                 }}
-                              >
-                                {h.note}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
+                              />
+                            )}
+                          </View>
 
-              {/* ✅ Close icon at bottom right - matching history icon position */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  marginTop: 16,
-                }}
-              >
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 999,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderWidth: 1,
-                    borderColor: theme.colors.outline,
-                    backgroundColor: theme.colors.surface,
-                  }}
-                >
-                  <Feather
-                    name="x"
-                    size={16}
-                    color={theme.colors.onSurfaceVariant}
-                  />
-                </View>
-              </View>
+                          <View style={{ flex: 1, paddingBottom: 4 }}>
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                fontWeight: "900",
+                                color: p.titleText,
+                                marginBottom: 4,
+                              }}
+                              numberOfLines={2}
+                            >
+                              {action}
+                            </Text>
+
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                color: p.mutedText,
+                                fontWeight: "600",
+                              }}
+                              numberOfLines={1}
+                            >
+                              {formatDateTime(h.created_at)}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </ScrollView>
             </View>
-          </Animated.View>
-        </TouchableOpacity>
+          </View>
+        </Animated.View>
       )}
     </Animated.View>
   );
@@ -745,7 +874,6 @@ export default function ApplicationsTicketsView(props: Props) {
               lender={app.applicationProvider}
               amount={formatCurrency(app.applicationAmount)}
               dateLabel={`Submitted: ${formatDate(app.applicationDate)}`}
-              // no history icon here
             />
           );
         })}
@@ -939,24 +1067,15 @@ export default function ApplicationsTicketsView(props: Props) {
               key={String(ticket.ticketId)}
               styles={styles}
               theme={theme}
-              title={`Ticket ID - F2FIN-${String(ticket.ticketId)}`}
+              title={`ID - F2FIN-${String(ticket.ticketId)}`}
               subtitle={`${ticket.customerName}`}
               status={status}
               statusColor={statusColor}
               lender={ticket.applicationProvider}
               amount={formatCurrency(ticket.applicationAmount)}
-              dateLabel={`Created: ${formatDate(
-                ticket.created_at || ticket.createdAt,
-              )}`}
-              // ✅ NEW: history behavior
+              dateLabel={`Created: ${formatDate(ticket.created_at || ticket.createdAt)}`}
               showHistoryIcon
-              history={
-                ticket.history ||
-                ticket.ticketHistory ||
-                ticket.timeline ||
-                ticket.statusHistory ||
-                []
-              }
+              ticketId={ticket.ticketId}
             />
           );
         })}

@@ -47,26 +47,51 @@ export const commissionsStyles = (theme: any) =>
       marginRight: 4,
     },
 
+    // better scroll padding handling
     metricsScroll: {
-      paddingHorizontal: 16,
+      // keep empty or minimal; real padding via contentContainerStyle
     },
+    metricsScrollContent: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      alignItems: "stretch",
+    },
+
+    // force single row and same baseline
     metricsContainer: {
       flexDirection: "row",
-      paddingVertical: 8,
+      flexWrap: "nowrap",
+      alignItems: "stretch",
     },
+
+    // premium card base (gradient comes from component)
     metricCard: {
       width: SCREEN_WIDTH * 0.85,
       marginRight: 12,
       borderRadius: 12,
       overflow: "hidden",
-      borderWidth: 1,
-      borderColor: theme.colors.outline,
-      backgroundColor: theme.colors.surface,
+      flexShrink: 0, //  IMPORTANT: stops weird wrapping/stacking
+      backgroundColor: "transparent",
     },
+
+    // gradient wrapper
     metricGradient: {
       padding: 16,
       borderRadius: 12,
+      overflow: "hidden",
     },
+
+    // overlay border (used from component)
+    metricBorderOverlay: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+
     metricContent: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -74,33 +99,42 @@ export const commissionsStyles = (theme: any) =>
     },
     metricLeft: {
       flex: 1,
+      paddingRight: 8,
     },
+
+    // WHITE texts for premium look (light + dark both)
     metricTitle: {
       fontSize: 14,
-      color: theme.colors.onSurfaceVariant,
+      color: "rgba(255,255,255,0.85)",
       marginBottom: 8,
+      fontWeight: "700",
     },
     metricValue: {
       fontSize: 24,
-      fontWeight: "bold",
-      color: theme.colors.onSurface,
+      fontWeight: "900",
+      color: "#FFFFFF",
       marginBottom: 4,
     },
     metricSubtitle: {
       fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
+      color: "rgba(255,255,255,0.80)",
+      fontWeight: "600",
     },
+
     trendContainer: {
       flexDirection: "row",
       alignItems: "center",
-      marginTop: 4,
+      marginTop: 6,
     },
     // NOTE: keep this green as "success" accent
     trendText: {
       fontSize: 12,
-      color: "#10B981",
+      color: "rgba(255,255,255,0.85)",
       marginLeft: 4,
+      fontWeight: "600",
     },
+
+    // icon container premium
     metricIconContainer: {
       width: 48,
       height: 48,
@@ -108,6 +142,7 @@ export const commissionsStyles = (theme: any) =>
       justifyContent: "center",
       alignItems: "center",
       marginLeft: 16,
+      borderWidth: 1,
     },
 
     tabsContainer: {
@@ -386,7 +421,6 @@ export const commissionsStyles = (theme: any) =>
     commissionInfo: {
       alignItems: "flex-end",
     },
-    // keep these as accents (still ok in light mode)
     commissionRate: {
       fontSize: 14,
       color: theme.colors.tertiary,

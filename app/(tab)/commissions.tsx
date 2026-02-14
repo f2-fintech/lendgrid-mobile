@@ -1,4 +1,6 @@
+// app/(tab)/commissions.tsx
 import { useIsFocused } from "@react-navigation/native";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -24,6 +26,8 @@ export default function CommissionsScreen() {
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
   const isFocused = useIsFocused();
 
+  const params = useLocalSearchParams<{ tab?: string; navId?: string }>();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | string>("all");
   const [selectedTab, setSelectedTab] = useState<"trends" | "history">(
@@ -32,37 +36,39 @@ export default function CommissionsScreen() {
   const [pageSize] = useState(50);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Infinite commissions (no polling)
+  // ✅ FIX: apply desired internal tab EVERY TIME screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      const t = String(params?.tab || "").toLowerCase();
+      if (t === "history") setSelectedTab("history");
+      if (t === "trends") setSelectedTab("trends");
+    }, [params?.tab, params?.navId]),
+  );
+
   const commissions = useCommissionTransactionsInfinite({
     limit: pageSize,
     filters: undefined,
     enabled: true,
   });
 
-  // Flatten all loaded pages -> one array
   const transactions: CommissionTransaction[] = useMemo(() => {
     const pages = commissions.data?.pages ?? [];
     return pages.flatMap((p) => (p?.data ?? []) as any);
   }, [commissions.data]);
 
   const total = useMemo(() => {
-    // total is available in each page; take latest one
     const last = commissions.data?.pages?.[commissions.data.pages.length - 1];
     return Number(last?.total ?? 0);
   }, [commissions.data]);
 
-  // Refetch when tab gets focus
   useEffect(() => {
     if (isFocused) commissions.refetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFocused]);
 
-  // Refetch when app resumes (background -> active)
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active" && isFocused) {
-        commissions.refetch();
-      }
+      if (state === "active" && isFocused) commissions.refetch();
     });
     return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,21 +87,18 @@ export default function CommissionsScreen() {
     }
   }, [commissions]);
 
-  // fetch next page when user scrolls near bottom (only for history tab)
   const onScroll = useCallback(
     (e: any) => {
       if (selectedTab !== "history") return;
       if (!hasNext || isFetchingNext) return;
 
       const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-      const paddingToBottom = 220; // tweak if needed
+      const paddingToBottom = 220;
       const reachedBottom =
         layoutMeasurement.height + contentOffset.y >=
         contentSize.height - paddingToBottom;
 
-      if (reachedBottom) {
-        commissions.fetchNextPage();
-      }
+      if (reachedBottom) commissions.fetchNextPage();
     },
     [selectedTab, hasNext, isFetchingNext, commissions],
   );
@@ -238,7 +241,6 @@ export default function CommissionsScreen() {
         month: "short",
         year: "numeric",
       });
-
       if (!monthly[key]) monthly[key] = { earned: 0, paid: 0, pending: 0 };
 
       const amt = Number(t.commissionAmount ?? 0);
@@ -271,14 +273,11 @@ export default function CommissionsScreen() {
 
   const filteredCommissions = useMemo(() => {
     const search = (searchTerm ?? "").toLowerCase();
-
     return commissionHistory.filter((c) => {
       const appId = (c.applicationId ?? "").toLowerCase();
       const lender = (c.lenderName ?? "").toLowerCase();
-
       const matchesSearch = appId.includes(search) || lender.includes(search);
       const matchesStatus = filterStatus === "all" || c.status === filterStatus;
-
       return matchesSearch && matchesStatus;
     });
   }, [commissionHistory, searchTerm, filterStatus]);
@@ -343,7 +342,6 @@ export default function CommissionsScreen() {
               getStatusIcon={getStatusIcon}
             />
 
-            {/*  Pagination footer */}
             <View style={{ paddingTop: 12, alignItems: "center" }}>
               {isFetchingNext ? (
                 <ActivityIndicator size="small" color={theme.colors.primary} />

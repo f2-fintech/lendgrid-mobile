@@ -1,5 +1,4 @@
 import { Feather, MaterialIcons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
@@ -32,14 +31,91 @@ type Metric = {
   icon: any;
   library: any;
   color: string;
-  gradientColors: string[];
+};
+
+// ---------- Color Helpers ----------
+const clamp = (n: number, min = 0, max = 255) =>
+  Math.max(min, Math.min(max, n));
+
+const hexToRgb = (hex: string) => {
+  const h = (hex || "").replace("#", "");
+  const full =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
+
+  return {
+    r: parseInt(full.substring(0, 2) || "00", 16),
+    g: parseInt(full.substring(2, 4) || "00", 16),
+    b: parseInt(full.substring(4, 6) || "00", 16),
+  };
+};
+
+const rgbToHex = (r: number, g: number, b: number) => {
+  const toHex = (v: number) => clamp(v).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+};
+
+const mixHex = (a: string, b: string, amount: number) => {
+  const A = hexToRgb(a);
+  const B = hexToRgb(b);
+  return rgbToHex(
+    Math.round(A.r + (B.r - A.r) * amount),
+    Math.round(A.g + (B.g - A.g) * amount),
+    Math.round(A.b + (B.b - A.b) * amount),
+  );
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${clamp(r)}, ${clamp(g)}, ${clamp(b)}, ${alpha})`;
+};
+
+// NO GRADIENT. Soft card palette for both modes.
+// Light: very soft tint
+// Dark: clean dark surface (no muddy tint), only subtle accent in border + icon bg
+const getSoftCardPalette = (accent: string, isDark: boolean) => {
+  if (!isDark) {
+    const base = "#FFFFFF";
+    const soft = "#F8FAFC";
+
+    const bg = mixHex(soft, accent, 0.05);
+    const border = hexToRgba(accent, 0.14);
+    const iconBg = hexToRgba(accent, 0.12);
+
+    return {
+      bg,
+      border,
+      iconBg,
+      iconColor: accent,
+      topText: "rgba(15,23,41,0.70)",
+      value: "#0B0F1A",
+      title: "rgba(15,23,41,0.62)",
+    };
+  }
+
+  const bg = "#15223e";
+  const border = "rgba(255,255,255,0.10)";
+  const iconBg = "rgba(255,255,255,0.06)";
+
+  return {
+    bg,
+    border,
+    iconBg,
+    iconColor: accent,
+    topText: "rgba(255,255,255,0.78)",
+    value: "#FFFFFF",
+    title: "rgba(255,255,255,0.62)",
+  };
 };
 
 export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
   const theme = useTheme();
-  const isDarkMode = theme.dark;
+  const isDarkMode = !!theme?.dark;
 
-  // Row 1: Monetary value cards (5 cards)
   const row1: Metric[] = [
     {
       title: "Approved Loans",
@@ -48,7 +124,6 @@ export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
       icon: "check-circle",
       library: Feather,
       color: "#10B981",
-      gradientColors: ["#ECFDF5", "#D1FAE5"],
     },
     {
       title: "Commission Earned",
@@ -56,7 +131,6 @@ export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
       icon: "currency-rupee",
       library: MaterialIcons,
       color: "#F59E0B",
-      gradientColors: ["#FFFBEB", "#FEF3C7"],
     },
     {
       title: "Disbursed Loans",
@@ -65,7 +139,6 @@ export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
       icon: "credit-card",
       library: Feather,
       color: "#14B8A6",
-      gradientColors: ["#F0FDFA", "#CCFBF1"],
     },
     {
       title: "Commission Paid",
@@ -73,50 +146,41 @@ export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
       icon: "trending-up",
       library: Feather,
       color: "#22C55E",
-      gradientColors: ["#F0FDF4", "#DCFCE7"],
     },
     {
       title: "Commission Pending",
       value: formatINR(metrics.commissionPending),
       icon: "clock",
       library: Feather,
-      color: "#6B7280",
-      gradientColors: ["#F9FAFB", "#F3F4F6"],
+      color: "#9CA3AF",
     },
   ];
 
-  // Row 2: Count-based capsule cards (3 cards)
   const row2: Metric[] = [
     {
       title: "Applications Submitted",
-      topText: `${metrics.applicationsSubmitted} tickets`,
-      value: "",
+      topText: `${metrics.applicationsSubmitted} submitted`,
       icon: "file-text",
       library: Feather,
       color: "#2563EB",
-      gradientColors: ["#EFF6FF", "#DBEAFE"],
     },
     {
       title: "Commission Transactions",
       topText: `${metrics.commissionTransactions} tickets`,
-      value: "",
       icon: "clipboard",
       library: Feather,
-      color: "#2563EB",
-      gradientColors: ["#EFF6FF", "#DBEAFE"],
+      color: "#7C3AED",
     },
     {
       title: "Rejected Applications",
       topText: `${metrics.rejectedCount} rejected`,
-      value: "",
       icon: "x-circle",
       library: Feather,
       color: "#EF4444",
-      gradientColors: ["#FEF2F2", "#FEE2E2"],
     },
   ];
 
-  const renderRow = (row: Metric[], isCapsule: boolean = false) => (
+  const renderRow = (row: Metric[], isCapsule = false) => (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
@@ -125,183 +189,108 @@ export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
     >
       {row.map((m, i) => {
         const IconComponent = m.library;
-        const isLastCard = i === row.length - 1;
+        const p = getSoftCardPalette(m.color, isDarkMode);
 
         return (
           <View
             key={i}
             style={[
               isCapsule ? styles.capsuleWrapper : styles.cardWrapper,
-              {
-                marginRight: isLastCard ? 0 : 12,
-                shadowColor: isDarkMode ? "#000" : m.color,
-              },
+              { marginRight: i === row.length - 1 ? 0 : 12 },
             ]}
           >
-            {isDarkMode ? (
-              // Dark Mode Card/Capsule
-              <View
-                style={[
-                  isCapsule ? styles.capsuleDark : styles.cardDark,
-                  {
-                    backgroundColor: theme.colors.surfaceVariant,
-                  },
-                ]}
-              >
-                {isCapsule ? (
-                  // Capsule Layout (Horizontal)
-                  <View style={styles.capsuleContent}>
-                    <View
-                      style={[
-                        styles.capsuleIconContainer,
-                        {
-                          backgroundColor: `${m.color}25`,
-                        },
-                      ]}
+            <View
+              style={[
+                isCapsule ? styles.capsuleBase : styles.cardBase,
+                {
+                  backgroundColor: p.bg,
+                  borderColor: p.border,
+                },
+              ]}
+            >
+              {isCapsule ? (
+                // Capsule Layout
+                <View style={styles.capsuleContent}>
+                  <View
+                    style={[
+                      styles.capsuleIconContainer,
+                      {
+                        backgroundColor: p.iconBg,
+                        borderColor: p.border,
+                      },
+                    ]}
+                  >
+                    <IconComponent
+                      name={m.icon}
+                      size={20}
+                      color={p.iconColor}
+                    />
+                  </View>
+
+                  <View style={styles.capsuleTextContainer}>
+                    <Text
+                      style={[styles.capsuleTopText, { color: p.value }]}
+                      numberOfLines={1}
                     >
-                      <IconComponent name={m.icon} size={20} color={m.color} />
-                    </View>
-                    <View style={styles.capsuleTextContainer}>
-                      {m.topText ? (
-                        <Text
-                          style={[
-                            styles.capsuleTopTextDark,
-                            { color: theme.colors.onSurface },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {m.topText}
-                        </Text>
-                      ) : null}
+                      {m.topText}
+                    </Text>
+
+                    <Text
+                      style={[styles.capsuleTitle, { color: p.title }]}
+                      numberOfLines={1}
+                    >
+                      {m.title}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                // Card Layout
+                <>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      {
+                        backgroundColor: p.iconBg,
+                        borderColor: p.border,
+                      },
+                    ]}
+                  >
+                    <IconComponent
+                      name={m.icon}
+                      size={22}
+                      color={p.iconColor}
+                    />
+                  </View>
+
+                  <View style={styles.contentContainer}>
+                    {m.topText ? (
                       <Text
-                        style={[
-                          styles.capsuleTitleDark,
-                          { color: theme.colors.onSurfaceVariant },
-                        ]}
+                        style={[styles.topText, { color: p.topText }]}
                         numberOfLines={1}
                       >
-                        {m.title}
+                        {m.topText}
                       </Text>
-                    </View>
-                  </View>
-                ) : (
-                  // Regular Card Layout (Vertical)
-                  <>
-                    <View
-                      style={[
-                        styles.iconContainer,
-                        {
-                          backgroundColor: `${m.color}25`,
-                        },
-                      ]}
-                    >
-                      <IconComponent name={m.icon} size={22} color={m.color} />
-                    </View>
-                    <View style={styles.contentContainer}>
-                      {m.topText ? (
-                        <Text
-                          style={[
-                            styles.topTextDark,
-                            { color: theme.colors.onSurfaceVariant },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {m.topText}
-                        </Text>
-                      ) : null}
-                      {m.value ? (
-                        <Text
-                          style={[
-                            styles.valueDark,
-                            { color: theme.colors.onSurface },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {m.value}
-                        </Text>
-                      ) : null}
+                    ) : null}
+
+                    {m.value ? (
                       <Text
-                        style={[
-                          styles.titleDark,
-                          { color: theme.colors.onSurfaceVariant },
-                        ]}
-                        numberOfLines={2}
+                        style={[styles.value, { color: p.value }]}
+                        numberOfLines={1}
                       >
-                        {m.title}
+                        {m.value}
                       </Text>
-                    </View>
-                  </>
-                )}
-              </View>
-            ) : (
-              // Light Mode Card/Capsule with Gradient
-              <LinearGradient
-                colors={m.gradientColors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={isCapsule ? styles.capsuleLight : styles.cardLight}
-              >
-                {isCapsule ? (
-                  // Capsule Layout (Horizontal)
-                  <View style={styles.capsuleContent}>
-                    <View
-                      style={[
-                        styles.capsuleIconContainer,
-                        styles.capsuleIconContainerLight,
-                        {
-                          shadowColor: m.color,
-                        },
-                      ]}
+                    ) : null}
+
+                    <Text
+                      style={[styles.title, { color: p.title }]}
+                      numberOfLines={2}
                     >
-                      <IconComponent name={m.icon} size={20} color={m.color} />
-                    </View>
-                    <View style={styles.capsuleTextContainer}>
-                      {m.topText ? (
-                        <Text
-                          style={styles.capsuleTopTextLight}
-                          numberOfLines={1}
-                        >
-                          {m.topText}
-                        </Text>
-                      ) : null}
-                      <Text style={styles.capsuleTitleLight} numberOfLines={1}>
-                        {m.title}
-                      </Text>
-                    </View>
+                      {m.title}
+                    </Text>
                   </View>
-                ) : (
-                  // Regular Card Layout (Vertical)
-                  <>
-                    <View
-                      style={[
-                        styles.iconContainer,
-                        styles.iconContainerLight,
-                        {
-                          shadowColor: m.color,
-                        },
-                      ]}
-                    >
-                      <IconComponent name={m.icon} size={22} color={m.color} />
-                    </View>
-                    <View style={styles.contentContainer}>
-                      {m.topText ? (
-                        <Text style={styles.topTextLight} numberOfLines={1}>
-                          {m.topText}
-                        </Text>
-                      ) : null}
-                      {m.value ? (
-                        <Text style={styles.valueLight} numberOfLines={1}>
-                          {m.value}
-                        </Text>
-                      ) : null}
-                      <Text style={styles.titleLight} numberOfLines={2}>
-                        {m.title}
-                      </Text>
-                    </View>
-                  </>
-                )}
-              </LinearGradient>
-            )}
+                </>
+              )}
+            </View>
           </View>
         );
       })}
@@ -310,153 +299,96 @@ export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
 
   return (
     <View style={styles.container}>
-      {renderRow(row1, false)}
+      {renderRow(row1)}
       {renderRow(row2, true)}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: 4,
-  },
-  scrollContainer: {
-    marginBottom: 8,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-  },
+  container: { marginBottom: 4 },
+  scrollContainer: { marginBottom: 8 },
+  scrollContent: { paddingHorizontal: 16 },
+
+  // Card wrapper
   cardWrapper: {
     width: 160,
     height: 140,
     borderRadius: 16,
     overflow: "hidden",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
   },
-  cardLight: {
-    flex: 1,
-    padding: 14,
-    justifyContent: "space-between",
-  },
-  cardDark: {
+  cardBase: {
     flex: 1,
     padding: 14,
     justifyContent: "space-between",
     borderRadius: 16,
+    borderWidth: 1,
   },
+
   iconContainer: {
     width: 44,
     height: 44,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
   },
-  iconContainerLight: {
-    backgroundColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  contentContainer: {
-    gap: 4,
-  },
-  topTextLight: {
+
+  contentContainer: { gap: 4 },
+
+  topText: {
     fontSize: 12,
-    color: "#374151",
-    fontWeight: "600",
-  },
-  topTextDark: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  valueLight: {
-    fontSize: 18,
     fontWeight: "800",
-    color: "#111827",
   },
-  valueDark: {
+  value: {
     fontSize: 18,
+    fontWeight: "900",
+  },
+  title: {
+    fontSize: 11,
     fontWeight: "700",
-  },
-  titleLight: {
-    fontSize: 11,
-    color: "#6B7280",
-    fontWeight: "600",
     lineHeight: 14,
   },
-  titleDark: {
-    fontSize: 11,
-    fontWeight: "500",
-    opacity: 0.8,
-    lineHeight: 14,
-  },
-  // Capsule styles for second row
+
   capsuleWrapper: {
     height: 70,
     borderRadius: 35,
     overflow: "hidden",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  capsuleLight: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    justifyContent: "center",
-  },
-  capsuleDark: {
+
+  capsuleBase: {
     flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
     justifyContent: "center",
     borderRadius: 35,
+    borderWidth: 1,
   },
+
   capsuleContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
+
   capsuleIconContainer: {
     width: 46,
     height: 46,
     borderRadius: 23,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
   },
-  capsuleIconContainerLight: {
-    backgroundColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  capsuleTextContainer: {
-    flex: 1,
-    gap: 2,
-  },
-  capsuleTopTextLight: {
+
+  capsuleTextContainer: { flex: 1, gap: 2 },
+
+  capsuleTopText: {
     fontSize: 14,
-    color: "#111827",
-    fontWeight: "700",
+    fontWeight: "900",
   },
-  capsuleTopTextDark: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  capsuleTitleLight: {
+
+  capsuleTitle: {
     fontSize: 11,
-    color: "#6B7280",
-    fontWeight: "600",
-  },
-  capsuleTitleDark: {
-    fontSize: 11,
-    fontWeight: "500",
-    opacity: 0.8,
+    fontWeight: "700",
   },
 });

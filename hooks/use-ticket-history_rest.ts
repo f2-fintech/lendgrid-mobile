@@ -1,8 +1,8 @@
-// use-ticket-history.ts
+// hooks/use-ticket-history.ts
 import { RestEnvelope } from "@/apis/config/restClient";
 import {
-    fetchTicketHistory,
-    TicketHistoryData,
+  fetchTicketHistory,
+  TicketHistoryData,
 } from "@/apis/modules/tickets.api_rest";
 import { useQuery } from "@tanstack/react-query";
 
@@ -17,6 +17,9 @@ export function useTicketHistory(ticketId: number | null, enabled = true) {
     queryKey: ["ticket-history", ticketId],
     queryFn: () => fetchTicketHistory(ticketId as number),
     enabled: shouldFetch,
-    select: (resp) => resp.data,
+    select: (resp) => resp.data ?? [],
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000, // optional
+    retry: 1,
   });
 }

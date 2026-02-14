@@ -115,7 +115,7 @@ export default function SignIn() {
   return (
     <>
       <ScrollView
-        style={{ flex: 1, backgroundColor: "#0c0c0c" }}
+        style={{ flex: 1, backgroundColor: "#0F1729" }}
         contentContainerStyle={{ flexGrow: 1 }}
       >
         <View style={signInStyles.inner}>

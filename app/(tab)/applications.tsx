@@ -1,6 +1,6 @@
 // app/(tab)/applications.tsx
 import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, View } from "react-native";
 import PagerView from "react-native-pager-view";
@@ -16,6 +16,8 @@ export default function ApplicationsScreen() {
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string; navId?: string }>(); // ✅ navId
+
   const pagerRef = useRef<PagerView>(null);
 
   const [search, setSearch] = useState("");
@@ -23,19 +25,33 @@ export default function ApplicationsScreen() {
     "applications",
   );
 
-  // PAGE STATES
   const [appsPage, setAppsPage] = useState(1);
   const [ticketsPage, setTicketsPage] = useState(1);
 
-  // ROWS PER PAGE
   const [appsRowsPerPage, setAppsRowsPerPage] = useState(10);
   const [ticketsRowsPerPage, setTicketsRowsPerPage] = useState(10);
 
-  // INPUTS (typed by user)
   const [appsRowsPerPageInput, setAppsRowsPerPageInput] = useState("10");
   const [ticketsRowsPerPageInput, setTicketsRowsPerPageInput] = useState("10");
 
-  // ----------------- API HOOKS -----------------
+  const setTab = useCallback((tab: "applications" | "tickets") => {
+    setActiveTab(tab);
+
+    // ✅ ensure pager is ready
+    requestAnimationFrame(() => {
+      pagerRef.current?.setPage(tab === "applications" ? 0 : 1);
+    });
+  }, []);
+
+  // ✅ FIX: apply desired tab EVERY TIME screen focuses (Tabs keep screen alive)
+  useFocusEffect(
+    useCallback(() => {
+      const t = String(params?.tab || "").toLowerCase();
+      if (t === "tickets") setTab("tickets");
+      if (t === "applications") setTab("applications");
+    }, [params?.tab, params?.navId, setTab]),
+  );
+
   const appsQuery = useCustomerApplications({
     page: appsPage,
     limit: appsRowsPerPage,
@@ -64,13 +80,6 @@ export default function ApplicationsScreen() {
     refetch: refetchTickets,
   } = ticketsQuery;
 
-  // Switch tab helper
-  const setTab = (tab: "applications" | "tickets") => {
-    setActiveTab(tab);
-    pagerRef.current?.setPage(tab === "applications" ? 0 : 1);
-  };
-
-  // When coming back from Create Application screen -> refetch
   useFocusEffect(
     useCallback(() => {
       refetchApps?.();
@@ -78,7 +87,6 @@ export default function ApplicationsScreen() {
     }, [refetchApps, refetchTickets]),
   );
 
-  // Debounced rows-per-page apply
   useEffect(() => {
     const handler = setTimeout(() => {
       const n = parseInt(appsRowsPerPageInput.trim(), 10);
@@ -87,7 +95,6 @@ export default function ApplicationsScreen() {
         setAppsPage(1);
       }
     }, 500);
-
     return () => clearTimeout(handler);
   }, [appsRowsPerPageInput, appsRowsPerPage]);
 
@@ -99,7 +106,6 @@ export default function ApplicationsScreen() {
         setTicketsPage(1);
       }
     }, 500);
-
     return () => clearTimeout(handler);
   }, [ticketsRowsPerPageInput, ticketsRowsPerPage]);
 
@@ -120,7 +126,6 @@ export default function ApplicationsScreen() {
           setActiveTab={setActiveTab}
           search={search}
           setSearch={setSearch}
-          // apps
           appsData={appsData}
           appsLoading={appsLoading}
           appsError={appsError}
@@ -130,7 +135,6 @@ export default function ApplicationsScreen() {
           appsRowsPerPage={appsRowsPerPage}
           appsRowsPerPageInput={appsRowsPerPageInput}
           setAppsRowsPerPageInput={setAppsRowsPerPageInput}
-          // tickets
           ticketsData={ticketsData}
           ticketsLoading={ticketsLoading}
           ticketsError={ticketsError}
