@@ -319,7 +319,7 @@ export default function SignUp() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0c0c0c" },
+  screen: { flex: 1, backgroundColor: "#0F1729" },
   scrollContent: { flexGrow: 1, paddingBottom: 80 },
 
   // slight top padding so overlay button doesn't overlap logo tap area

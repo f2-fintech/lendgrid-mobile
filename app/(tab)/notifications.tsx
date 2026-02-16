@@ -20,51 +20,28 @@ import {
 } from "@/apis/modules/notifications.api";
 import { useNotifications } from "@/hooks/useNotifications";
 
-// Mobile routes (use expo-router paths)
+// Mobile routes
 const MOBILE_ROUTES = {
   dashboard: "/dashboard",
   applications: "/applications",
   commissions: "/commissions",
 } as const;
 
-// Map website actionUrl -> mobile screen
-const mapWebsiteActionUrlToMobile = (actionUrl?: string | null) => {
-  if (!actionUrl) return null;
-
-  const raw = String(actionUrl).trim();
-  if (!raw) return null;
-
-  // normalize
-  const u = raw.startsWith("/") ? raw : `/${raw}`;
-
-  // backend gives website paths like "/aggregator/applications"
-  if (u.startsWith("/aggregator/applications"))
-    return MOBILE_ROUTES.applications;
-  if (u.startsWith("/aggregator/commissions")) return MOBILE_ROUTES.commissions;
-
-  return null;
-};
-
-// decide final navigation target
-const getNotificationTarget = (n: any) => {
-  // 1) actionUrl mapping
-  const fromAction = mapWebsiteActionUrlToMobile(n?.actionUrl);
-  if (fromAction) return fromAction;
-
-  // 2) fallback by type
-  const type = String(n?.type || "").toUpperCase();
-  if (type === "TICKET_STATUS_CHANGE") return MOBILE_ROUTES.applications;
-  if (type === "COMMISSION_STATUS_CHANGE") return MOBILE_ROUTES.commissions;
-
-  // 3) fallback
-  return MOBILE_ROUTES.dashboard;
+const runBatches = async <T,>(
+  items: T[],
+  batchSize: number,
+  worker: (item: T) => Promise<any>,
+) => {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const chunk = items.slice(i, i + batchSize);
+    await Promise.allSettled(chunk.map(worker));
+  }
 };
 
 const getIconComponent = (iconName: string) => (
   <Ionicons name={iconName as any} size={22} color="#FFFFFF" />
 );
 
-// Animated notification item component
 const AnimatedNotificationItem = ({
   notification,
   theme,
@@ -113,13 +90,11 @@ const AnimatedNotificationItem = ({
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-          {/* Clickable area (opens route) */}
           <TouchableOpacity
             onPress={() => onOpen?.(notification)}
             activeOpacity={0.75}
             style={{ flex: 1, flexDirection: "row", alignItems: "flex-start" }}
           >
-            {/* Left icon */}
             <View
               style={{
                 width: 44,
@@ -139,7 +114,6 @@ const AnimatedNotificationItem = ({
               {getIconComponent(notification.icon)}
             </View>
 
-            {/* Content */}
             <View style={{ flex: 1, paddingRight: 8 }}>
               <View
                 style={{
@@ -184,13 +158,7 @@ const AnimatedNotificationItem = ({
               </Text>
 
               {notification.unread && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 2,
-                  }}
-                >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <View
                     style={{
                       width: 6,
@@ -214,7 +182,6 @@ const AnimatedNotificationItem = ({
             </View>
           </TouchableOpacity>
 
-          {/* Cross icon (delete single) */}
           <TouchableOpacity
             onPress={handleDelete}
             activeOpacity={0.75}
@@ -252,16 +219,33 @@ const AnimatedNotificationItem = ({
   );
 };
 
-// Small helper: batch delete
-const runBatches = async <T,>(
-  items: T[],
-  batchSize: number,
-  worker: (item: T) => Promise<any>,
-) => {
-  for (let i = 0; i < items.length; i += batchSize) {
-    const chunk = items.slice(i, i + batchSize);
-    await Promise.allSettled(chunk.map(worker));
+// decide final navigation target + internal tab
+const getNotificationTarget = (
+  n: any,
+): { pathname: string; params?: Record<string, string> } => {
+  const type = String(n?.type || "").toUpperCase();
+  const actionUrl = String(n?.actionUrl || "").toLowerCase();
+
+  if (type === "TICKET_STATUS_CHANGE" || actionUrl.includes("ticket")) {
+    return { pathname: MOBILE_ROUTES.applications, params: { tab: "tickets" } };
   }
+
+  if (actionUrl.includes("/aggregator/applications")) {
+    return {
+      pathname: MOBILE_ROUTES.applications,
+      params: { tab: "applications" },
+    };
+  }
+
+  if (
+    type.includes("COMMISSION") ||
+    actionUrl.includes("/aggregator/commissions") ||
+    actionUrl.includes("commission")
+  ) {
+    return { pathname: MOBILE_ROUTES.commissions, params: { tab: "history" } };
+  }
+
+  return { pathname: MOBILE_ROUTES.dashboard };
 };
 
 export default function NotificationsScreen() {
@@ -343,9 +327,7 @@ export default function NotificationsScreen() {
     });
   };
 
-  //  React-Query cache invalidation based on route
-  const invalidateForRoute = async (to: string, n?: any) => {
-    // Always safe: dashboard summary + chart + commissions
+  const invalidateForRoute = async (to: string) => {
     if (to === MOBILE_ROUTES.dashboard) {
       await Promise.allSettled([
         queryClient.invalidateQueries({ queryKey: ["application-count"] }),
@@ -357,12 +339,8 @@ export default function NotificationsScreen() {
     }
 
     if (to === MOBILE_ROUTES.applications) {
-      // Ticket updates usually affect stats too
       await Promise.allSettled([
         queryClient.invalidateQueries({ queryKey: ["dashboard-ticket-stats"] }),
-        // if you have a tickets/applications query key, add it here too:
-        // queryClient.invalidateQueries({ queryKey: ["tickets"] }),
-        // queryClient.invalidateQueries({ queryKey: ["applications"] }),
       ]);
       return;
     }
@@ -373,15 +351,20 @@ export default function NotificationsScreen() {
     }
   };
 
-  // open notification route (invalidate -> navigate)
+  // ✅ FIX: always send navId so params change even if screen already mounted
   const openNotification = useCallback(
     async (n: any) => {
-      const to = getNotificationTarget(n);
+      const target = getNotificationTarget(n);
 
-      // Make target screen fetch fresh data
-      await invalidateForRoute(to, n);
+      await invalidateForRoute(target.pathname);
 
-      router.push(to as any);
+      router.push({
+        pathname: target.pathname as any,
+        params: {
+          ...(target.params ?? {}),
+          navId: String(Date.now()), // ✅ forces focus-effect to re-run
+        },
+      } as any);
     },
     [router, queryClient],
   );
@@ -399,13 +382,7 @@ export default function NotificationsScreen() {
         }}
       >
         <ActivityIndicator size="small" color={theme.colors.primary} />
-        <Text
-          style={{
-            marginTop: 8,
-            color: theme.colors.onSurfaceVariant,
-            fontSize: 13,
-          }}
-        >
+        <Text style={{ marginTop: 8, color: theme.colors.onSurfaceVariant }}>
           Loading notifications...
         </Text>
       </View>
@@ -423,24 +400,10 @@ export default function NotificationsScreen() {
           paddingHorizontal: 24,
         }}
       >
-        <Text
-          style={{
-            color: theme.colors.error,
-            fontWeight: "600",
-            fontSize: 14,
-            textAlign: "center",
-          }}
-        >
+        <Text style={{ color: theme.colors.error, fontWeight: "600" }}>
           Failed to load notifications
         </Text>
-        <Text
-          style={{
-            marginTop: 4,
-            fontSize: 12,
-            color: theme.colors.onSurfaceVariant,
-            textAlign: "center",
-          }}
-        >
+        <Text style={{ marginTop: 4, color: theme.colors.onSurfaceVariant }}>
           {error.message}
         </Text>
 
@@ -455,13 +418,7 @@ export default function NotificationsScreen() {
             borderColor: theme.colors.primary,
           }}
         >
-          <Text
-            style={{
-              color: theme.colors.primary,
-              fontWeight: "600",
-              fontSize: 13,
-            }}
-          >
+          <Text style={{ color: theme.colors.primary, fontWeight: "600" }}>
             Retry
           </Text>
         </TouchableOpacity>
@@ -479,7 +436,6 @@ export default function NotificationsScreen() {
         flexGrow: 1,
       }}
     >
-      {/* Header */}
       <View
         style={{
           paddingHorizontal: 16,
@@ -498,25 +454,17 @@ export default function NotificationsScreen() {
               fontWeight: "600",
               color: theme.colors.onSurfaceVariant,
               textTransform: "uppercase",
-              letterSpacing: 0.5,
             }}
           >
             Recent Notifications
           </Text>
 
-          <Text
-            style={{
-              marginTop: 2,
-              fontSize: 11,
-              color: theme.colors.onSurfaceVariant,
-            }}
-          >
+          <Text style={{ marginTop: 2, fontSize: 11 }}>
             Visible: {visibleTotal} · Total: {meta.total} · Unread:{" "}
             {meta.unreadCount}
           </Text>
         </View>
 
-        {/* Clear All */}
         <TouchableOpacity
           onPress={clearAll}
           activeOpacity={0.85}
@@ -541,66 +489,23 @@ export default function NotificationsScreen() {
               color={theme.colors.error}
             />
           )}
-          <Text
-            style={{
-              marginLeft: 6,
-              fontSize: 12,
-              fontWeight: "800",
-              color: theme.colors.error,
-            }}
-          >
-            Clear All
-          </Text>
+          <Text style={{ marginLeft: 6, fontWeight: "800" }}>Clear All</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Empty state */}
       {!hasNotifications && (
         <View style={{ flex: 1, padding: 24, alignItems: "center" }}>
-          <View
-            style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              backgroundColor: theme.dark
-                ? "rgba(147, 51, 234, 0.1)"
-                : "rgba(147, 51, 234, 0.08)",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 20,
-            }}
-          >
-            <Ionicons
-              name="notifications-off-outline"
-              size={48}
-              color={theme.colors.primary}
-            />
-          </View>
-          <Text
-            style={{
-              fontWeight: "700",
-              fontSize: 18,
-              color: theme.colors.onSurface,
-              marginBottom: 8,
-            }}
-          >
+          <Ionicons
+            name="notifications-off-outline"
+            size={48}
+            color={theme.colors.primary}
+          />
+          <Text style={{ marginTop: 10, fontWeight: "700", fontSize: 18 }}>
             All Caught Up!
-          </Text>
-          <Text
-            style={{
-              fontSize: 13,
-              color: theme.colors.onSurfaceVariant,
-              textAlign: "center",
-              lineHeight: 20,
-            }}
-          >
-            We'll keep you posted when there's something important about your
-            tickets or commissions.
           </Text>
         </View>
       )}
 
-      {/* Animated List */}
       <Animated.View style={{ opacity: listOpacity }}>
         {visibleNotifications.map((notification: any, index: number) => (
           <AnimatedNotificationItem
