@@ -1,5 +1,3 @@
-// components/ui/commissions/CommissionItem.tsx
-
 import { MaterialIcons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
@@ -13,6 +11,7 @@ interface CommissionItemProps {
     applicationId: string;
     lenderName: string;
     loanType: string;
+    productType: string;
     disbursedAmount: number;
     commissionRate: number;
     commissionAmount: number;
@@ -65,7 +64,7 @@ export const CommissionItem = ({
         numberOfLines={1}
         ellipsizeMode="tail"
       >
-        {item.lenderName} • {item.loanType}
+        {item.lenderName} • {item.loanType || item.productType || "N/A"}
       </Text>
 
       {/* ---------- DETAILS SECTION ---------- */}

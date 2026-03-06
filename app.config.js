@@ -1,5 +1,6 @@
 export default {
   expo: {
+    owner: "adarsh7523",
     name: "LendGrid",
     slug: "lendgrid-mobile",
     version: "1.0.0",
@@ -75,7 +76,8 @@ export default {
       ENV: process.env.EXPO_PUBLIC_ENV,
 
       eas: {
-        projectId: "d12c2bb2-a90f-46ee-9c03-2a07ec6b6430",
+        // projectId: "d12c2bb2-a90f-46ee-9c03-2a07ec6b6430",
+        projectId: "16608c42-65bc-47d0-9cca-f5158e848475",
       },
 
       router: {},

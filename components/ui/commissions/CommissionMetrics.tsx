@@ -246,7 +246,7 @@ export const CommissionMetrics = ({
           value={formatCurrency(metrics.totalEarned)}
           iconName="cash"
           color={theme.colors.tertiary}
-          trend="+12.5% from last month"
+          subtitle="Commission Transections"
         />
         <MetricCard
           title="Pending Payouts"

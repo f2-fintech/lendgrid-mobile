@@ -55,6 +55,22 @@ const tenureOptions = {
   ],
 };
 
+const leadTypeOptions = [
+  { value: "null", label: "Null" },
+  { value: "notion", label: "Notion" },
+  { value: "dialler", label: "Dialler" },
+  { value: "field visit", label: "Field Visit" },
+  { value: "sourcer", label: "Sourcer" },
+  { value: "channel partner", label: "Channel Partner" },
+  { value: "ref from customer", label: "Ref from Customer" },
+  { value: "left employee follow up", label: "Left Employee Follow Up" },
+];
+
+const caseTypeOptions = [
+  { value: "fresh", label: "Fresh" },
+  { value: "top_up", label: "Top Up" },
+];
+
 const getLoanCategory = (type: string): "secured" | "unsecured" | "" => {
   const securedTypes = ["home loan", "lap", "auto loan", "machinery loan"];
   const unsecuredTypes = [
@@ -69,7 +85,6 @@ const getLoanCategory = (type: string): "secured" | "unsecured" | "" => {
   return "";
 };
 
-// helper: "home loan" => "Home Loan"
 const toTitleCase = (s: string) =>
   String(s || "")
     .trim()
@@ -84,6 +99,13 @@ export type Step0Values = {
   tenure: string;
   selectedProviders: string[];
   providerAmounts: ProviderAmount[];
+
+  //  NEW
+  leadType: string;
+  hasRunningLoans: "yes" | "no" | "";
+  whichLoan: string;
+  runningLoanAmount: string;
+  caseType: "fresh" | "top_up" | "";
 };
 
 type Props = {
@@ -131,7 +153,7 @@ export default function Step0LoanDetails({
     };
   }, []);
 
-  // add Others
+  // Providers + Others
   const PROVIDERS = useMemo(() => {
     const base = providers?.length
       ? providers
@@ -169,6 +191,7 @@ export default function Step0LoanDetails({
     return [...uniq, "Others"];
   }, [providers]);
 
+  // Existing modals
   const [loanTypeModalOpen, setLoanTypeModalOpen] = useState(false);
   const [tenureModalOpen, setTenureModalOpen] = useState(false);
 
@@ -181,7 +204,12 @@ export default function Step0LoanDetails({
   const [otherProviderText, setOtherProviderText] = useState("");
   const isOthersSelected = value.selectedProviders.includes("Others");
 
-  // store all validation errors (BUT show only after blur/touch)
+  const [leadTypeModalOpen, setLeadTypeModalOpen] = useState(false);
+  const [runningLoanModalOpen, setRunningLoanModalOpen] = useState(false);
+  const [whichLoanModalOpen, setWhichLoanModalOpen] = useState(false);
+  const [caseTypeModalOpen, setCaseTypeModalOpen] = useState(false);
+
+  // validation errors
   const [allErrors, setAllErrors] = useState<Record<string, string>>({});
 
   // touched state
@@ -192,20 +220,33 @@ export default function Step0LoanDetails({
     providers: false,
     providerAmounts: false,
     otherProvider: false,
+
+    leadType: false,
+    hasRunningLoans: false,
+    whichLoan: false,
+    runningLoanAmount: false,
+    caseType: false,
   });
 
   const tenureList = useMemo(() => {
     return value.loanCategory ? tenureOptions[value.loanCategory] : [];
   }, [value.loanCategory]);
 
-  // validate whenever value changes (rules from imported step0Schema)
   useEffect(() => {
     const payload = {
       amount: value.loanAmount,
       loanType: value.loanType,
       tenure: value.tenure,
-      providers: value.selectedProviders,
-      providerAmounts: value.providerAmounts,
+      providers: value.selectedProviders.filter((p) => p !== "Others"),
+      providerAmounts: value.providerAmounts.filter(
+        (x) => x.provider !== "Others",
+      ),
+
+      leadType: value.leadType || "null",
+      hasRunningLoans: (value.hasRunningLoans || "") as any,
+      whichLoan: value.whichLoan || "",
+      runningLoanAmount: value.runningLoanAmount || "",
+      caseType: (value.caseType || "") as any,
     };
 
     const res = step0Schema.safeParse(payload);
@@ -224,6 +265,11 @@ export default function Step0LoanDetails({
     value.tenure,
     value.selectedProviders,
     value.providerAmounts,
+    value.leadType,
+    value.hasRunningLoans,
+    value.whichLoan,
+    value.runningLoanAmount,
+    value.caseType,
   ]);
 
   // show errors only when touched
@@ -231,6 +277,16 @@ export default function Step0LoanDetails({
   const showLoanTypeError = touched.loanType ? allErrors["loanType"] : "";
   const showTenureError = touched.tenure ? allErrors["tenure"] : "";
   const showProvidersError = touched.providers ? allErrors["providers"] : "";
+
+  const showLeadTypeError = touched.leadType ? allErrors["leadType"] : "";
+  const showHasRunningLoansError = touched.hasRunningLoans
+    ? allErrors["hasRunningLoans"]
+    : "";
+  const showWhichLoanError = touched.whichLoan ? allErrors["whichLoan"] : "";
+  const showRunningLoanAmountError = touched.runningLoanAmount
+    ? allErrors["runningLoanAmount"]
+    : "";
+  const showCaseTypeError = touched.caseType ? allErrors["caseType"] : "";
 
   const providerAmountErrorFor = (provider: string) => {
     if (!touched.providerAmounts) return "";
@@ -316,6 +372,29 @@ export default function Step0LoanDetails({
     });
   };
 
+  const setLeadType = (v: string) => onChange({ ...value, leadType: v });
+
+  const setHasRunningLoans = (v: "yes" | "no") => {
+    if (v === "no") {
+      onChange({
+        ...value,
+        hasRunningLoans: "no",
+        whichLoan: "",
+        runningLoanAmount: "",
+      });
+    } else {
+      onChange({ ...value, hasRunningLoans: "yes" });
+    }
+  };
+
+  const setWhichLoan = (v: string) => onChange({ ...value, whichLoan: v });
+
+  const setRunningLoanAmount = (amt: string) =>
+    onChange({ ...value, runningLoanAmount: amt });
+
+  const setCaseType = (v: "fresh" | "top_up") =>
+    onChange({ ...value, caseType: v });
+
   const loanTypeDisplay = value.loanType ? toTitleCase(value.loanType) : "";
 
   return (
@@ -339,7 +418,6 @@ export default function Step0LoanDetails({
             color={theme.colors.onPrimaryContainer}
             style={{ marginTop: 2 }}
           />
-
           <Text
             style={{
               flex: 1,
@@ -351,7 +429,6 @@ export default function Step0LoanDetails({
             Enter loan details, choose loan type/tenure and providers. You can
             customize amount per provider.
           </Text>
-
           <TouchableOpacity
             onPress={() => setShowInfo(false)}
             activeOpacity={0.7}
@@ -536,6 +613,300 @@ export default function Step0LoanDetails({
         </Text>
       )}
 
+      {/* NEW: Lead Type */}
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "600",
+          color: theme.colors.onSurface,
+          marginBottom: 8,
+        }}
+      >
+        Lead Type (Optional)
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => setLeadTypeModalOpen(true)}
+        activeOpacity={0.8}
+        style={{
+          padding: 14,
+          borderWidth: 1.5,
+          borderColor: theme.colors.outline,
+          borderRadius: 12,
+          backgroundColor: theme.colors.surface,
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 8,
+        }}
+      >
+        <Feather name="user" size={18} color={theme.colors.onSurfaceVariant} />
+        <Text
+          style={{
+            marginLeft: 10,
+            color:
+              value.leadType && value.leadType !== "null"
+                ? theme.colors.onSurface
+                : theme.colors.onSurfaceVariant,
+            fontSize: 15,
+          }}
+        >
+          {value.leadType && value.leadType !== "null"
+            ? toTitleCase(value.leadType)
+            : "Select lead type"}
+        </Text>
+        <View style={{ marginLeft: "auto" }}>
+          <Feather
+            name="chevron-down"
+            size={18}
+            color={theme.colors.onSurfaceVariant}
+          />
+        </View>
+      </TouchableOpacity>
+
+      {!!showLeadTypeError && (
+        <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+          {showLeadTypeError}
+        </Text>
+      )}
+
+      {/* NEW: Running Customer Loans */}
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "600",
+          color: theme.colors.onSurface,
+          marginBottom: 8,
+        }}
+      >
+        Running Customer Loans*
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => setRunningLoanModalOpen(true)}
+        activeOpacity={0.8}
+        style={{
+          padding: 14,
+          borderWidth: 1.5,
+          borderColor: theme.colors.outline,
+          borderRadius: 12,
+          backgroundColor: theme.colors.surface,
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 8,
+        }}
+      >
+        <Feather
+          name="credit-card"
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+        />
+        <Text
+          style={{
+            marginLeft: 10,
+            color: value.hasRunningLoans
+              ? theme.colors.onSurface
+              : theme.colors.onSurfaceVariant,
+            fontSize: 15,
+          }}
+        >
+          {value.hasRunningLoans
+            ? value.hasRunningLoans === "yes"
+              ? "Yes"
+              : "No"
+            : "Select option"}
+        </Text>
+        <View style={{ marginLeft: "auto" }}>
+          <Feather
+            name="chevron-down"
+            size={18}
+            color={theme.colors.onSurfaceVariant}
+          />
+        </View>
+      </TouchableOpacity>
+
+      {!!showHasRunningLoansError && (
+        <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+          {showHasRunningLoansError}
+        </Text>
+      )}
+
+      {/* ✅ NEW: Conditional fields */}
+      {value.hasRunningLoans === "yes" && (
+        <>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              color: theme.colors.onSurface,
+              marginBottom: 8,
+            }}
+          >
+            Which Loan*
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => setWhichLoanModalOpen(true)}
+            activeOpacity={0.8}
+            style={{
+              padding: 14,
+              borderWidth: 1.5,
+              borderColor: theme.colors.outline,
+              borderRadius: 12,
+              backgroundColor: theme.colors.surface,
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Feather
+              name="briefcase"
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text
+              style={{
+                marginLeft: 10,
+                color: value.whichLoan
+                  ? theme.colors.onSurface
+                  : theme.colors.onSurfaceVariant,
+                fontSize: 15,
+              }}
+            >
+              {value.whichLoan
+                ? toTitleCase(value.whichLoan)
+                : "Choose loan type"}
+            </Text>
+            <View style={{ marginLeft: "auto" }}>
+              <Feather
+                name="chevron-down"
+                size={18}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {!!showWhichLoanError && (
+            <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+              {showWhichLoanError}
+            </Text>
+          )}
+
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              color: theme.colors.onSurface,
+              marginBottom: 8,
+            }}
+          >
+            Running Loan Amount*
+          </Text>
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              borderWidth: 1.5,
+              borderColor: theme.colors.outline,
+              borderRadius: 12,
+              backgroundColor: theme.colors.surface,
+              paddingHorizontal: 12,
+              marginBottom: 8,
+            }}
+          >
+            <FontAwesome5
+              name="rupee-sign"
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <TextInput
+              value={value.runningLoanAmount || ""}
+              onChangeText={setRunningLoanAmount}
+              onBlur={() =>
+                setTouched((t) => ({ ...t, runningLoanAmount: true }))
+              }
+              placeholder="Enter running loan amount"
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              keyboardType="numeric"
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                paddingHorizontal: 10,
+                color: theme.colors.onSurface,
+                fontSize: 15,
+              }}
+            />
+          </View>
+
+          {!!showRunningLoanAmountError && (
+            <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+              {showRunningLoanAmountError}
+            </Text>
+          )}
+        </>
+      )}
+
+      {/* ✅ NEW: Case Type */}
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "600",
+          color: theme.colors.onSurface,
+          marginBottom: 8,
+        }}
+      >
+        Case Type*
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => setCaseTypeModalOpen(true)}
+        activeOpacity={0.8}
+        style={{
+          padding: 14,
+          borderWidth: 1.5,
+          borderColor: theme.colors.outline,
+          borderRadius: 12,
+          backgroundColor: theme.colors.surface,
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 8,
+        }}
+      >
+        <Feather
+          name="folder"
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+        />
+        <Text
+          style={{
+            marginLeft: 10,
+            color: value.caseType
+              ? theme.colors.onSurface
+              : theme.colors.onSurfaceVariant,
+            fontSize: 15,
+          }}
+        >
+          {value.caseType
+            ? value.caseType === "fresh"
+              ? "Fresh"
+              : "Top Up"
+            : "Select case type"}
+        </Text>
+        <View style={{ marginLeft: "auto" }}>
+          <Feather
+            name="chevron-down"
+            size={18}
+            color={theme.colors.onSurfaceVariant}
+          />
+        </View>
+      </TouchableOpacity>
+
+      {!!showCaseTypeError && (
+        <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+          {showCaseTypeError}
+        </Text>
+      )}
+
       {/* Providers */}
       <Text
         style={{
@@ -649,7 +1020,6 @@ export default function Step0LoanDetails({
               }}
               returnKeyType="done"
               onSubmitEditing={addCustomProviderAndSelect}
-              //  helps on iOS a bit
               blurOnSubmit
             />
           </View>
@@ -704,12 +1074,11 @@ export default function Step0LoanDetails({
 
           <View style={{ gap: 10 }}>
             {value.selectedProviders
-              .filter((p) => p !== "Others") // don't show amounts for placeholder "Others"
+              .filter((p) => p !== "Others")
               .map((provider) => {
                 const amt =
                   value.providerAmounts.find((x) => x.provider === provider)
                     ?.amount || value.loanAmount;
-
                 const perErr = providerAmountErrorFor(provider);
 
                 return (
@@ -793,6 +1162,8 @@ export default function Step0LoanDetails({
         </View>
       )}
 
+      {/* ------------------- MODALS ------------------- */}
+
       {/* Loan Type Modal */}
       <Modal visible={loanTypeModalOpen} transparent animationType="slide">
         <View
@@ -839,7 +1210,8 @@ export default function Step0LoanDetails({
               </TouchableOpacity>
             </View>
 
-            <ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* ✅ Unsecured Loans (TOP) */}
               <Text
                 style={{
                   color: theme.colors.primary,
@@ -847,14 +1219,14 @@ export default function Step0LoanDetails({
                   marginBottom: 6,
                 }}
               >
-                Secured Loans
+                Unsecured Loans
               </Text>
 
-              {loanTypes.secured.map((x) => (
+              {loanTypes.unsecured.map((x) => (
                 <TouchableOpacity
                   key={x.value}
                   onPress={() => {
-                    handleLoanType(x.value); // stored lowercase
+                    handleLoanType(x.value);
                     setLoanTypeModalOpen(false);
                     setTouched((t) => ({ ...t, loanType: true }));
                   }}
@@ -870,6 +1242,7 @@ export default function Step0LoanDetails({
                 </TouchableOpacity>
               ))}
 
+              {/* ✅ Secured Loans (BOTTOM) */}
               <Text
                 style={{
                   color: theme.colors.primary,
@@ -878,10 +1251,10 @@ export default function Step0LoanDetails({
                   marginBottom: 6,
                 }}
               >
-                Unsecured Loans
+                Secured Loans
               </Text>
 
-              {loanTypes.unsecured.map((x) => (
+              {loanTypes.secured.map((x) => (
                 <TouchableOpacity
                   key={x.value}
                   onPress={() => {
@@ -1081,6 +1454,323 @@ export default function Step0LoanDetails({
                 <Text style={{ color: "#000", fontWeight: "900" }}>Done</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* NEW: Lead Type Modal */}
+      <Modal visible={leadTypeModalOpen} transparent animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              padding: 16,
+              maxHeight: "60%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.onSurface,
+                  fontWeight: "900",
+                  fontSize: 16,
+                }}
+              >
+                Select Lead Type
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setLeadTypeModalOpen(false);
+                  setTouched((t) => ({ ...t, leadType: true }));
+                }}
+                style={{ padding: 6 }}
+              >
+                <Feather name="x" size={20} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              {leadTypeOptions.map((x) => (
+                <TouchableOpacity
+                  key={x.value}
+                  onPress={() => {
+                    setLeadType(x.value);
+                    setLeadTypeModalOpen(false);
+                    setTouched((t) => ({ ...t, leadType: true }));
+                  }}
+                  style={{
+                    paddingVertical: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.outlineVariant,
+                  }}
+                >
+                  <Text style={{ color: theme.colors.onSurface }}>
+                    {x.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* NEW: Running Loan Yes/No Modal */}
+      <Modal visible={runningLoanModalOpen} transparent animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              padding: 16,
+              maxHeight: "40%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.onSurface,
+                  fontWeight: "900",
+                  fontSize: 16,
+                }}
+              >
+                Running Customer Loans
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setRunningLoanModalOpen(false);
+                  setTouched((t) => ({ ...t, hasRunningLoans: true }));
+                }}
+                style={{ padding: 6 }}
+              >
+                <Feather name="x" size={20} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+
+            {(["yes", "no"] as const).map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                onPress={() => {
+                  setHasRunningLoans(opt);
+                  setRunningLoanModalOpen(false);
+                  setTouched((t) => ({ ...t, hasRunningLoans: true }));
+                }}
+                style={{
+                  paddingVertical: 14,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.outlineVariant,
+                }}
+              >
+                <Text style={{ color: theme.colors.onSurface }}>
+                  {opt === "yes" ? "Yes" : "No"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ✅ NEW: Which Loan Modal */}
+      <Modal visible={whichLoanModalOpen} transparent animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              padding: 16,
+              maxHeight: "70%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.onSurface,
+                  fontWeight: "900",
+                  fontSize: 16,
+                }}
+              >
+                Choose Loan Type
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setWhichLoanModalOpen(false);
+                  setTouched((t) => ({ ...t, whichLoan: true }));
+                }}
+                style={{ padding: 6 }}
+              >
+                <Feather name="x" size={20} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              <Text
+                style={{
+                  color: theme.colors.primary,
+                  fontWeight: "900",
+                  marginBottom: 6,
+                }}
+              >
+                Secured Loans
+              </Text>
+              {loanTypes.secured.map((x) => (
+                <TouchableOpacity
+                  key={x.value}
+                  onPress={() => {
+                    setWhichLoan(x.value);
+                    setWhichLoanModalOpen(false);
+                    setTouched((t) => ({ ...t, whichLoan: true }));
+                  }}
+                  style={{
+                    paddingVertical: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.outlineVariant,
+                  }}
+                >
+                  <Text style={{ color: theme.colors.onSurface }}>
+                    {x.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+
+              <Text
+                style={{
+                  color: theme.colors.primary,
+                  fontWeight: "900",
+                  marginTop: 16,
+                  marginBottom: 6,
+                }}
+              >
+                Unsecured Loans
+              </Text>
+              {loanTypes.unsecured.map((x) => (
+                <TouchableOpacity
+                  key={x.value}
+                  onPress={() => {
+                    setWhichLoan(x.value);
+                    setWhichLoanModalOpen(false);
+                    setTouched((t) => ({ ...t, whichLoan: true }));
+                  }}
+                  style={{
+                    paddingVertical: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.outlineVariant,
+                  }}
+                >
+                  <Text style={{ color: theme.colors.onSurface }}>
+                    {x.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* NEW: Case Type Modal */}
+      <Modal visible={caseTypeModalOpen} transparent animationType="slide">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              padding: 16,
+              maxHeight: "40%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.onSurface,
+                  fontWeight: "900",
+                  fontSize: 16,
+                }}
+              >
+                Select Case Type
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setCaseTypeModalOpen(false);
+                  setTouched((t) => ({ ...t, caseType: true }));
+                }}
+                style={{ padding: 6 }}
+              >
+                <Feather name="x" size={20} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+
+            {caseTypeOptions.map((x) => (
+              <TouchableOpacity
+                key={x.value}
+                onPress={() => {
+                  setCaseType(x.value as any);
+                  setCaseTypeModalOpen(false);
+                  setTouched((t) => ({ ...t, caseType: true }));
+                }}
+                style={{
+                  paddingVertical: 14,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.outlineVariant,
+                }}
+              >
+                <Text style={{ color: theme.colors.onSurface }}>{x.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </Modal>

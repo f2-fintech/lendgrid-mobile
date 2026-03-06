@@ -41,6 +41,8 @@ const STEPS: StepConfig[] = [
   { id: "additional", title: "Additional", icon: "edit-3" },
 ];
 
+const UPLOAD_ABSOLUTE_URL = "https://web.f2fintech.in/api/v1/upload-to-s3";
+
 // Confetti particle component
 const ConfettiParticle = ({ delay, theme }: any) => {
   const translateY = useRef(new Animated.Value(-100)).current;
@@ -113,6 +115,24 @@ function generateApplicationNumber() {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
+function getPrettyError(err: any) {
+  const status = err?.response?.status;
+  const msg =
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    "Something went wrong";
+
+  // Some backends return { errors: [...] }
+  const errorsArr = err?.response?.data?.errors;
+  const extra =
+    Array.isArray(errorsArr) && errorsArr.length
+      ? ` (${errorsArr[0]?.message || errorsArr[0]})`
+      : "";
+
+  return status ? `(${status}) ${msg}${extra}` : String(msg);
+}
+
 export default function MultiStepApplicationForm({
   onClose,
   onSuccess,
@@ -120,18 +140,33 @@ export default function MultiStepApplicationForm({
   const theme = useTheme();
 
   const [step, setStep] = useState(0);
-
-  // ✅ Skipped tracking (stepIndex -> true)
   const [skipped, setSkipped] = useState<Record<number, boolean>>({});
-
   const formScrollRef = useRef<ScrollView>(null);
 
-  //  Server-like state
+  // Server-like state
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const [applicationNumbers, setApplicationNumbers] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  //  Success toast state + animations
+  const [isUploading, setIsUploading] = useState(false);
+
+  const [submitStatus, setSubmitStatus] = useState<{
+    applicationCreated: boolean;
+    docsUploaded: boolean;
+    docUploadFailed: boolean;
+    docUploadError?: string;
+    lastStage?: string;
+  }>({
+    applicationCreated: false,
+    docsUploaded: false,
+    docUploadFailed: false,
+    docUploadError: "",
+    lastStage: "",
+  });
+
+  const setStage = (lastStage: string) =>
+    setSubmitStatus((p) => ({ ...p, lastStage }));
+
+  // Success toast state + animations
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0.3)).current;
@@ -253,6 +288,11 @@ export default function MultiStepApplicationForm({
     tenure: "",
     selectedProviders: [],
     providerAmounts: [],
+    leadType: "null",
+    hasRunningLoans: "no",
+    whichLoan: "",
+    runningLoanAmount: "",
+    caseType: "fresh",
   });
 
   const [step1, setStep1] = useState<Step1Values>({
@@ -404,8 +444,8 @@ export default function MultiStepApplicationForm({
 
   const canSubmit = useMemo(() => {
     if (step !== 4) return false;
-    return step4Valid && !isSubmitting;
-  }, [step, step4Valid, isSubmitting]);
+    return step4Valid && !isSubmitting && !isUploading;
+  }, [step, step4Valid, isSubmitting, isUploading]);
 
   // -----------------------------
   // NAV ACTIONS
@@ -424,23 +464,77 @@ export default function MultiStepApplicationForm({
 
   const skipThisStep = () => {
     if (!canSkip) return;
-
     setSkipped((prev) => ({ ...prev, [step]: true }));
     setStep((s0) => Math.min(STEPS.length - 1, s0 + 1));
   };
 
   // -----------------------------
+  //  DOC UPLOAD HELPERS (RN)
+  // -----------------------------
+  const uploadToS3 = async (file: PickedFile, folder: string) => {
+    // IMPORTANT: RN FormData expects { uri, name, type }
+    const formData = new FormData();
+    formData.append("folder", `document/${folder}`);
+
+    formData.append("document", {
+      uri: file.uri,
+      name: file.name || "document",
+      type:
+        (file as any).mimeType ||
+        (file as any).type ||
+        "application/octet-stream",
+    } as any);
+
+    // ABSOLUTE URL ONLY FOR TESTING
+    const res = await coreApi.post(UPLOAD_ABSOLUTE_URL, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return res?.data?.data;
+  };
+
+  const createDocument = async (payload: {
+    customer_id: string;
+    document_url: string;
+    type: string;
+  }) => {
+    await coreApi.post("/create-document", payload);
+  };
+
+  const updateCustomerInfo = async (payload: {
+    customer_id: string;
+    salary: string;
+    existing_emi?: string;
+    existing_liability?: string;
+  }) => {
+    await coreApi.patch("/customer-info-update", payload);
+  };
+
+  // -----------------------------
   // SUBMIT (CORE API FLOW)
   // -----------------------------
-  const randomFourDigit = 8462; // you can make dynamic later
+  const randomFourDigit = 8462;
   const password = `${step1.name.replace(/\s/g, "")}@${randomFourDigit}`;
 
   const submit = async () => {
     if (!canSubmit) return;
 
+    // reset UI status each submit
+    setSubmitStatus({
+      applicationCreated: false,
+      docsUploaded: false,
+      docUploadFailed: false,
+      docUploadError: "",
+      lastStage: "",
+    });
+
     setIsSubmitting(true);
 
     try {
+      setStage("Creating customer");
+
       // 1) create-customer
       const customerRes = await coreApi.post("/create-customer", {
         title: step1.title,
@@ -452,16 +546,19 @@ export default function MultiStepApplicationForm({
         status: "active",
       });
 
-      const customerId =
+      const newCustomerId =
         customerRes?.data?.data?.id ||
         customerRes?.data?.data?.customerId ||
         customerRes?.data?.id;
 
-      if (!customerId) throw new Error("CustomerId not returned from API");
+      if (!newCustomerId) throw new Error("CustomerId not returned from API");
+      setCustomerId(String(newCustomerId));
+
+      setStage("Creating customer info");
 
       // 2) create-customer-info
       await coreApi.post("/create-customer-info", {
-        customer_id: customerId,
+        customer_id: newCustomerId,
         pan: step1.pan,
         father_name: step1.father_name,
         mother_name: step1.mother_name,
@@ -474,28 +571,31 @@ export default function MultiStepApplicationForm({
       });
 
       // 3) create application per provider
-      // step0.providerAmounts = [{provider, amount}]
       if (!step0.providerAmounts?.length) {
         throw new Error("No provider selected for application");
       }
 
-      const createdApplicationIds: string[] = [];
+      setStage("Creating applications");
 
       for (const pa of step0.providerAmounts) {
         const application_no = generateApplicationNumber();
 
         const appRes = await coreApi.post("/create-application", {
           application_no,
-          customer_id: customerId,
+          customer_id: newCustomerId,
           provider: pa.provider,
           amount: pa.amount || step0.loanAmount,
           loan_type: step0.loanType,
-          loan_category: step0.loanCategory, // "secured" | "unsecured"
+          loan_category: step0.loanCategory,
           tenure: step0.tenure,
 
-          // optional fields if backend has them:
-          lead_type: "mobile",
-          loan_category_type: step0.loanCategory, // if backend wants different key
+          lead_type: step0.leadType || "null",
+          has_running_loans: step0.hasRunningLoans,
+          which_loan: step0.hasRunningLoans === "yes" ? step0.whichLoan : "",
+          running_loan_amount:
+            step0.hasRunningLoans === "yes" ? step0.runningLoanAmount : "",
+          case_type: step0.caseType,
+
           application_date: new Date().toISOString(),
         });
 
@@ -511,27 +611,142 @@ export default function MultiStepApplicationForm({
           );
         }
 
-        createdApplicationIds.push(String(applicationId));
-
-        // 4) loan tracking (optional if your backend has endpoint)
-        // if you have /create-loan-tracking working:
         try {
           await coreApi.post("/create-loan-tracking", {
             customer_application_id: applicationId,
             status: "submitted",
           });
-        } catch (e) {
-          // tracking optional -> ignore
+        } catch (e) {}
+      }
+
+      //  mark application created even if uploads fail later
+      setSubmitStatus((p) => ({ ...p, applicationCreated: true }));
+      setStage("Application created. Uploading documents...");
+
+      // Upload docs but do NOT hide failure
+      const uploadErrors: string[] = [];
+
+      // Step2 (bank statement)
+      if (!isStep2Skipped && step2Files?.length) {
+        setIsUploading(true);
+        for (const f of step2Files) {
+          try {
+            const url = await uploadToS3(f, f.name || "bank-statement");
+            await createDocument({
+              customer_id: String(newCustomerId),
+              document_url: url,
+              type: "bank statement",
+            });
+          } catch (err: any) {
+            uploadErrors.push(`Bank Statement: ${getPrettyError(err)}`);
+          }
+        }
+        setIsUploading(false);
+      }
+
+      // Step3 (id proof)
+      if (!isStep3Skipped) {
+        const uploads: { file: PickedFile | null; type: string }[] = [
+          { file: step3.aadharFront as any, type: "aadhaar front" },
+          { file: step3.aadharBack as any, type: "aadhaar back" },
+          { file: step3.pancard as any, type: "pancard" },
+          { file: step3.passportPhoto as any, type: "photo" },
+        ];
+
+        const anySelected = uploads.some((u) => !!(u.file as any)?.uri);
+        if (anySelected) {
+          setIsUploading(true);
+          for (const u of uploads) {
+            try {
+              if (!(u.file as any)?.uri) continue;
+              const url = await uploadToS3(
+                u.file as any,
+                (u.file as any).name || u.type,
+              );
+              await createDocument({
+                customer_id: String(newCustomerId),
+                document_url: url,
+                type: u.type,
+              });
+            } catch (err: any) {
+              uploadErrors.push(`${u.type}: ${getPrettyError(err)}`);
+            }
+          }
+          setIsUploading(false);
         }
       }
 
-      console.log("✅ Applications created:", createdApplicationIds);
+      // Step4 (salary update + certificates)
+      try {
+        if (step4?.salary) {
+          await updateCustomerInfo({
+            customer_id: String(newCustomerId),
+            salary: step4.salary,
+            existing_emi: step4.existingEmi || "",
+            existing_liability: step4.existingLiability || "",
+          });
+        }
+      } catch (err: any) {
+        uploadErrors.push(`Customer Info Update: ${getPrettyError(err)}`);
+      }
+
+      if (step4?.certificates?.length) {
+        setIsUploading(true);
+        for (const c of step4.certificates as any as PickedFile[]) {
+          try {
+            const url = await uploadToS3(c, c.name || "certificate");
+            await createDocument({
+              customer_id: String(newCustomerId),
+              document_url: url,
+              type: "certificate",
+            });
+          } catch (err: any) {
+            uploadErrors.push(`Certificate: ${getPrettyError(err)}`);
+          }
+        }
+        setIsUploading(false);
+      }
+
+      //  Final UX decision:
+      // If uploads failed -> show error banner and DO NOT close screen
+      if (uploadErrors.length) {
+        const joined = uploadErrors.slice(0, 3).join("\n"); // keep it readable
+        setSubmitStatus((p) => ({
+          ...p,
+          docsUploaded: false,
+          docUploadFailed: true,
+          docUploadError:
+            uploadErrors.length > 3
+              ? `${joined}\n(+${uploadErrors.length - 3} more)`
+              : joined,
+          lastStage: "Application created, but document upload failed.",
+        }));
+        return; // keep user on same screen
+      }
+
+      setSubmitStatus((p) => ({
+        ...p,
+        docsUploaded: true,
+        docUploadFailed: false,
+        docUploadError: "",
+        lastStage: "Application & documents submitted successfully.",
+      }));
 
       playSuccessToast();
     } catch (e: any) {
+      const msg = getPrettyError(e);
+      setSubmitStatus((p) => ({
+        ...p,
+        docUploadFailed: true,
+        docUploadError: msg,
+        lastStage: p.applicationCreated
+          ? "Application created but something failed after that."
+          : "Application submission failed.",
+      }));
       console.log("❌ SUBMIT ERROR:", e?.response?.data || e?.message || e);
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -555,6 +770,90 @@ export default function MultiStepApplicationForm({
           if (index <= maxStepAllowed) setStep(index);
         }}
       />
+
+      {/*  TOP STATUS BANNER (shows real status/errors) */}
+      {(submitStatus.applicationCreated ||
+        submitStatus.docUploadFailed ||
+        submitStatus.docsUploaded) && (
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginTop: 12,
+            borderRadius: 14,
+            padding: 12,
+            borderWidth: 1,
+            borderColor: submitStatus.docUploadFailed ? "#EF4444" : "#22C55E",
+            backgroundColor: submitStatus.docUploadFailed
+              ? "rgba(239,68,68,0.08)"
+              : "rgba(34,197,94,0.08)",
+          }}
+        >
+          <Text
+            style={{
+              color: theme.colors.onSurface,
+              fontWeight: "800",
+              marginBottom: 4,
+            }}
+          >
+            {submitStatus.docUploadFailed
+              ? "Action Required"
+              : submitStatus.docsUploaded
+                ? "Success"
+                : "Status"}
+          </Text>
+
+          {submitStatus.applicationCreated && (
+            <Text
+              style={{ color: theme.colors.onSurfaceVariant, marginBottom: 2 }}
+            >
+              ✅ Application Created
+            </Text>
+          )}
+
+          {submitStatus.docsUploaded && (
+            <Text
+              style={{ color: theme.colors.onSurfaceVariant, marginBottom: 2 }}
+            >
+              ✅ Documents Uploaded
+            </Text>
+          )}
+
+          {submitStatus.docUploadFailed && (
+            <>
+              <Text
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  marginBottom: 6,
+                }}
+              >
+                ❌ Upload Failed (Application is created)
+              </Text>
+              {!!submitStatus.docUploadError && (
+                <Text
+                  style={{
+                    color: theme.colors.onSurfaceVariant,
+                    lineHeight: 18,
+                  }}
+                >
+                  {submitStatus.docUploadError}
+                </Text>
+              )}
+            </>
+          )}
+
+          {!!submitStatus.lastStage && (
+            <Text
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                marginTop: 6,
+                fontSize: 12,
+              }}
+            >
+              {submitStatus.lastStage}
+            </Text>
+          )}
+        </View>
+      )}
 
       <ScrollView
         ref={formScrollRef}
@@ -795,7 +1094,11 @@ export default function MultiStepApplicationForm({
                 letterSpacing: 0.3,
               }}
             >
-              {isSubmitting ? "Submitting..." : "Submit Application"}
+              {isSubmitting || isUploading
+                ? isUploading
+                  ? "Uploading Docs..."
+                  : "Submitting..."
+                : "Submit Application"}
             </Text>
           </TouchableOpacity>
         ) : (
@@ -850,7 +1153,6 @@ export default function MultiStepApplicationForm({
                   color: canGoNext ? "#FFFFFF" : theme.colors.onSurfaceVariant,
                   fontWeight: "800",
                   fontSize: 15,
-                  letterSpacing: 0.3,
                 }}
               >
                 Go Next

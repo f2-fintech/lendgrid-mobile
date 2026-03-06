@@ -21,7 +21,8 @@ type Props = {
 };
 
 const MAX_CERT_FILES = 4;
-const MAX_CERT_MB = 5;
+const MAX_CERT_MB = 1;
+const MAX_CERT_BYTES = MAX_CERT_MB * 1024 * 1024;
 
 const toFieldErrors = (issues: any[]) => {
   const out: Record<string, string> = {};
@@ -41,6 +42,8 @@ export default function Step4AdditionalDetails({
   const theme = useTheme();
   const [local, setLocal] = useState<Step4Values>(value);
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(true);
+
+  const [fileError, setFileError] = useState<string>(""); //visible cert error
 
   // touched fields (no initial errors)
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -84,6 +87,7 @@ export default function Step4AdditionalDetails({
 
   const pickCertificates = async () => {
     markTouched("certificates");
+    setFileError("");
 
     if (local.certificates.length >= MAX_CERT_FILES) return;
 
@@ -107,14 +111,26 @@ export default function Step4AdditionalDetails({
       mimeType: a.mimeType,
     }));
 
-    const merged = [...local.certificates, ...incoming];
-    const capped = merged.slice(0, MAX_CERT_FILES);
+    const merged = [...local.certificates, ...incoming].slice(
+      0,
+      MAX_CERT_FILES,
+    );
 
-    const validFiles = capped.filter((f) => {
-      if (typeof f.size === "number" && f.size > MAX_CERT_MB * 1024 * 1024)
+    const rejected: PickedFile[] = [];
+    const validFiles = merged.filter((f) => {
+      if (typeof f.size === "number" && f.size > MAX_CERT_BYTES) {
+        rejected.push(f);
         return false;
+      }
       return true;
     });
+
+    if (rejected.length) {
+      const first = rejected[0];
+      setFileError(
+        `File too large: ${first.name} (${first.size ? (first.size / 1024 / 1024).toFixed(2) : "NA"} MB). Max ${MAX_CERT_MB}MB allowed.`,
+      );
+    }
 
     setField("certificates", validFiles);
   };
@@ -196,7 +212,6 @@ export default function Step4AdditionalDetails({
             gap: 10,
           }}
         >
-          {/* icon */}
           <Feather
             name="edit-3"
             size={18}
@@ -204,7 +219,6 @@ export default function Step4AdditionalDetails({
             style={{ marginTop: 2 }}
           />
 
-          {/* text */}
           <Text
             style={{
               flex: 1,
@@ -217,7 +231,6 @@ export default function Step4AdditionalDetails({
             are optional.
           </Text>
 
-          {/* close */}
           <TouchableOpacity
             onPress={() => setShowAdditionalInfo(false)}
             activeOpacity={0.7}
@@ -298,7 +311,7 @@ export default function Step4AdditionalDetails({
             marginBottom: 10,
           }}
         >
-          Certificates (Optional)
+          Degree and Registration Certificate (Optional)
         </Text>
 
         <TouchableOpacity
@@ -327,6 +340,26 @@ export default function Step4AdditionalDetails({
             Upload Certificates ({local.certificates.length}/{MAX_CERT_FILES})
           </Text>
         </TouchableOpacity>
+
+        {!!fileError && (
+          <View
+            style={{
+              backgroundColor: theme.colors.errorContainer,
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 12,
+            }}
+          >
+            <Text
+              style={{
+                color: theme.colors.onErrorContainer,
+                fontWeight: "800",
+              }}
+            >
+              {fileError}
+            </Text>
+          </View>
+        )}
 
         {local.certificates.map((f, idx) => (
           <View

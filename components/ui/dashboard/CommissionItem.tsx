@@ -147,7 +147,7 @@ export default function CommissionHistoryItem({ item }: { item: any }) {
               marginTop: 2,
             }}
           >
-            {formatCurrency(Number(item?.commissionAmount ?? 0))}
+            {formatCurrency(Number(item?.finalCommission ?? 0))}
           </Text>
         </View>
       </View>

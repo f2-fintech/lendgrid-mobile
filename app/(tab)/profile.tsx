@@ -57,7 +57,7 @@ export default function ProfileScreen() {
 
   // ---------------- FETCH AGGREGATOR PROFILE ----------------
   const { data: aggProfile, isLoading: loadingAgg } = useAggregatorDetails(
-    profileId ?? ""
+    profileId ?? "",
   );
 
   // ---------------- UPDATE MUTATION ----------------
@@ -67,8 +67,8 @@ export default function ProfileScreen() {
   // -------- helpers: backend url <-> RHF file object --------
   const urlToFile = (v: any) => {
     if (!v) return null;
-    if (typeof v === "string") return { uri: v }; // backend URL
-    if (typeof v?.uri === "string") return v; // already { uri }
+    if (typeof v === "string") return { uri: v };
+    if (typeof v?.uri === "string") return v;
     return null;
   };
 
@@ -86,8 +86,8 @@ export default function ProfileScreen() {
 
   const toDocUrl = (f: any) => {
     if (!f) return null;
-    if (typeof f === "string") return f; 
-    if (typeof f?.uri === "string") return f.uri; 
+    if (typeof f === "string") return f;
+    if (typeof f?.uri === "string") return f.uri;
     return null;
   };
 
@@ -97,6 +97,7 @@ export default function ProfileScreen() {
     defaultValues: {
       ...s,
       aadhaarNumber: (s as any)?.aadhaarNumber || "",
+      avatar: null,
       documents: {
         aadhaarFront: s.documents?.aadhaarFront || null,
         aadhaarBack: s.documents?.aadhaarBack || null,
@@ -115,10 +116,7 @@ export default function ProfileScreen() {
   });
 
   const formContextValue = useMemo(() => {
-    return {
-      isEditMode,
-      activeTab,
-    };
+    return { isEditMode, activeTab };
   }, [isEditMode, activeTab]);
 
   // ---------------- MAP BACKEND DATA → FORM + REDUX ----------------
@@ -126,45 +124,44 @@ export default function ProfileScreen() {
     if (!aggProfile) return;
 
     const { firstName, lastName } = splitName(aggProfile.user?.username);
-
-    //normalize docs for RHF (backend gives string URLs)
     const normalizedDocs = normalizeDocsFromBackend(aggProfile.documents);
 
-    // redux update
     Object.entries(aggProfile).forEach(([key, value]) => {
       dispatch(updateField({ key: key as any, value }));
     });
 
     dispatch(
-      updateField({ key: "email", value: aggProfile.user?.email || "" })
+      updateField({ key: "email", value: aggProfile.user?.email || "" }),
     );
     dispatch(
-      updateField({ key: "phone", value: aggProfile.user?.contact || "" })
+      updateField({ key: "phone", value: aggProfile.user?.contact || "" }),
     );
     dispatch(
       updateField({
         key: "status",
         value: aggProfile.user?.status || "ACTIVE",
-      })
+      }),
     );
     dispatch(updateField({ key: "firstName", value: firstName }));
     dispatch(updateField({ key: "lastName", value: lastName }));
 
-    // reset RHF values including aadhaarNumber + docs
+    const avatarFromBackend = urlToFile(aggProfile.user?.photoUrl);
+
+    const currentAvatar = methods.getValues("avatar");
+    const avatarToUse = currentAvatar?.uri ? currentAvatar : avatarFromBackend;
+
     methods.reset({
       ...aggProfile,
-
       aadhaarNumber: aggProfile.aadhaarNumber || "",
-
       documents: normalizedDocs,
-
       email: aggProfile.user?.email || "",
       phone: aggProfile.user?.contact || "",
       status: aggProfile.user?.status || "ACTIVE",
       firstName,
       lastName,
+      avatar: avatarToUse,
     });
-  }, [aggProfile]);
+  }, [aggProfile, dispatch, methods]);
 
   // ---------------- LOADING STATES ----------------
   if (loadingUser || loadingAgg) {
@@ -187,28 +184,27 @@ export default function ProfileScreen() {
   // ---------------- SAVE HANDLER ----------------
   const onSave = async (values: any) => {
     try {
-      //  update USER (profile tab)
-      const username = `${values.firstName || ""} ${
-        values.lastName || ""
-      }`.trim();
+      const username =
+        `${values.firstName || ""} ${values.lastName || ""}`.trim();
+
+      const photoUrl = values.avatar?.uri || null;
 
       if (user?._id) {
         await updateUser.mutateAsync({
           id: user._id,
           username,
           contact: values.phone,
-          photoUrl: values.avatar?.uri || null,
+          photoUrl,
         });
       }
 
-      // update AGGREGATOR
       const normalizedDocuments = {
         aadhaarFront: toDocUrl(values.documents?.aadhaarFront),
         aadhaarBack: toDocUrl(values.documents?.aadhaarBack),
         panCard: toDocUrl(values.documents?.panCard),
         gstCertificate: toDocUrl(values.documents?.gstCertificate),
         incorporationCertificate: toDocUrl(
-          values.documents?.incorporationCertificate
+          values.documents?.incorporationCertificate,
         ),
         bankStatement: toDocUrl(values.documents?.bankStatement),
         cancelledCheque: toDocUrl(values.documents?.cancelledCheque),
@@ -219,7 +215,6 @@ export default function ProfileScreen() {
       await updateAgg.mutateAsync({
         id: aggProfile?._id,
 
-        // Business
         companyName: values.companyName,
         businessType: values.businessType,
         registeredAddress: values.registeredAddress,
@@ -235,17 +230,14 @@ export default function ProfileScreen() {
 
         aadhaarNumber: values.aadhaarNumber,
 
-        // Documents
         documents: normalizedDocuments,
 
-        // Banking
         bankName: values.bankName,
         accountNumber: values.accountNumber,
         ifscCode: values.ifscCode,
         accountHolderName: values.accountHolderName,
         isBankVerified: values.isBankVerified,
 
-        // KYC & metrics
         kycStatus: values.kycStatus,
         kycRejectionReason: values.kycRejectionReason,
         totalApplicationsSubmitted: values.totalApplicationsSubmitted,
@@ -265,7 +257,7 @@ export default function ProfileScreen() {
   const renderTab = () => {
     switch (activeTab) {
       case "profile":
-        return <ProfileTab uiState={formContextValue} />;
+        return <ProfileTab uiState={formContextValue} onSnack={showSnack} />;
       case "business":
         return <BusinessTab uiState={formContextValue} />;
       case "banking":
@@ -283,7 +275,6 @@ export default function ProfileScreen() {
         style={{ flex: 1, backgroundColor: theme.colors.background }}
         contentContainerStyle={{ padding: 20 }}
       >
-        {/* HEADER */}
         <View
           style={{
             marginBottom: 30,
@@ -308,7 +299,6 @@ export default function ProfileScreen() {
           </View>
 
           <View style={{ flexDirection: "row", gap: 8 }}>
-            {/* EDIT/CANCEL BUTTON */}
             <TouchableOpacity
               onPress={() => setIsEditMode((p) => !p)}
               style={{
@@ -335,15 +325,14 @@ export default function ProfileScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* SAVE BUTTON */}
             {isEditMode && (
               <TouchableOpacity
                 onPress={() =>
-                  methods.handleSubmit(onSave, () => {
+                  methods.handleSubmit(onSave, () =>
                     showSnack(
-                      "Please fill all the required details correctly."
-                    );
-                  })()
+                      "Please fill all the required details correctly.",
+                    ),
+                  )()
                 }
                 style={{
                   alignItems: "center",
@@ -364,7 +353,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* TABS */}
         <View
           style={{
             flexDirection: "row",
@@ -425,11 +413,10 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        <View key={activeTab}>{renderTab()}</View>
+        <View>{renderTab()}</View>
         <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* Snackbar */}
       <View
         style={{
           position: "absolute",

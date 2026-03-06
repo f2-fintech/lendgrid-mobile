@@ -1,4 +1,3 @@
-// app/(tab)/commissions.tsx
 import { useIsFocused } from "@react-navigation/native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -36,7 +35,6 @@ export default function CommissionsScreen() {
   const [pageSize] = useState(50);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ FIX: apply desired internal tab EVERY TIME screen focuses
   useFocusEffect(
     useCallback(() => {
       const t = String(params?.tab || "").toLowerCase();
@@ -192,25 +190,34 @@ export default function CommissionsScreen() {
     }
 
     const totalEarned = transactions.reduce(
-      (sum, t) => sum + Number((t as any).commissionAmount ?? 0),
+      (sum, t: any) =>
+        sum + Number(t.finalCommission ?? t.commissionAmount ?? 0),
       0,
     );
 
     const pendingAmount = transactions
       .filter(
-        (t) =>
-          (t as any).status === CommissionStatus.PENDING ||
-          (t as any).status === CommissionStatus.CALCULATED,
+        (t: any) =>
+          t.status === CommissionStatus.PENDING ||
+          t.status === CommissionStatus.CALCULATED,
       )
-      .reduce((sum, t) => sum + Number((t as any).commissionAmount ?? 0), 0);
+      .reduce(
+        (sum, t: any) =>
+          sum + Number(t.finalCommission ?? t.commissionAmount ?? 0),
+        0,
+      );
 
     const paidAmount = transactions
-      .filter((t) => (t as any).status === CommissionStatus.PAID)
-      .reduce((sum, t) => sum + Number((t as any).commissionAmount ?? 0), 0);
+      .filter((t: any) => t.status === CommissionStatus.PAID)
+      .reduce(
+        (sum, t: any) =>
+          sum + Number(t.finalCommission ?? t.commissionAmount ?? 0),
+        0,
+      );
 
     const avgRate =
       transactions.reduce(
-        (sum, t) => sum + Number((t as any).commissionRate ?? 0),
+        (sum, t: any) => sum + Number(t.commissionRate ?? 0),
         0,
       ) / transactions.length;
 
@@ -241,9 +248,11 @@ export default function CommissionsScreen() {
         month: "short",
         year: "numeric",
       });
+
       if (!monthly[key]) monthly[key] = { earned: 0, paid: 0, pending: 0 };
 
-      const amt = Number(t.commissionAmount ?? 0);
+      const amt = Number(t.finalCommission ?? t.commissionAmount ?? 0);
+
       monthly[key].earned += amt;
       if (t.status === CommissionStatus.PAID) monthly[key].paid += amt;
       else monthly[key].pending += amt;
@@ -263,7 +272,7 @@ export default function CommissionsScreen() {
         loanType: t.productType || "N/A",
         disbursedAmount: Number(t.disbursedAmount ?? 0),
         commissionRate: Number(t.commissionRate ?? 0),
-        commissionAmount: Number(t.commissionAmount ?? 0),
+        commissionAmount: Number(t.finalCommission ?? t.commissionAmount ?? 0),
         status: getStatusLabel(t.status),
         disbursedDate: formatDate(t.calculatedAt),
         paidDate: t.paidAt ? formatDate(t.paidAt) : null,

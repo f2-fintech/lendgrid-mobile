@@ -35,14 +35,13 @@ export default function AggregatorDashboard() {
     })();
   }, []);
 
-  // REST
   const appCount = useApplicationCount(true);
   const approved = useDashboardTicketStats({ status: "approved" }, true);
   const disbursed = useDashboardTicketStats({ status: "disbursed" }, true);
   const rejected = useDashboardTicketStats({ status: "rejected" }, true);
   const disbursedByMonth = useDisbursedTicketsByMonth(year, companyId, true);
 
-  //  Commissions Infinite
+  // Commissions Infinite
   const commissions = useCommissionTransactionsInfinite({
     limit: 10,
     filters: undefined,
@@ -57,7 +56,7 @@ export default function AggregatorDashboard() {
     commissions.data?.pages?.[0]?.total ??
     0;
 
-  //  Refetch on tab focus (ONLY REST; don’t refetch commissions pages)
+  // Refetch on tab focus (ONLY REST; don’t refetch commissions pages)
   useEffect(() => {
     if (!isFocused) return;
 
@@ -181,7 +180,9 @@ export default function AggregatorDashboard() {
           }}
         />
 
-        <DisbursalChart data={disbursedByMonth.data ?? []} />
+        <View style={{ marginTop: -12 }}>
+          <DisbursalChart data={disbursedByMonth.data ?? []} />
+        </View>
 
         <CommissionHistoryList
           data={commissionRows}
