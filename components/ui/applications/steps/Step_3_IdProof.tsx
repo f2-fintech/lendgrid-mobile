@@ -20,7 +20,8 @@ type Props = {
   onValidityChange?: (valid: boolean) => void;
 };
 
-const MAX_MB = 10;
+const MAX_MB = 1;
+const MAX_BYTES = MAX_MB * 1024 * 1024;
 
 const pickOne = async () => {
   const res = await DocumentPicker.getDocumentAsync({
@@ -63,9 +64,10 @@ export default function Step3IdProof({
   const theme = useTheme();
   const [showIdProofInfo, setShowIdProofInfo] = useState(true);
 
-  // touched - don't show error initially
   const [touched, setTouched] = useState(false);
   const markTouched = () => setTouched(true);
+
+  const [fileError, setFileError] = useState<string>(""); //visible file error
 
   // map value -> schema keys (passportSizePhoto key must match schema)
   const schemaInput = useMemo(() => {
@@ -101,11 +103,17 @@ export default function Step3IdProof({
   const handlePick = useCallback(
     async (field: keyof Step3Values) => {
       markTouched();
+      setFileError("");
 
       const f = await pickOne();
       if (!f) return;
 
-      if (typeof f.size === "number" && f.size > MAX_MB * 1024 * 1024) return;
+      if (typeof f.size === "number" && f.size > MAX_BYTES) {
+        setFileError(
+          `File too large: ${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB). Max ${MAX_MB}MB allowed.`,
+        );
+        return;
+      }
 
       setField(field, f);
     },
@@ -186,7 +194,7 @@ export default function Step3IdProof({
                 <Text
                   style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}
                 >
-                  PDF / Image (max 10MB)
+                  PDF / Image (max {MAX_MB}MB)
                 </Text>
               </View>
             </View>
@@ -276,7 +284,6 @@ export default function Step3IdProof({
           </View>
         )}
 
-        {/* only show error after touched */}
         {field === "aadharFront" && showAadharFrontError ? (
           <Text style={{ color: "#EF4444", marginTop: 6, fontSize: 12 }}>
             {(errors as any).aadharFront || "Aadhar front is required"}
@@ -300,7 +307,6 @@ export default function Step3IdProof({
             gap: 10,
           }}
         >
-          {/* icon */}
           <Feather
             name="alert-circle"
             size={18}
@@ -308,7 +314,6 @@ export default function Step3IdProof({
             style={{ marginTop: 2 }}
           />
 
-          {/* text */}
           <Text
             style={{
               flex: 1,
@@ -320,7 +325,6 @@ export default function Step3IdProof({
             Upload ID proof documents. Aadhaar Front is mandatory.
           </Text>
 
-          {/* close */}
           <TouchableOpacity
             onPress={() => setShowIdProofInfo(false)}
             activeOpacity={0.7}
@@ -332,6 +336,23 @@ export default function Step3IdProof({
           >
             <Feather name="x" size={18} color={theme.colors.onErrorContainer} />
           </TouchableOpacity>
+        </View>
+      )}
+
+      {!!fileError && (
+        <View
+          style={{
+            backgroundColor: theme.colors.errorContainer,
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 12,
+          }}
+        >
+          <Text
+            style={{ color: theme.colors.onErrorContainer, fontWeight: "800" }}
+          >
+            {fileError}
+          </Text>
         </View>
       )}
 

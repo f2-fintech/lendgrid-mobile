@@ -1,16 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import { useEffect, useRef } from "react";
+import * as FileSystem from "expo-file-system";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, TouchableOpacity, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { Text, TextInput, useTheme } from "react-native-paper";
+import { IconButton, Text, TextInput, useTheme } from "react-native-paper";
+
+import { uploadToS3 } from "@/lib/utils/utils";
 
 type Props = {
   uiState?: { isEditMode: boolean; activeTab: string };
+  onSnack?: (msg: string) => void;
 };
 
-export default function ProfileTab({ uiState }: Props) {
+export default function ProfileTab({ uiState, onSnack }: Props) {
   const theme = useTheme();
   const isEditMode = !!uiState?.isEditMode;
   const isActive = uiState?.activeTab === "profile";
@@ -27,6 +31,11 @@ export default function ProfileTab({ uiState }: Props) {
   const avatar = watch("avatar");
   const status = watch("status");
 
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const displayUri = localPreview || avatar?.uri || null;
+
   useEffect(() => {
     if (isEditMode && isActive) {
       setTimeout(() => firstNameRef.current?.focus?.(), 250);
@@ -34,22 +43,68 @@ export default function ProfileTab({ uiState }: Props) {
   }, [isEditMode, isActive]);
 
   const pickAvatar = async () => {
-    if (!isEditMode) return;
+    if (!isEditMode || uploading) return;
 
     const result = await DocumentPicker.getDocumentAsync({
       type: "image/*",
       copyToCacheDirectory: true,
+      multiple: false,
     });
 
-    if (result.canceled || !result.assets) return;
+    if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
 
-    setValue(
-      "avatar",
-      { uri: asset.uri, name: asset.name },
-      { shouldValidate: true, shouldDirty: true }
-    );
+    //  robust 2MB check + toast
+    let fileSize = asset.size;
+    if (typeof fileSize !== "number") {
+      const info = await FileSystem.getInfoAsync(asset.uri);
+      if (info.exists && "size" in info) {
+        fileSize = info.size;
+      }
+    }
+
+    if (typeof fileSize === "number" && fileSize > 2 * 1024 * 1024) {
+      onSnack?.("Image size should be less than 2MB.");
+      return;
+    }
+
+    setLocalPreview(asset.uri);
+
+    try {
+      setUploading(true);
+
+      const uploadedUrl = await uploadToS3(
+        {
+          uri: asset.uri,
+          name: asset.name || `profile-${Date.now()}.jpg`,
+          type: asset.mimeType || "image/jpeg",
+        },
+        `profile-photos/${Date.now()}-${asset.name || "profile"}.jpg`,
+      );
+
+      //  save uploaded URL into RHF so tab change won't remove it
+      setValue(
+        "avatar",
+        { uri: uploadedUrl, name: asset.name || "profile-photo" },
+        { shouldValidate: true, shouldDirty: true },
+      );
+
+      setLocalPreview(null);
+      onSnack?.("Photo uploaded successfully");
+    } catch (e: any) {
+      onSnack?.(e?.message || "Failed to upload photo");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeAvatar = () => {
+    if (!isEditMode || uploading) return;
+
+    setLocalPreview(null);
+    setValue("avatar", null, { shouldValidate: true, shouldDirty: true });
+    onSnack?.("Photo removed");
   };
 
   return (
@@ -66,7 +121,6 @@ export default function ProfileTab({ uiState }: Props) {
         Profile Information
       </Text>
 
-      {/* AVATAR */}
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 26 }}
       >
@@ -80,12 +134,15 @@ export default function ProfileTab({ uiState }: Props) {
             alignItems: "center",
             marginRight: 20,
             opacity: isEditMode ? 1 : 0.9,
+            overflow: "hidden",
           }}
         >
-          {avatar?.uri ? (
-            <Text style={{ fontSize: 10, textAlign: "center" }}>
-              Avatar Loaded
-            </Text>
+          {displayUri ? (
+            <Image
+              source={{ uri: displayUri }}
+              style={{ height: 90, width: 90 }}
+              resizeMode="cover"
+            />
           ) : (
             <Ionicons
               name="person"
@@ -93,10 +150,25 @@ export default function ProfileTab({ uiState }: Props) {
               color={theme.colors.onSurfaceVariant}
             />
           )}
+
+          {isEditMode && !!displayUri ? (
+            <View style={{ position: "absolute", top: -6, right: -6 }}>
+              <IconButton
+                icon="close"
+                size={18}
+                onPress={removeAvatar}
+                style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
+                iconColor="#fff"
+              />
+            </View>
+          ) : null}
         </View>
 
-        <View>
-          <TouchableOpacity onPress={pickAvatar} disabled={!isEditMode}>
+        <View style={{ flex: 1 }}>
+          <TouchableOpacity
+            onPress={pickAvatar}
+            disabled={!isEditMode || uploading}
+          >
             <Text
               style={{
                 color: isEditMode
@@ -106,9 +178,28 @@ export default function ProfileTab({ uiState }: Props) {
                 fontWeight: "600",
               }}
             >
-              <Ionicons name="cloud-upload-outline" size={20} /> Upload Photo
+              <Ionicons name="cloud-upload-outline" size={20} />{" "}
+              {uploading ? "Uploading..." : "Upload Photo"}
             </Text>
           </TouchableOpacity>
+
+          {uploading ? (
+            <View
+              style={{
+                marginTop: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+              <Text
+                style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}
+              >
+                Uploading to server…
+              </Text>
+            </View>
+          ) : null}
 
           {(errors as any)?.avatar?.uri && (
             <Text
@@ -130,7 +221,6 @@ export default function ProfileTab({ uiState }: Props) {
         </View>
       </View>
 
-      {/* STATUS */}
       <View
         style={{
           flexDirection: "row",
@@ -155,7 +245,6 @@ export default function ProfileTab({ uiState }: Props) {
         </View>
       </View>
 
-      {/* FIRST NAME */}
       <Controller
         control={control}
         name="firstName"
@@ -167,20 +256,19 @@ export default function ProfileTab({ uiState }: Props) {
             onChangeText={field.onChange}
             mode="outlined"
             editable={isEditMode}
-            error={!!errors.firstName}
+            error={!!(errors as any).firstName}
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.firstName && (
+      {(errors as any).firstName && (
         <Text
           style={{ color: theme.colors.error, fontSize: 12, marginBottom: 14 }}
         >
-          {(errors.firstName as any)?.message}
+          {(errors as any).firstName?.message}
         </Text>
       )}
 
-      {/* LAST NAME */}
       <Controller
         control={control}
         name="lastName"
@@ -191,20 +279,19 @@ export default function ProfileTab({ uiState }: Props) {
             onChangeText={field.onChange}
             mode="outlined"
             editable={isEditMode}
-            error={!!errors.lastName}
+            error={!!(errors as any).lastName}
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.lastName && (
+      {(errors as any).lastName && (
         <Text
           style={{ color: theme.colors.error, fontSize: 12, marginBottom: 14 }}
         >
-          {(errors.lastName as any)?.message}
+          {(errors as any).lastName?.message}
         </Text>
       )}
 
-      {/* EMAIL */}
       <Controller
         control={control}
         name="email"
@@ -216,21 +303,20 @@ export default function ProfileTab({ uiState }: Props) {
             onChangeText={field.onChange}
             mode="outlined"
             editable={isEditMode}
-            error={!!errors.email}
+            error={!!(errors as any).email}
             autoCapitalize="none"
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.email && (
+      {(errors as any).email && (
         <Text
           style={{ color: theme.colors.error, fontSize: 12, marginBottom: 14 }}
         >
-          {(errors.email as any)?.message}
+          {(errors as any).email?.message}
         </Text>
       )}
 
-      {/* PHONE (digits only, max 10) */}
       <Controller
         control={control}
         name="phone"
@@ -241,21 +327,20 @@ export default function ProfileTab({ uiState }: Props) {
             value={field.value}
             mode="outlined"
             editable={isEditMode}
-            error={!!errors.phone}
-            maxLength={10} 
-            onChangeText={(txt) => {
-              const onlyDigits = txt.replace(/[^0-9]/g, "").slice(0, 10); // ✅ digits only + max 10
-              field.onChange(onlyDigits);
-            }}
+            error={!!(errors as any).phone}
+            maxLength={10}
+            onChangeText={(txt) =>
+              field.onChange(txt.replace(/[^0-9]/g, "").slice(0, 10))
+            }
             style={{ marginBottom: 4 }}
           />
         )}
       />
-      {errors.phone && (
+      {(errors as any).phone && (
         <Text
           style={{ color: theme.colors.error, fontSize: 12, marginBottom: 14 }}
         >
-          {(errors.phone as any)?.message}
+          {(errors as any).phone?.message}
         </Text>
       )}
     </KeyboardAwareScrollView>

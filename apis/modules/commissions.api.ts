@@ -17,11 +17,7 @@ export const commissionsApi = {
       getCommissionTransactions: PaginatedCommissionTransactions;
     }>(
       `
-      query GetCommissionTransactions(
-        $page: Int
-        $limit: Int
-        $filters: CommissionTransactionFilterInput
-      ) {
+      query GetCommissionTransactions($page: Int, $limit: Int, $filters: CommissionTransactionFilterInput) {
         getCommissionTransactions(page: $page, limit: $limit, filters: $filters) {
           success
           message
@@ -29,21 +25,45 @@ export const commissionsApi = {
             id
             ticketId
             aggregatorId
-            ruleId
+            companyId
+
             disbursedAmount
-            commissionAmount
+            disbursedDate
+
+            cashbackAmount
+            grossCommission
+            commissionAfterCashback
+
             commissionType
             commissionRate
+            commissionRateSource
+
+            tdsRate
+            tdsAmount
+
+            finalCommission
+
+            caseType
+            loanType
+            loanCategory
+
+            aggregatorType
             status
             aggregatorRank
-            productType
             provider
+
             calculatedAt
             approvedAt
             paidAt
+
+            utrNumber
+            paymentProofUrl
+            adminNotes
+
             remarks
             createdAt
             updatedAt
+
             approvedBy
             paidBy
           }
@@ -58,6 +78,6 @@ export const commissionsApi = {
         page: params?.page ?? 1,
         limit: params?.limit ?? 10,
         filters: params?.filters,
-      }
+      },
     ).then((res) => res.getCommissionTransactions),
 };

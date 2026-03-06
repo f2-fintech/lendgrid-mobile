@@ -13,34 +13,86 @@ export const pickedFileSchema = z.object({
   mimeType: z.string().optional(),
 });
 
-// Step 0: Initial Loan Details
-export const step0Schema = z.object({
-  amount: z
-    .string()
-    .min(1, "Amount is required")
-    .refine((val) => !isNaN(Number(val)), "Amount must be a number")
-    .refine((val) => Number(val) >= 50000, "Amount must be at least 50,000")
-    .refine(
-      (val) => Number(val) <= 100000000,
-      "Amount must not exceed 10 crore",
-    )
-    .refine((val) => Number(val) % 5 === 0, "Amount must be divisible by 5"),
+/** helpers */
+const parseNum = (v: unknown) => {
+  const n = Number(
+    String(v ?? "")
+      .replace(/,/g, "")
+      .trim(),
+  );
+  return Number.isFinite(n) ? n : NaN;
+};
 
-  loanType: z.string().min(1, "Loan type is required"),
+const amountSchema = z
+  .string()
+  .min(1, "Amount is required")
+  .refine((val) => !isNaN(parseNum(val)), "Amount must be a number")
+  .refine((val) => parseNum(val) >= 50000, "Amount must be at least 50,000")
+  .refine(
+    (val) => parseNum(val) <= 100000000,
+    "Amount must not exceed 10 crore",
+  )
+  .refine((val) => parseNum(val) % 5 === 0, "Amount must be divisible by 5");
 
-  tenure: z.string().min(1, "Tenure is required"),
+export const step0Schema = z
+  .object({
+    amount: amountSchema,
 
-  providers: z
-    .array(z.string())
-    .min(1, "At least one provider must be selected"),
+    loanType: z.string().min(1, "Loan type is required"),
 
-  providerAmounts: z.array(
-    z.object({
-      provider: z.string(),
-      amount: z.string(),
+    tenure: z.string().min(1, "Tenure is required"),
+
+    leadType: z.string().optional().default("null"),
+
+    hasRunningLoans: z.enum(["yes", "no"], {
+      required_error: "Running Customer Loans is required",
     }),
-  ),
-});
+
+    whichLoan: z.string().optional(),
+    runningLoanAmount: z.string().optional(),
+
+    caseType: z.enum(["top_up", "fresh"], {
+      required_error: "Case type is required",
+    }),
+
+    providers: z
+      .array(z.string())
+      .min(1, "At least one provider must be selected"),
+
+    providerAmounts: z.array(
+      z.object({
+        provider: z.string().min(1, "Provider is required"),
+        amount: amountSchema,
+      }),
+    ),
+  })
+  .superRefine((data, ctx) => {
+    // conditional validation: if hasRunningLoans === 'yes'
+    if (data.hasRunningLoans === "yes") {
+      if (!data.whichLoan || !String(data.whichLoan).trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["whichLoan"],
+          message: "Which loan is required",
+        });
+      }
+
+      const v = String(data.runningLoanAmount ?? "").trim();
+      if (!v) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["runningLoanAmount"],
+          message: "Running loan amount is required",
+        });
+      } else if (isNaN(parseNum(v))) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["runningLoanAmount"],
+          message: "Running loan amount must be a number",
+        });
+      }
+    }
+  });
 
 export type Step0FormData = z.infer<typeof step0Schema>;
 

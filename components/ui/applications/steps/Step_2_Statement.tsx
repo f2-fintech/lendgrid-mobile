@@ -20,7 +20,8 @@ type Props = {
   maxFiles?: number; // default 10
 };
 
-const MAX_MB = 10;
+const MAX_MB = 1;
+const MAX_BYTES = MAX_MB * 1024 * 1024;
 
 const formatMB = (bytes?: number) => {
   if (!bytes && bytes !== 0) return "NA";
@@ -36,6 +37,7 @@ export default function Step2Statement({
   const theme = useTheme();
   const [localFiles, setLocalFiles] = useState<PickedFile[]>(value || []);
   const [showStatementInfo, setShowStatementInfo] = useState(true);
+  const [fileError, setFileError] = useState<string>(""); //  visible error
 
   useEffect(() => setLocalFiles(value || []), [value]);
 
@@ -51,6 +53,8 @@ export default function Step2Statement({
 
   const pickDocs = useCallback(async () => {
     if (localFiles.length >= maxFiles) return;
+
+    setFileError("");
 
     const res = await DocumentPicker.getDocumentAsync({
       multiple: true,
@@ -73,17 +77,23 @@ export default function Step2Statement({
       mimeType: a.mimeType,
     }));
 
-    const merged = [...localFiles, ...incoming];
+    const merged = [...localFiles, ...incoming].slice(0, maxFiles);
 
-    // cap count
-    const capped = merged.slice(0, maxFiles);
-
-    // validate size (<=10MB each)
-    const valid = capped.filter((f) => {
-      if (typeof f.size === "number" && f.size > MAX_MB * 1024 * 1024)
+    const rejected: PickedFile[] = [];
+    const valid = merged.filter((f) => {
+      if (typeof f.size === "number" && f.size > MAX_BYTES) {
+        rejected.push(f);
         return false;
+      }
       return true;
     });
+
+    if (rejected.length) {
+      const first = rejected[0];
+      setFileError(
+        `File too large: ${first.name} (${formatMB(first.size)}). Max ${MAX_MB}MB allowed.`,
+      );
+    }
 
     setLocalFiles(valid);
     onChange(valid);
@@ -109,7 +119,6 @@ export default function Step2Statement({
             gap: 10,
           }}
         >
-          {/* icon */}
           <Feather
             name="file-text"
             size={18}
@@ -117,7 +126,6 @@ export default function Step2Statement({
             style={{ marginTop: 2 }}
           />
 
-          {/* text */}
           <Text
             style={{
               flex: 1,
@@ -130,7 +138,6 @@ export default function Step2Statement({
             {MAX_MB}MB each.
           </Text>
 
-          {/* close */}
           <TouchableOpacity
             onPress={() => setShowStatementInfo(false)}
             activeOpacity={0.7}
@@ -146,6 +153,23 @@ export default function Step2Statement({
               color={theme.colors.onTertiaryContainer}
             />
           </TouchableOpacity>
+        </View>
+      )}
+
+      {!!fileError && (
+        <View
+          style={{
+            backgroundColor: theme.colors.errorContainer,
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 12,
+          }}
+        >
+          <Text
+            style={{ color: theme.colors.onErrorContainer, fontWeight: "800" }}
+          >
+            {fileError}
+          </Text>
         </View>
       )}
 
@@ -202,7 +226,8 @@ export default function Step2Statement({
               lineHeight: 18,
             }}
           >
-            PDF / DOC / Images accepted{"\n"}Max {maxFiles} files
+            PDF / DOC / Images accepted{"\n"}Max {maxFiles} files • {MAX_MB}MB
+            each
           </Text>
         </TouchableOpacity>
       )}
@@ -311,7 +336,6 @@ export default function Step2Statement({
         </View>
       )}
 
-      {/* Hint */}
       <Text
         style={{
           marginTop: 10,

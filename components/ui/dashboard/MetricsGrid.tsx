@@ -33,7 +33,8 @@ type Metric = {
   color: string;
 };
 
-// ---------- Color Helpers ----------
+/* ================= Color Helpers ================= */
+
 const clamp = (n: number, min = 0, max = 255) =>
   Math.max(min, Math.min(max, n));
 
@@ -76,10 +77,9 @@ const hexToRgba = (hex: string, alpha: number) => {
 
 // NO GRADIENT. Soft card palette for both modes.
 // Light: very soft tint
-// Dark: clean dark surface (no muddy tint), only subtle accent in border + icon bg
+// Dark: color-tinted cards based on accent, so each card matches its icon color
 const getSoftCardPalette = (accent: string, isDark: boolean) => {
   if (!isDark) {
-    const base = "#FFFFFF";
     const soft = "#F8FAFC";
 
     const bg = mixHex(soft, accent, 0.05);
@@ -97,9 +97,11 @@ const getSoftCardPalette = (accent: string, isDark: boolean) => {
     };
   }
 
-  const bg = "#15223e";
-  const border = "rgba(255,255,255,0.10)";
-  const iconBg = "rgba(255,255,255,0.06)";
+  // Dark Mode: use base + accent tint (same accent as icon)
+  const base = "#0B1220"; // deep navy base for all cards
+  const bg = mixHex(base, accent, 0.18); // card bg tint (increase to 0.24 if you want stronger color)
+  const border = hexToRgba(accent, 0.22); // accent border
+  const iconBg = hexToRgba(accent, 0.18); // icon bg tint
 
   return {
     bg,
@@ -108,7 +110,7 @@ const getSoftCardPalette = (accent: string, isDark: boolean) => {
     iconColor: accent,
     topText: "rgba(255,255,255,0.78)",
     value: "#FFFFFF",
-    title: "rgba(255,255,255,0.62)",
+    title: "rgba(255,255,255,0.68)",
   };
 };
 
