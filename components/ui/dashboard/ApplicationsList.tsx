@@ -16,12 +16,10 @@ import CommissionHistoryItem from "./CommissionItem";
 type Props = {
   data: any[];
 
-  //  NEW: pass these from dashboard (direct from useInfiniteQuery)
   fetchNextPage?: () => Promise<any>;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
 
-  //  for: shown/total
   totalCount?: number;
 };
 
@@ -35,36 +33,39 @@ export default function CommissionHistoryList({
   const theme = useTheme();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterLender, setFilterLender] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-
-  //  local button loading (prevents "whole screen reload feel")
   const [btnLoading, setBtnLoading] = useState(false);
+
+  const statusOptions = ["all", "Paid", "Pending", "Calculated", "Approved"];
 
   const filtered = useMemo(() => {
     const s = searchTerm.trim().toLowerCase();
+
     return (data ?? []).filter((row) => {
+      const rowStatus = String(row.status ?? "")
+        .trim()
+        .toLowerCase();
+
       const matchesSearch =
         !s ||
         String(row.ticketId ?? row.id ?? "")
           .toLowerCase()
           .includes(s) ||
-        String(row.provider ?? "")
+        String(row.provider ?? row.lenderName ?? "")
           .toLowerCase()
           .includes(s) ||
-        String(row.productType ?? "")
+        String(row.productType ?? row.loanType ?? "")
           .toLowerCase()
-          .includes(s);
+          .includes(s) ||
+        rowStatus.includes(s);
 
-      const matchesLender =
-        filterLender === "all" ||
-        String(row.provider ?? "")
-          .toLowerCase()
-          .includes(filterLender.toLowerCase());
+      const matchesStatus =
+        filterStatus === "all" || rowStatus === filterStatus.toLowerCase();
 
-      return matchesSearch && matchesLender;
+      return matchesSearch && matchesStatus;
     });
-  }, [data, searchTerm, filterLender]);
+  }, [data, searchTerm, filterStatus]);
 
   const shown = filtered.length;
   const total = Number.isFinite(Number(totalCount))
@@ -115,7 +116,7 @@ export default function CommissionHistoryList({
               includeFontPadding: false,
               textAlignVertical: "center",
             }}
-            placeholder="Search commission history"
+            placeholder="Search commission"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             value={searchTerm}
             onChangeText={setSearchTerm}
@@ -158,41 +159,41 @@ export default function CommissionHistoryList({
                 { color: theme.colors.onSurface },
               ]}
             >
-              Lender
+              Status
             </Text>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={dashboardStyles.filterOptions}>
-                {["all", "hdfc", "icici", "axis", "bajaj", "tata"].map(
-                  (lender) => (
+                {statusOptions.map((status) => {
+                  const isActive = filterStatus === status;
+
+                  return (
                     <TouchableOpacity
-                      key={lender}
+                      key={status}
                       style={[
                         dashboardStyles.filterOption,
                         {
-                          backgroundColor:
-                            filterLender === lender
-                              ? theme.colors.primary
-                              : theme.colors.surfaceVariant,
-                          borderColor: theme.colors.outline,
+                          backgroundColor: isActive
+                            ? theme.colors.primary
+                            : theme.colors.surfaceVariant,
+                          borderColor: isActive
+                            ? theme.colors.primary
+                            : theme.colors.outline,
                         },
                       ]}
-                      onPress={() => setFilterLender(lender)}
+                      onPress={() => setFilterStatus(status)}
                     >
                       <Text
                         style={{
-                          color:
-                            filterLender === lender
-                              ? "#FFFFFF"
-                              : theme.colors.onSurface,
+                          color: isActive ? "#FFFFFF" : theme.colors.onSurface,
                           fontWeight: "600",
                         }}
                       >
-                        {lender === "all" ? "All Lenders" : lender}
+                        {status === "all" ? "All Status" : status}
                       </Text>
                     </TouchableOpacity>
-                  ),
-                )}
+                  );
+                })}
               </View>
             </ScrollView>
           </View>
@@ -257,7 +258,6 @@ export default function CommissionHistoryList({
             showsVerticalScrollIndicator={false}
           />
 
-          {/*  Pagination Footer (same design) */}
           <View style={{ paddingTop: 12, alignItems: "center" }}>
             {loadingMore ? (
               <View

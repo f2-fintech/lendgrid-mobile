@@ -11,7 +11,8 @@ const formatCurrency = (amount: number) => {
   }).format(Number(amount || 0));
 };
 
-const formatDate = (iso: string) => {
+const formatDate = (iso?: string) => {
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
   return new Intl.DateTimeFormat("en-GB", {
@@ -21,33 +22,189 @@ const formatDate = (iso: string) => {
   }).format(d);
 };
 
-function CalculatedBadge() {
+function StatusBadge({ label = "Calculated" }: { label?: string }) {
   const theme = useTheme();
   const isDark = theme.dark;
 
   return (
     <View
-      style={[
-        dashboardStyles.badge,
-        {
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 999,
+        backgroundColor: isDark ? "rgba(251,191,36,0.12)" : "#FFF7ED",
+        borderWidth: 1,
+        borderColor: isDark ? "rgba(251,191,36,0.35)" : "#FB923C",
+        alignSelf: "center",
+      }}
+    >
+      <Feather name="clock" size={10} color={isDark ? "#FBBF24" : "#C2410C"} />
+      <Text
+        numberOfLines={1}
+        style={{
+          color: isDark ? "#FBBF24" : "#C2410C",
+          fontSize: 11,
+          fontWeight: "700",
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function InfoBlock({
+  label,
+  value,
+  subValue,
+  valueColor,
+  subValueColor,
+  align = "left",
+}: {
+  label: string;
+  value: string;
+  subValue?: string;
+  valueColor?: string;
+  subValueColor?: string;
+  align?: "left" | "right";
+}) {
+  const theme = useTheme();
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Text
+        style={{
+          color: theme.colors.onSurfaceVariant,
+          fontSize: 12,
+          fontWeight: "600",
+          textAlign: align,
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </Text>
+
+      <Text
+        style={{
+          color: valueColor ?? theme.colors.onSurface,
+          fontSize: 18,
+          fontWeight: "800",
+          textAlign: align,
+          marginTop: 2,
+        }}
+      >
+        {value}
+      </Text>
+
+      {!!subValue && (
+        <Text
+          style={{
+            color: subValueColor ?? theme.colors.onSurfaceVariant,
+            fontSize: 13,
+            fontWeight: "700",
+            textAlign: align,
+            marginTop: 4,
+          }}
+        >
+          {subValue}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function BottomRow({
+  icon,
+  label,
+  value,
+  rightContent,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  value: string;
+  rightContent?: React.ReactNode;
+}) {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 8,
+      }}
+    >
+      <View
+        style={{
           flexDirection: "row",
           alignItems: "center",
-          gap: 4,
-          paddingVertical: 4,
-          paddingHorizontal: 8,
-          backgroundColor: isDark ? "#2A2419" : "#FEF3C7",
-          borderColor: isDark ? "#FBBF24" : "#F59E0B",
-        },
-      ]}
-    >
-      <Feather name="clock" size={12} color={isDark ? "#FBBF24" : "#B45309"} />
-      <Text
-        style={[
-          dashboardStyles.badgeText,
-          { color: isDark ? "#FBBF24" : "#B45309", fontSize: 11 },
-        ]}
+          flex: 1,
+          minWidth: 0,
+        }}
       >
-        Calculated
+        <Feather
+          name={icon}
+          size={14}
+          color={theme.colors.onSurfaceVariant}
+          style={{ marginRight: 8 }}
+        />
+
+        <Text
+          style={{
+            color: theme.colors.onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: "600",
+          }}
+        >
+          {label}{" "}
+        </Text>
+
+        <Text
+          numberOfLines={1}
+          style={{
+            color: theme.colors.onSurface,
+            fontSize: 12,
+            fontWeight: "700",
+            flexShrink: 1,
+          }}
+        >
+          {value || "-"}
+        </Text>
+      </View>
+
+      {rightContent ? (
+        <View style={{ marginLeft: 10 }}>{rightContent}</View>
+      ) : null}
+    </View>
+  );
+}
+
+function LoanTypePill({ value }: { value: string }) {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={{
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 999,
+        backgroundColor: theme.dark ? "rgba(148,163,184,0.12)" : "#F1F5F9",
+      }}
+    >
+      <Text
+        numberOfLines={1}
+        style={{
+          color: theme.colors.onSurfaceVariant,
+          fontSize: 11,
+          fontWeight: "700",
+          textTransform: "capitalize",
+        }}
+      >
+        {value}
       </Text>
     </View>
   );
@@ -56,11 +213,30 @@ function CalculatedBadge() {
 export default function CommissionHistoryItem({ item }: { item: any }) {
   const theme = useTheme();
 
-  //  IMPORTANT: Ticket number comes from ticketId, not id
-  const ticketNo = item?.ticketId ?? item?.id;
+  const ticketNo = item?.ticketId ?? item?.id ?? "-";
+  const lenderName = item?.lenderName ?? item?.provider ?? "N/A";
+  const loanType = item?.loanType ?? item?.productType ?? "N/A";
 
-  //  API gives commissionRate (we mapped to commissionPercent, but fallback safe)
+  const loanAmount = formatCurrency(
+    Number(item?.disbursedAmount ?? item?.loanAmount ?? 0),
+  );
+
   const rate = Number(item?.commissionPercent ?? item?.commissionRate ?? 0);
+
+  const commissionAmount = formatCurrency(
+    Number(item?.finalCommission ?? item?.commissionAmount ?? 0),
+  );
+
+  const status = item?.status ?? "Calculated";
+  const normalizedStatus = String(status).trim().toLowerCase();
+  const isPaid = normalizedStatus === "paid";
+
+  const calculatedDate = formatDate(
+    item?.calculatedAt ?? item?.createdAt ?? item?.disbursedDate,
+  );
+
+  const paidDate = formatDate(item?.paidDate ?? item?.utrPaidDate);
+  const utr = item?.utr ?? item?.utrNumber ?? "-";
 
   return (
     <View
@@ -69,119 +245,123 @@ export default function CommissionHistoryItem({ item }: { item: any }) {
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.outline,
-          paddingVertical: 12,
+          borderWidth: 1,
+          borderRadius: 18,
+          padding: 14,
+          marginBottom: 12,
         },
       ]}
     >
-      {/* Header */}
-      <View style={dashboardStyles.applicationHeader}>
-        <Text
-          style={[
-            dashboardStyles.appId,
-            { color: theme.colors.onSurface, fontSize: 14 },
-          ]}
-        >
-          {`Ticket ID - F2FIN-${ticketNo}`}
-        </Text>
-
-        <CalculatedBadge />
-      </View>
-
-      {/* Lender line */}
-      <Text
-        style={[
-          dashboardStyles.lenderName,
-          { color: theme.colors.onSurface, fontSize: 14 },
-        ]}
-      >
-        {item?.lenderName ?? item?.provider ?? "N/A"}
-        <Text style={{ color: theme.colors.onSurfaceVariant }}> • </Text>
-        <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>
-          {item?.loanType ?? item?.productType ?? "N/A"}
-        </Text>
-      </Text>
-
-      {/* Amount Row */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          marginTop: 10,
-        }}
-      >
-        <View>
-          <Text
-            style={[
-              dashboardStyles.detailLabel,
-              { color: theme.colors.onSurfaceVariant, fontSize: 12 },
-            ]}
-          >
-            Disbursed Amount
-          </Text>
-
-          <Text
-            style={[
-              dashboardStyles.detailValue,
-              {
-                color: theme.colors.onSurface,
-                fontSize: 18,
-                fontWeight: "700",
-                marginTop: 2,
-              },
-            ]}
-          >
-            {formatCurrency(Number(item?.disbursedAmount ?? 0))}
-          </Text>
-        </View>
-
-        <View style={{ alignItems: "flex-end" }}>
-          <Text style={{ color: "#FBBF24", fontSize: 13, fontWeight: "700" }}>
-            {rate}%
-          </Text>
-
-          <Text
-            style={{
-              color: "#34D399",
-              fontSize: 18,
-              fontWeight: "800",
-              marginTop: 2,
-            }}
-          >
-            {formatCurrency(Number(item?.finalCommission ?? 0))}
-          </Text>
-        </View>
-      </View>
-
-      {/* Footer */}
+      {/* Top Row */}
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          marginTop: 10,
-          gap: 6,
+          justifyContent: "space-between",
+          gap: 10,
         }}
       >
-        <Feather
-          name="calendar"
-          size={14}
-          color={theme.colors.onSurfaceVariant}
-        />
-        <Text
-          style={[
-            dashboardStyles.loanType,
-            { color: theme.colors.onSurfaceVariant, fontSize: 12 },
-          ]}
+        <View
+          style={{
+            flex: 1.4,
+            flexDirection: "row",
+            alignItems: "center",
+            minWidth: 0,
+          }}
         >
-          Disbursed:{" "}
-          {formatDate(
-            String(
-              item?.disbursedDate ??
-                item?.calculatedAt ??
-                item?.createdAt ??
-                "",
-            ),
-          )}
-        </Text>
+          <Text
+            style={{
+              color: theme.colors.onSurfaceVariant,
+              fontSize: 14,
+              fontWeight: "600",
+            }}
+          >
+            Ticket ID:{" "}
+          </Text>
+          <Text
+            numberOfLines={1}
+            style={{
+              color: theme.colors.onSurface,
+              fontSize: 14,
+              fontWeight: "800",
+              flexShrink: 1,
+            }}
+          >
+            F2FIN-{ticketNo}
+          </Text>
+        </View>
+
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Text
+            style={{
+              color: theme.colors.onSurfaceVariant,
+              fontSize: 14,
+              fontWeight: "600",
+            }}
+          >
+            Status:
+          </Text>
+          <StatusBadge label={status} />
+        </View>
+      </View>
+
+      {/* Highlight Section */}
+      <View
+        style={{
+          marginTop: 14,
+          padding: 12,
+          borderRadius: 14,
+          backgroundColor: theme.dark ? "rgba(255,255,255,0.03)" : "#F8FAFC",
+          borderWidth: 1,
+          borderColor: theme.colors.outline,
+        }}
+      >
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <InfoBlock label="Loan Amount" value={loanAmount} />
+
+          <InfoBlock
+            label="Commission Amount"
+            value={commissionAmount}
+            subValue={`Rate - ${rate}%`}
+            subValueColor="#FBBF24"
+            valueColor="#22C55E"
+            align="right"
+          />
+        </View>
+      </View>
+
+      {/* Details */}
+      <View
+        style={{
+          marginTop: 14,
+          paddingTop: 10,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.outline,
+        }}
+      >
+        <BottomRow
+          icon="calendar"
+          label="Calculated Date:"
+          value={calculatedDate}
+          rightContent={<LoanTypePill value={loanType} />}
+        />
+
+        {/* Lender always visible */}
+        <BottomRow icon="briefcase" label="Lender:" value={lenderName} />
+
+        {/* UTR only when paid */}
+        {isPaid && <BottomRow icon="credit-card" label="UTR:" value={utr} />}
+
+        {/* Paid Date only when paid */}
+        {isPaid && (
+          <BottomRow icon="check-circle" label="Paid Date:" value={paidDate} />
+        )}
       </View>
     </View>
   );

@@ -81,10 +81,12 @@ const hexToRgba = (hex: string, alpha: number) => {
   return `rgba(${clamp(r)}, ${clamp(g)}, ${clamp(b)}, ${alpha})`;
 };
 
-// Theme-aware palette: light stays light, dark becomes dark (like ticket view)
+const SECTION_GAP = 12;
+const HISTORY_CARD_MAX_HEIGHT = 250;
+
+// Theme-aware palette: light stays light, dark becomes dark
 const getHistoryPalette = (accent: string, isDark: boolean) => {
   if (isDark) {
-    // dark card like your ticket view
     const cardBg = "#0B0F1A";
     return {
       cardBg,
@@ -101,7 +103,6 @@ const getHistoryPalette = (accent: string, isDark: boolean) => {
     };
   }
 
-  // light mode (your current good look)
   const base = "#FFFFFF";
   const soft = "#F8FAFC";
   return {
@@ -119,8 +120,48 @@ const getHistoryPalette = (accent: string, isDark: boolean) => {
   };
 };
 
-// fixed height of history card body (scroll inside)
-const HISTORY_CARD_MAX_HEIGHT = 250;
+const getStatsCardColors = (theme: any) => {
+  const isDark = !!theme?.dark;
+
+  return {
+    applicationsTotal: {
+      bg: isDark ? "#0F172A" : "#EFF6FF",
+      border: isDark ? "rgba(59,130,246,0.30)" : "rgba(59,130,246,0.18)",
+      icon: isDark ? "#60A5FA" : "#2563EB",
+      value: isDark ? "#DBEAFE" : "#1D4ED8",
+    },
+    applicationsPicked: {
+      bg: isDark ? "#0F1A14" : "#ECFDF5",
+      border: isDark ? "rgba(16,185,129,0.30)" : "rgba(16,185,129,0.18)",
+      icon: isDark ? "#34D399" : "#059669",
+      value: isDark ? "#D1FAE5" : "#047857",
+    },
+    ticketsTotal: {
+      bg: isDark ? "#111827" : "#F8FAFC",
+      border: isDark ? "rgba(148,163,184,0.25)" : "rgba(148,163,184,0.18)",
+      icon: isDark ? "#CBD5E1" : "#334155",
+      value: isDark ? "#F8FAFC" : "#0F172A",
+    },
+    ticketsReview: {
+      bg: isDark ? "#1A1408" : "#FFFBEB",
+      border: isDark ? "rgba(245,158,11,0.30)" : "rgba(245,158,11,0.18)",
+      icon: "#F59E0B",
+      value: "#F59E0B",
+    },
+    ticketsApproved: {
+      bg: isDark ? "#0F1A14" : "#ECFDF5",
+      border: isDark ? "rgba(16,185,129,0.30)" : "rgba(16,185,129,0.18)",
+      icon: "#10B981",
+      value: "#10B981",
+    },
+    ticketsDisbursed: {
+      bg: isDark ? "#171028" : "#F5F3FF",
+      border: isDark ? "rgba(139,92,246,0.30)" : "rgba(139,92,246,0.18)",
+      icon: "#8B5CF6",
+      value: "#8B5CF6",
+    },
+  };
+};
 
 function AppTicketCard({
   styles,
@@ -237,7 +278,6 @@ function AppTicketCard({
       ]}
     >
       {!openHistory ? (
-        // ================= Current Ticket View =================
         <TouchableOpacity activeOpacity={0.7} onPress={handleToggleHistory}>
           <Animated.View style={{ opacity: fadeAnim }}>
             <View style={styles.commissionHeader}>
@@ -328,7 +368,6 @@ function AppTicketCard({
           </Animated.View>
         </TouchableOpacity>
       ) : (
-        // ================= History Panel (dark in dark mode; inner scroll only) =================
         <Animated.View style={{ opacity: fadeAnim }}>
           <View
             style={{
@@ -339,7 +378,6 @@ function AppTicketCard({
               borderColor: p.border,
             }}
           >
-            {/* Header + Summary (tap here to close) */}
             <Pressable onPress={handleToggleHistory}>
               <View
                 style={{
@@ -349,7 +387,6 @@ function AppTicketCard({
                   borderBottomColor: isDark ? p.divider : p.border,
                 }}
               >
-                {/* Header Row */}
                 <View
                   style={{
                     flexDirection: "row",
@@ -365,7 +402,7 @@ function AppTicketCard({
                       marginLeft: 8,
                       fontWeight: "800",
                       color: p.titleText,
-                      flex: 1, // ✅ pushes right elements to end
+                      flex: 1,
                     }}
                     numberOfLines={1}
                   >
@@ -397,7 +434,6 @@ function AppTicketCard({
                     </TouchableOpacity>
                   )}
 
-                  {/* ✅ TOP RIGHT CLOSE BUTTON */}
                   <Pressable onPress={handleToggleHistory} hitSlop={10}>
                     <View
                       style={{
@@ -416,7 +452,6 @@ function AppTicketCard({
                   </Pressable>
                 </View>
 
-                {/* Ticket Info */}
                 <Text
                   style={{
                     fontSize: 13,
@@ -444,13 +479,11 @@ function AppTicketCard({
               </View>
             </Pressable>
 
-            {/* Body (scroll inside ONLY) */}
             <View style={{ maxHeight: HISTORY_CARD_MAX_HEIGHT }}>
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
                 contentContainerStyle={{ padding: 16, paddingBottom: 18 }}
-                // ✅ IMPORTANT: capture touch so parent scroll doesn't move
                 onStartShouldSetResponderCapture={() => true}
               >
                 {historyLoading ? (
@@ -630,6 +663,8 @@ export default function ApplicationsTicketsView(props: Props) {
     setTicketsRowsPerPageInput,
   } = props;
 
+  const statColors = getStatsCardColors(theme);
+
   const applications = appsData?.results ?? [];
   const tickets = ticketsData?.results ?? [];
 
@@ -686,7 +721,7 @@ export default function ApplicationsTicketsView(props: Props) {
         return "#F59E0B";
       case "rejected":
         return "#EF4444";
-      case "applied":
+      case "Submitted":
         return theme.colors.primary;
       default:
         return theme.colors.onSurfaceVariant;
@@ -761,56 +796,115 @@ export default function ApplicationsTicketsView(props: Props) {
 
   const renderApplicationsTab = () => (
     <View style={{ paddingHorizontal: 16 }}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.metricsScrollContainer}
-        style={styles.metricsScrollView}
+      <View
+        style={{
+          marginBottom: SECTION_GAP,
+          marginHorizontal: -2, // little wider only for application stats
+          paddingHorizontal: 2,
+        }}
       >
-        <View style={styles.metricCard}>
-          <Text style={styles.metricTitle}>Total Applications</Text>
-          <View style={styles.metricValueRow}>
-            <Text style={styles.metricValue}>{totalApplications}</Text>
-            <Feather
-              name="file-text"
-              size={24}
-              color={theme.colors.primary}
-              style={styles.metricIcon}
-            />
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 8,
+          }}
+        >
+          <View
+            style={[
+              styles.metricCard,
+              {
+                flex: 1,
+                backgroundColor: statColors.applicationsTotal.bg,
+                borderWidth: 1,
+                borderColor: statColors.applicationsTotal.border,
+              },
+            ]}
+          >
+            <Text style={styles.metricTitle}>Total Applications</Text>
+            <View style={styles.metricValueRow}>
+              <Text
+                style={[
+                  styles.metricValue,
+                  { color: statColors.applicationsTotal.value },
+                ]}
+              >
+                {totalApplications}
+              </Text>
+              <Feather
+                name="file-text"
+                size={24}
+                color={statColors.applicationsTotal.icon}
+                style={styles.metricIcon}
+              />
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.metricCard,
+              {
+                flex: 1,
+                backgroundColor: statColors.applicationsPicked.bg,
+                borderWidth: 1,
+                borderColor: statColors.applicationsPicked.border,
+              },
+            ]}
+          >
+            <Text style={styles.metricTitle}>Picked Applications</Text>
+            <View style={styles.metricValueRow}>
+              <Text
+                style={[
+                  styles.metricValue,
+                  { color: statColors.applicationsPicked.value },
+                ]}
+              >
+                {pickedApplications}
+              </Text>
+              <Feather
+                name="check-circle"
+                size={24}
+                color={statColors.applicationsPicked.icon}
+                style={styles.metricIcon}
+              />
+            </View>
           </View>
         </View>
-
-        <View style={styles.metricCard}>
-          <Text style={styles.metricTitle}>Picked Applications</Text>
-          <View style={styles.metricValueRow}>
-            <Text style={styles.metricValue}>{pickedApplications}</Text>
-            <Feather
-              name="check-circle"
-              size={24}
-              color={theme.colors.primary}
-              style={styles.metricIcon}
-            />
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.searchContainer}>
-        <Feather
-          name="search"
-          size={18}
-          color={theme.colors.onSurfaceVariant}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search by Name or App ID..."
-          placeholderTextColor={theme.colors.onSurfaceVariant}
-          style={styles.searchInput}
-        />
       </View>
 
-      <View style={styles.contentCard}>
+      <View style={{ marginBottom: SECTION_GAP }}>
+        <View
+          style={[
+            styles.searchContainer,
+            {
+              marginTop: 0,
+              marginBottom: 0,
+            },
+          ]}
+        >
+          <Feather
+            name="search"
+            size={18}
+            color={theme.colors.onSurfaceVariant}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search by Name or App ID..."
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+            style={styles.searchInput}
+          />
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.contentCard,
+          {
+            marginTop: 0,
+          },
+        ]}
+      >
         <View
           style={{
             flexDirection: "row",
@@ -827,26 +921,30 @@ export default function ApplicationsTicketsView(props: Props) {
               flexDirection: "row",
               alignItems: "center",
               paddingHorizontal: 12,
-              paddingVertical: 6,
+              paddingVertical: 7,
               borderRadius: 999,
               borderWidth: 1,
               borderColor: theme.colors.primary,
+              backgroundColor: hexToRgba(
+                theme.colors.primary,
+                theme.dark ? 0.18 : 0.08,
+              ),
             }}
           >
             <Feather
-              name="external-link"
-              size={14}
+              name="plus-circle"
+              size={15}
               color={theme.colors.primary}
               style={{ marginRight: 6 }}
             />
             <Text
               style={{
-                fontSize: 12,
+                fontSize: 14,
                 color: theme.colors.primary,
-                fontWeight: "600",
+                fontWeight: "700",
               }}
             >
-              Apply
+              Create
             </Text>
           </TouchableOpacity>
         </View>
@@ -857,7 +955,7 @@ export default function ApplicationsTicketsView(props: Props) {
         {appsError && !appsData && renderError(refetchApps)}
 
         {filteredApps.map((app: any) => {
-          const status = "Applied";
+          const status = "Submitted";
           const statusColor = getStatusColor(status);
 
           return (
@@ -968,88 +1066,171 @@ export default function ApplicationsTicketsView(props: Props) {
 
   const renderTicketsTab = () => (
     <View style={{ paddingHorizontal: 16 }}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.metricsScrollContainer}
-        style={styles.metricsScrollView}
-      >
-        <View style={styles.ticketMetricCard}>
-          <Text style={styles.metricTitle}>Total Tickets</Text>
-          <View style={styles.metricValueRow}>
-            <Text style={styles.metricValue}>{totalTickets}</Text>
-            <Feather
-              name="clipboard"
-              size={24}
-              color={theme.colors.primary}
-              style={styles.metricIcon}
-            />
+      <View style={{ marginBottom: SECTION_GAP }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.metricsScrollContainer}
+          style={[
+            styles.metricsScrollView,
+            {
+              marginTop: 0,
+              marginBottom: 0,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.ticketMetricCard,
+              {
+                backgroundColor: statColors.ticketsTotal.bg,
+                borderWidth: 1,
+                borderColor: statColors.ticketsTotal.border,
+              },
+            ]}
+          >
+            <Text style={styles.metricTitle}>Total Tickets</Text>
+            <View style={styles.metricValueRow}>
+              <Text
+                style={[
+                  styles.metricValue,
+                  { color: statColors.ticketsTotal.value },
+                ]}
+              >
+                {totalTickets}
+              </Text>
+              <Feather
+                name="clipboard"
+                size={24}
+                color={statColors.ticketsTotal.icon}
+                style={styles.metricIcon}
+              />
+            </View>
           </View>
-        </View>
 
-        <View style={styles.ticketMetricCard}>
-          <Text style={styles.metricTitle}>Under Credit Review</Text>
-          <View style={styles.metricValueRow}>
-            <Text style={[styles.metricValue, { color: "#F59E0B" }]}>
-              {ticketsSummary.underCreditReview}
-            </Text>
-            <Feather
-              name="clock"
-              size={24}
-              color="#F59E0B"
-              style={styles.metricIcon}
-            />
+          <View
+            style={[
+              styles.ticketMetricCard,
+              {
+                backgroundColor: statColors.ticketsReview.bg,
+                borderWidth: 1,
+                borderColor: statColors.ticketsReview.border,
+              },
+            ]}
+          >
+            <Text style={styles.metricTitle}>Under Credit Review</Text>
+            <View style={styles.metricValueRow}>
+              <Text
+                style={[
+                  styles.metricValue,
+                  { color: statColors.ticketsReview.value },
+                ]}
+              >
+                {ticketsSummary.underCreditReview}
+              </Text>
+              <Feather
+                name="clock"
+                size={24}
+                color={statColors.ticketsReview.icon}
+                style={styles.metricIcon}
+              />
+            </View>
           </View>
-        </View>
 
-        <View style={styles.ticketMetricCard}>
-          <Text style={styles.metricTitle}>Approved</Text>
-          <View style={styles.metricValueRow}>
-            <Text style={[styles.metricValue, { color: "#10B981" }]}>
-              {ticketsSummary.approved}
-            </Text>
-            <Feather
-              name="check-circle"
-              size={24}
-              color="#10B981"
-              style={styles.metricIcon}
-            />
+          <View
+            style={[
+              styles.ticketMetricCard,
+              {
+                backgroundColor: statColors.ticketsApproved.bg,
+                borderWidth: 1,
+                borderColor: statColors.ticketsApproved.border,
+              },
+            ]}
+          >
+            <Text style={styles.metricTitle}>Approved</Text>
+            <View style={styles.metricValueRow}>
+              <Text
+                style={[
+                  styles.metricValue,
+                  { color: statColors.ticketsApproved.value },
+                ]}
+              >
+                {ticketsSummary.approved}
+              </Text>
+              <Feather
+                name="check-circle"
+                size={24}
+                color={statColors.ticketsApproved.icon}
+                style={styles.metricIcon}
+              />
+            </View>
           </View>
-        </View>
 
-        <View style={styles.ticketMetricCard}>
-          <Text style={styles.metricTitle}>Disbursed</Text>
-          <View style={styles.metricValueRow}>
-            <Text style={[styles.metricValue, { color: "#8B5CF6" }]}>
-              {ticketsSummary.disbursed}
-            </Text>
-            <FontAwesome5
-              name="rupee-sign"
-              size={22}
-              color="#8B5CF6"
-              style={styles.metricIcon}
-            />
+          <View
+            style={[
+              styles.ticketMetricCard,
+              {
+                backgroundColor: statColors.ticketsDisbursed.bg,
+                borderWidth: 1,
+                borderColor: statColors.ticketsDisbursed.border,
+              },
+            ]}
+          >
+            <Text style={styles.metricTitle}>Disbursed</Text>
+            <View style={styles.metricValueRow}>
+              <Text
+                style={[
+                  styles.metricValue,
+                  { color: statColors.ticketsDisbursed.value },
+                ]}
+              >
+                {ticketsSummary.disbursed}
+              </Text>
+              <FontAwesome5
+                name="rupee-sign"
+                size={22}
+                color={statColors.ticketsDisbursed.icon}
+                style={styles.metricIcon}
+              />
+            </View>
           </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.searchContainer}>
-        <Feather
-          name="search"
-          size={18}
-          color={theme.colors.onSurfaceVariant}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search tickets..."
-          placeholderTextColor={theme.colors.onSurfaceVariant}
-          style={styles.searchInput}
-        />
+        </ScrollView>
       </View>
 
-      <View style={styles.contentCard}>
+      <View style={{ marginBottom: SECTION_GAP }}>
+        <View
+          style={[
+            styles.searchContainer,
+            {
+              marginTop: 0,
+              marginBottom: 0,
+            },
+          ]}
+        >
+          <Feather
+            name="search"
+            size={18}
+            color={theme.colors.onSurfaceVariant}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search tickets..."
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+            style={styles.searchInput}
+          />
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.contentCard,
+          {
+            marginTop: 0,
+          },
+        ]}
+      >
         <Text style={styles.cardTitle}>Tickets Overview</Text>
         <Text style={styles.cardSubtitle}>
           Track and manage all loan tickets
@@ -1171,8 +1352,14 @@ export default function ApplicationsTicketsView(props: Props) {
 
   return (
     <>
-      {/* Tabs always visible */}
-      <View style={styles.tabContainer}>
+      <View
+        style={[
+          styles.tabContainer,
+          {
+            marginBottom: SECTION_GAP,
+          },
+        ]}
+      >
         <TouchableOpacity
           style={[styles.tab, activeTab === "applications" && styles.activeTab]}
           onPress={() => setTab("applications")}
@@ -1220,7 +1407,6 @@ export default function ApplicationsTicketsView(props: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Swipe pages */}
       <PagerView
         ref={pagerRef}
         style={{ flex: 1 }}

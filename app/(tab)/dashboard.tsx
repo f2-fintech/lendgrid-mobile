@@ -17,6 +17,7 @@ import {
   useDisbursedTicketsByMonth,
 } from "@/hooks/use-aggregator-dashboard";
 import { useCommissionTransactionsInfinite } from "@/hooks/useCommissions";
+import { CommissionStatus } from "@/types/commissions";
 
 export default function AggregatorDashboard() {
   const theme = useTheme();
@@ -41,7 +42,6 @@ export default function AggregatorDashboard() {
   const rejected = useDashboardTicketStats({ status: "rejected" }, true);
   const disbursedByMonth = useDisbursedTicketsByMonth(year, companyId, true);
 
-  // Commissions Infinite
   const commissions = useCommissionTransactionsInfinite({
     limit: 10,
     filters: undefined,
@@ -56,7 +56,6 @@ export default function AggregatorDashboard() {
     commissions.data?.pages?.[0]?.total ??
     0;
 
-  // Refetch on tab focus (ONLY REST; don’t refetch commissions pages)
   useEffect(() => {
     if (!isFocused) return;
 
@@ -75,7 +74,6 @@ export default function AggregatorDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFocused]);
 
-  // Refetch on app resume
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active" && isFocused) {
@@ -97,11 +95,23 @@ export default function AggregatorDashboard() {
     let pending = 0;
 
     for (const tx of commissionRows) {
-      const amt = Number(tx?.commissionAmount ?? 0);
+      const amt = Number(tx?.finalCommission ?? tx?.commissionAmount ?? 0);
+      const status = String(tx?.status ?? "").toUpperCase();
+
       total += amt;
-      if (tx?.status === "PAID") paid += amt;
-      if (tx?.status === "PENDING" || tx?.status === "CALCULATED")
+
+      if (status === CommissionStatus.PAID || status === "PAID") {
+        paid += amt;
+      }
+
+      if (
+        status === CommissionStatus.PENDING ||
+        status === CommissionStatus.CALCULATED ||
+        status === "PENDING" ||
+        status === "CALCULATED"
+      ) {
         pending += amt;
+      }
     }
 
     return { total, paid, pending };

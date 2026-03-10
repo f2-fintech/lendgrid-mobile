@@ -1,15 +1,14 @@
-// NOTE: This is for Expo / React Native (not Next.js).
-// - No document.cookie
-// - No atob usage by default
-// - uploadToS3 works with { uri, name, type } assets from DocumentPicker/ImagePicker
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+
+const extra = (Constants.expoConfig?.extra ?? {}) as any;
+
+const UPLOAD_API_URL = String(extra?.UPLOAD_API_URL).replace(/\/+$/, "");
 
 /* =========================
    Storage helpers (mobile)
    ========================= */
 
-// Cookie-like helpers using AsyncStorage (same function names to reduce refactor)
 export async function getCookie(name: string): Promise<string | null> {
   try {
     return await AsyncStorage.getItem(name);
@@ -30,7 +29,6 @@ export async function deleteCookie(name: string): Promise<void> {
    JWT decode (mobile)
    ========================= */
 
-// Lightweight JWT decoder (NO verification). Works in RN without atob.
 export type DecodedJwt = Record<string, any>;
 
 function base64UrlToBase64(input: string) {
@@ -53,11 +51,10 @@ export function decodeJwt(token: string | null | undefined): DecodedJwt | null {
     const payload = token.split(".")[1];
     if (!payload) return null;
 
-    const base64 = base64UrlToBase64(payload);
-
     // @ts-ignore
-    const jsonStr = Buffer.from(base64, "base64").toString("utf8");
-
+    const jsonStr = Buffer.from(base64UrlToBase64(payload), "base64").toString(
+      "utf8",
+    );
     return safeJsonParse(jsonStr);
   } catch (e) {
     console.log("Failed to decode JWT:", e);
@@ -70,9 +67,10 @@ export function decodeJwt(token: string | null | undefined): DecodedJwt | null {
    ========================= */
 
 export type RNFileAsset = {
-  uri: string; // file://... or content://...
-  name?: string; // optional
-  type?: string; // mime type
+  uri: string;
+  name?: string;
+  type?: string;
+  mimeType?: string;
 };
 
 export function guessMimeTypeFromName(name?: string) {
@@ -95,11 +93,38 @@ export function createPublicFilePath(
 }
 
 /* =========================
+   General reusable helpers
+   ========================= */
+
+export function generateApplicationNumber(): string {
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+
+export function getPrettyError(err: any): string {
+  const status = err?.response?.status;
+  const msg =
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    "Something went wrong";
+
+  const errorsArr = err?.response?.data?.errors;
+  const extraMsg =
+    Array.isArray(errorsArr) && errorsArr.length
+      ? ` (${errorsArr[0]?.message || errorsArr[0]})`
+      : "";
+
+  return status ? `(${status}) ${msg}${extraMsg}` : String(msg);
+}
+
+export function normalizeString(v?: string | null): string {
+  return String(v ?? "").trim();
+}
+
+/* =========================
    Upload to S3 (mobile)
    ========================= */
 
-// Same name as website: uploadToS3(file, folder)
-// On mobile: file is RNFileAsset (uri-based), folder is string (same backend param)
 export const uploadToS3 = async (
   file: RNFileAsset,
   folder: string,
@@ -107,12 +132,11 @@ export const uploadToS3 = async (
   if (!file?.uri) throw new Error("Missing file uri");
 
   const name = file.name || `upload-${Date.now()}.jpg`;
-  const type = file.type || guessMimeTypeFromName(name);
+  const type = file.mimeType || file.type || guessMimeTypeFromName(name);
 
   const formData = new FormData();
   formData.append("folder", folder);
 
-  // React Native FormData file object
   // @ts-ignore
   formData.append("document", {
     uri: file.uri,
@@ -120,10 +144,9 @@ export const uploadToS3 = async (
     type,
   });
 
-  const response = await fetch("https://web.f2fintech.in/api/v1/upload-to-s3", {
+  const response = await fetch(`${UPLOAD_API_URL}/upload-to-s3`, {
     method: "POST",
     body: formData,
-    // don't set Content-Type manually; RN will set proper boundary
   });
 
   if (!response.ok) {
@@ -132,11 +155,11 @@ export const uploadToS3 = async (
   }
 
   const result = await response.json();
-  return result.data; // backend returns { data: "S3_URL" }
+  return result?.data;
 };
 
 /* =========================
-   Simple utils (optional)
+   Simple utils
    ========================= */
 
 export function formatDateIndian(dateString: string): string {
