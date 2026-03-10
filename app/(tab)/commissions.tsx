@@ -266,16 +266,25 @@ export default function CommissionsScreen() {
   const commissionHistory = useMemo(
     () =>
       transactions.map((t: any) => ({
-        id: t.id,
-        applicationId: String(t.ticketId),
-        lenderName: t.provider || "N/A",
-        loanType: t.productType || "N/A",
-        disbursedAmount: Number(t.disbursedAmount ?? 0),
+        id: String(t.id ?? t._id ?? ""),
+        applicationId: String(t.ticketId ?? t.applicationId ?? t.id ?? ""),
+        lenderName: t.lenderName ?? t.provider ?? t.lender ?? "N/A",
+        loanType: t.loanType ?? t.productType ?? t.product_name ?? "N/A",
+        productType: t.productType ?? t.loanType ?? "N/A",
+        disbursedAmount: Number(t.disbursedAmount ?? t.loanAmount ?? 0),
         commissionRate: Number(t.commissionRate ?? 0),
         commissionAmount: Number(t.finalCommission ?? t.commissionAmount ?? 0),
         status: getStatusLabel(t.status),
-        disbursedDate: formatDate(t.calculatedAt),
-        paidDate: t.paidAt ? formatDate(t.paidAt) : null,
+        disbursedDate: formatDate(
+          t.calculatedAt ?? t.disbursedDate ?? t.createdAt,
+        ),
+        paidDate: t.paidAt
+          ? formatDate(t.paidAt)
+          : t.paidDate
+            ? formatDate(t.paidDate)
+            : null,
+        utr: t.utr ?? t.utrNumber ?? "-",
+        utrNumber: t.utrNumber ?? t.utr ?? "-",
       })),
     [transactions],
   );
@@ -285,7 +294,13 @@ export default function CommissionsScreen() {
     return commissionHistory.filter((c) => {
       const appId = (c.applicationId ?? "").toLowerCase();
       const lender = (c.lenderName ?? "").toLowerCase();
-      const matchesSearch = appId.includes(search) || lender.includes(search);
+      const loanType = (c.loanType ?? "").toLowerCase();
+
+      const matchesSearch =
+        appId.includes(search) ||
+        lender.includes(search) ||
+        loanType.includes(search);
+
       const matchesStatus = filterStatus === "all" || c.status === filterStatus;
       return matchesSearch && matchesStatus;
     });

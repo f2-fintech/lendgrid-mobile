@@ -1,4 +1,10 @@
 import { coreApi } from "@/apis/config/axiosConfig";
+import {
+  generateApplicationNumber,
+  getPrettyError,
+  normalizeString,
+  uploadToS3,
+} from "@/lib/utils/utils";
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -40,8 +46,6 @@ const STEPS: StepConfig[] = [
   { id: "proof", title: "ID Proof", icon: "credit-card" },
   { id: "additional", title: "Additional", icon: "edit-3" },
 ];
-
-const UPLOAD_ABSOLUTE_URL = "https://web.f2fintech.in/api/v1/upload-to-s3";
 
 // Confetti particle component
 const ConfettiParticle = ({ delay, theme }: any) => {
@@ -111,28 +115,6 @@ const ConfettiParticle = ({ delay, theme }: any) => {
   );
 };
 
-function generateApplicationNumber() {
-  return Math.floor(10000000 + Math.random() * 90000000).toString();
-}
-
-function getPrettyError(err: any) {
-  const status = err?.response?.status;
-  const msg =
-    err?.response?.data?.message ||
-    err?.response?.data?.error ||
-    err?.message ||
-    "Something went wrong";
-
-  // Some backends return { errors: [...] }
-  const errorsArr = err?.response?.data?.errors;
-  const extra =
-    Array.isArray(errorsArr) && errorsArr.length
-      ? ` (${errorsArr[0]?.message || errorsArr[0]})`
-      : "";
-
-  return status ? `(${status}) ${msg}${extra}` : String(msg);
-}
-
 export default function MultiStepApplicationForm({
   onClose,
   onSuccess,
@@ -146,7 +128,6 @@ export default function MultiStepApplicationForm({
   // Server-like state
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [isUploading, setIsUploading] = useState(false);
 
   const [submitStatus, setSubmitStatus] = useState<{
@@ -339,28 +320,29 @@ export default function MultiStepApplicationForm({
   const isStep2Skipped = !!skipped[2];
   const isStep3Skipped = !!skipped[3];
 
-  const s = (v?: string | null) => String(v ?? "").trim();
-
   const step1Valid = useMemo(() => {
-    const isTitleOk = s(step1.title).length > 0;
-    const isNameOk = s(step1.name).length >= 2;
-    const isEmailOk = s(step1.email).includes("@");
-    const isPhoneOk = s(step1.contact).length >= 10;
+    const isTitleOk = normalizeString(step1.title).length > 0;
+    const isNameOk = normalizeString(step1.name).length >= 2;
+    const isEmailOk = normalizeString(step1.email).includes("@");
+    const isPhoneOk = normalizeString(step1.contact).length >= 10;
 
-    const pan = s(step1.pan);
+    const pan = normalizeString(step1.pan);
     const isPanOk = pan.length === 10;
 
     const isParentsOk =
-      s(step1.father_name).length > 0 && s(step1.mother_name).length > 0;
+      normalizeString(step1.father_name).length > 0 &&
+      normalizeString(step1.mother_name).length > 0;
 
     const isAddressOk =
-      s(step1.current_address).length > 0 &&
-      s(step1.permanent_address).length > 0 &&
-      s(step1.working_address).length > 0;
+      normalizeString(step1.current_address).length > 0 &&
+      normalizeString(step1.permanent_address).length > 0 &&
+      normalizeString(step1.working_address).length > 0;
 
-    const isCityStateOk = s(step1.city).length > 0 && s(step1.state).length > 0;
+    const isCityStateOk =
+      normalizeString(step1.city).length > 0 &&
+      normalizeString(step1.state).length > 0;
 
-    const isEmploymentOk = s(step1.employment_type).length > 0;
+    const isEmploymentOk = normalizeString(step1.employment_type).length > 0;
     const isDobOk = !!step1.dob;
     const isConsentOk = !!step1.consent_tc;
 
@@ -469,32 +451,8 @@ export default function MultiStepApplicationForm({
   };
 
   // -----------------------------
-  //  DOC UPLOAD HELPERS (RN)
+  // API HELPERS
   // -----------------------------
-  const uploadToS3 = async (file: PickedFile, folder: string) => {
-    // IMPORTANT: RN FormData expects { uri, name, type }
-    const formData = new FormData();
-    formData.append("folder", `document/${folder}`);
-
-    formData.append("document", {
-      uri: file.uri,
-      name: file.name || "document",
-      type:
-        (file as any).mimeType ||
-        (file as any).type ||
-        "application/octet-stream",
-    } as any);
-
-    // ABSOLUTE URL ONLY FOR TESTING
-    const res = await coreApi.post(UPLOAD_ABSOLUTE_URL, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    return res?.data?.data;
-  };
-
   const createDocument = async (payload: {
     customer_id: string;
     document_url: string;
@@ -521,7 +479,6 @@ export default function MultiStepApplicationForm({
   const submit = async () => {
     if (!canSubmit) return;
 
-    // reset UI status each submit
     setSubmitStatus({
       applicationCreated: false,
       docsUploaded: false,
@@ -588,14 +545,12 @@ export default function MultiStepApplicationForm({
           loan_type: step0.loanType,
           loan_category: step0.loanCategory,
           tenure: step0.tenure,
-
           lead_type: step0.leadType || "null",
           has_running_loans: step0.hasRunningLoans,
           which_loan: step0.hasRunningLoans === "yes" ? step0.whichLoan : "",
           running_loan_amount:
             step0.hasRunningLoans === "yes" ? step0.runningLoanAmount : "",
           case_type: step0.caseType,
-
           application_date: new Date().toISOString(),
         });
 
@@ -619,11 +574,9 @@ export default function MultiStepApplicationForm({
         } catch (e) {}
       }
 
-      //  mark application created even if uploads fail later
       setSubmitStatus((p) => ({ ...p, applicationCreated: true }));
       setStage("Application created. Uploading documents...");
 
-      // Upload docs but do NOT hide failure
       const uploadErrors: string[] = [];
 
       // Step2 (bank statement)
@@ -631,7 +584,10 @@ export default function MultiStepApplicationForm({
         setIsUploading(true);
         for (const f of step2Files) {
           try {
-            const url = await uploadToS3(f, f.name || "bank-statement");
+            const url = await uploadToS3(
+              f,
+              `document/${f.name || "bank-statement"}`,
+            );
             await createDocument({
               customer_id: String(newCustomerId),
               document_url: url,
@@ -661,7 +617,7 @@ export default function MultiStepApplicationForm({
               if (!(u.file as any)?.uri) continue;
               const url = await uploadToS3(
                 u.file as any,
-                (u.file as any).name || u.type,
+                `document/${(u.file as any).name || u.type}`,
               );
               await createDocument({
                 customer_id: String(newCustomerId),
@@ -694,7 +650,10 @@ export default function MultiStepApplicationForm({
         setIsUploading(true);
         for (const c of step4.certificates as any as PickedFile[]) {
           try {
-            const url = await uploadToS3(c, c.name || "certificate");
+            const url = await uploadToS3(
+              c,
+              `document/${c.name || "certificate"}`,
+            );
             await createDocument({
               customer_id: String(newCustomerId),
               document_url: url,
@@ -707,10 +666,8 @@ export default function MultiStepApplicationForm({
         setIsUploading(false);
       }
 
-      //  Final UX decision:
-      // If uploads failed -> show error banner and DO NOT close screen
       if (uploadErrors.length) {
-        const joined = uploadErrors.slice(0, 3).join("\n"); // keep it readable
+        const joined = uploadErrors.slice(0, 3).join("\n");
         setSubmitStatus((p) => ({
           ...p,
           docsUploaded: false,
@@ -721,7 +678,7 @@ export default function MultiStepApplicationForm({
               : joined,
           lastStage: "Application created, but document upload failed.",
         }));
-        return; // keep user on same screen
+        return;
       }
 
       setSubmitStatus((p) => ({
@@ -771,7 +728,6 @@ export default function MultiStepApplicationForm({
         }}
       />
 
-      {/*  TOP STATUS BANNER (shows real status/errors) */}
       {(submitStatus.applicationCreated ||
         submitStatus.docUploadFailed ||
         submitStatus.docsUploaded) && (
@@ -801,22 +757,6 @@ export default function MultiStepApplicationForm({
                 ? "Success"
                 : "Status"}
           </Text>
-
-          {submitStatus.applicationCreated && (
-            <Text
-              style={{ color: theme.colors.onSurfaceVariant, marginBottom: 2 }}
-            >
-              ✅ Application Created
-            </Text>
-          )}
-
-          {submitStatus.docsUploaded && (
-            <Text
-              style={{ color: theme.colors.onSurfaceVariant, marginBottom: 2 }}
-            >
-              ✅ Documents Uploaded
-            </Text>
-          )}
 
           {submitStatus.docUploadFailed && (
             <>
@@ -850,6 +790,18 @@ export default function MultiStepApplicationForm({
               }}
             >
               {submitStatus.lastStage}
+            </Text>
+          )}
+
+          {!!customerId && (
+            <Text
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                marginTop: 6,
+                fontSize: 12,
+              }}
+            >
+              Customer ID: {customerId}
             </Text>
           )}
         </View>
@@ -896,7 +848,6 @@ export default function MultiStepApplicationForm({
         )}
       </ScrollView>
 
-      {/* ✅ GPay-Style Success Animation */}
       {showSuccessToast && (
         <Animated.View
           style={{
@@ -1024,7 +975,6 @@ export default function MultiStepApplicationForm({
         </Animated.View>
       )}
 
-      {/* Footer Buttons */}
       <View
         style={{
           position: "absolute",

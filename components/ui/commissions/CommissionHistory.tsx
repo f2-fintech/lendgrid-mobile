@@ -50,15 +50,7 @@ export const CommissionHistory = ({
   const theme = useTheme();
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
-  const statusFilters = [
-    "Paid",
-    "Pending",
-    "Calculated",
-    "Approved",
-    "Disputed",
-    "Rejected",
-    "Cancelled",
-  ];
+  const statusFilters = ["Paid", "Pending", "Calculated", "Approved"];
 
   return (
     <View style={styles.contentCard}>
@@ -157,14 +149,19 @@ export const CommissionHistory = ({
         <TouchableOpacity
           style={[
             styles.filterChip,
-            filterStatus === "all" && styles.activeFilterChip,
+            filterStatus === "all" && {
+              backgroundColor: theme.colors.primary,
+              borderColor: theme.colors.primary,
+            },
           ]}
           onPress={() => setFilterStatus("all")}
         >
           <Text
             style={[
               styles.filterChipText,
-              filterStatus === "all" && styles.activeFilterChipText,
+              filterStatus === "all" && {
+                color: "#fff",
+              },
             ]}
           >
             All
@@ -176,14 +173,19 @@ export const CommissionHistory = ({
             key={status}
             style={[
               styles.filterChip,
-              filterStatus === status && styles.activeFilterChip,
+              filterStatus === status && {
+                backgroundColor: theme.colors.primary,
+                borderColor: theme.colors.primary,
+              },
             ]}
             onPress={() => setFilterStatus(status)}
           >
             <Text
               style={[
                 styles.filterChipText,
-                filterStatus === status && styles.activeFilterChipText,
+                filterStatus === status && {
+                  color: "#fff",
+                },
               ]}
             >
               {status}

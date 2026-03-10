@@ -1,4 +1,3 @@
-// app/(tab)/applications.tsx
 import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,7 +15,7 @@ export default function ApplicationsScreen() {
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
   const router = useRouter();
-  const params = useLocalSearchParams<{ tab?: string; navId?: string }>(); // ✅ navId
+  const params = useLocalSearchParams<{ tab?: string; navId?: string }>();
 
   const pagerRef = useRef<PagerView>(null);
 
@@ -37,13 +36,11 @@ export default function ApplicationsScreen() {
   const setTab = useCallback((tab: "applications" | "tickets") => {
     setActiveTab(tab);
 
-    // ✅ ensure pager is ready
     requestAnimationFrame(() => {
       pagerRef.current?.setPage(tab === "applications" ? 0 : 1);
     });
   }, []);
 
-  // ✅ FIX: apply desired tab EVERY TIME screen focuses (Tabs keep screen alive)
   useFocusEffect(
     useCallback(() => {
       const t = String(params?.tab || "").toLowerCase();

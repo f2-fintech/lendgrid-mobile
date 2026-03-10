@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 export default {
   expo: {
     owner: "adarsh7523",
@@ -33,6 +35,7 @@ export default {
       output: "static",
       favicon: "./assets/images/favicon.png",
     },
+
     plugins: [
       "expo-router",
       [
@@ -56,10 +59,10 @@ export default {
       API_URL: process.env.EXPO_PUBLIC_API_URL,
       ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL,
       CORE_REST_URL: process.env.EXPO_PUBLIC_CORE_REST_URL,
+      UPLOAD_API_URL: process.env.EXPO_PUBLIC_UPLOAD_API_URL,
 
       PRIVACY_URL: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
       TERMS_URL: process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL,
-
       CAPTCHA_SITE_KEY: process.env.EXPO_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY,
 
       GRAPHQL_HTTP_URL:
@@ -70,13 +73,12 @@ export default {
       GRAPHQL_WS_URL:
         process.env.EXPO_PUBLIC_GRAPHQL_WS_URL ??
         (process.env.EXPO_PUBLIC_API_URL
-          ? process.env.EXPO_PUBLIC_API_URL.replace("http", "ws")
+          ? process.env.EXPO_PUBLIC_API_URL.replace(/^http/, "ws")
           : "wss://api.f2fintech.in/graphql"),
 
       ENV: process.env.EXPO_PUBLIC_ENV,
 
       eas: {
-        // projectId: "d12c2bb2-a90f-46ee-9c03-2a07ec6b6430",
         projectId: "16608c42-65bc-47d0-9cca-f5158e848475",
       },
 
