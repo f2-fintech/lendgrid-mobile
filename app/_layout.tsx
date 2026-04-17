@@ -10,20 +10,55 @@ import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
+import * as Notifications from "expo-notifications";
+
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const [booted, setBooted] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
 
+  // Request notification permission
+  useEffect(() => {
+    const requestNotificationPermission = async () => {
+      try {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== "granted") {
+          console.log("Notification permission not granted");
+        }
+      } catch (err) {
+        console.log("Failed to request notification permission", err);
+      }
+    };
+    requestNotificationPermission();
+  }, []);
+
+  // Check Auth Session
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
         const token = await AsyncStorage.getItem("token");
-        setGraphqlAuthToken(token || null);
+        if (token) {
+          setGraphqlAuthToken(token);
+          if (alive) setHasToken(true);
+        } else {
+          setGraphqlAuthToken(null);
+          if (alive) setHasToken(false);
+        }
       } catch {
         setGraphqlAuthToken(null);
+        if (alive) setHasToken(false);
       } finally {
         if (alive) setBooted(true);
       }
@@ -37,7 +72,7 @@ export default function RootLayout() {
   if (!booted) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
+        <ActivityIndicator size="large" />
       </View>
     );
   }
@@ -47,7 +82,9 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AppProviders>
           <Stack screenOptions={{ headerShown: false }}>
+            {/* If no token, the first thing the app shows is the index/auth flow */}
             <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tab)" />
             <Stack.Screen
               name="create-application"

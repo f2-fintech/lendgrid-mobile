@@ -36,11 +36,30 @@ const loanTypes = {
 const tenureOptions = {
   secured: [
     "5 Years",
+    "6 Years",
+    "7 Years",
     "8 Years",
+    "9 Years",
     "10 Years",
+    "11 Years",
+    "12 Years",
+    "13 Years",
+    "14 Years",
     "15 Years",
+    "16 Years",
+    "17 Years",
+    "18 Years",
+    "19 Years",
     "20 Years",
+    "21 Years",
+    "22 Years",
+    "23 Years",
+    "24 Years",
     "25 Years",
+    "26 Years",
+    "27 Years",
+    "28 Years",
+    "29 Years",
     "30 Years",
   ],
   unsecured: [
@@ -52,19 +71,10 @@ const tenureOptions = {
     "6 Years",
     "7 Years",
     "8 Years",
+    "9 Years",
+    "10 Years",
   ],
 };
-
-const leadTypeOptions = [
-  { value: "null", label: "Null" },
-  { value: "notion", label: "Notion" },
-  { value: "dialler", label: "Dialler" },
-  { value: "field visit", label: "Field Visit" },
-  { value: "sourcer", label: "Sourcer" },
-  { value: "channel partner", label: "Channel Partner" },
-  { value: "ref from customer", label: "Ref from Customer" },
-  { value: "left employee follow up", label: "Left Employee Follow Up" },
-];
 
 const caseTypeOptions = [
   { value: "fresh", label: "Fresh" },
@@ -99,9 +109,6 @@ export type Step0Values = {
   tenure: string;
   selectedProviders: string[];
   providerAmounts: ProviderAmount[];
-
-  //  NEW
-  leadType: string;
   hasRunningLoans: "yes" | "no" | "";
   whichLoan: string;
   runningLoanAmount: string;
@@ -132,7 +139,6 @@ export default function Step0LoanDetails({
 }: Props) {
   const theme = useTheme();
 
-  // keyboard padding fix
   const [keyboardSpace, setKeyboardSpace] = useState(0);
 
   useEffect(() => {
@@ -158,6 +164,7 @@ export default function Step0LoanDetails({
     const base = providers?.length
       ? providers
       : [
+          "Let F2 Fintech decide.",
           "ABFL",
           "Bajaj Finance",
           "Bajaj Market",
@@ -232,6 +239,7 @@ export default function Step0LoanDetails({
     return value.loanCategory ? tenureOptions[value.loanCategory] : [];
   }, [value.loanCategory]);
 
+  // Validation
   useEffect(() => {
     const payload = {
       amount: value.loanAmount,
@@ -241,8 +249,6 @@ export default function Step0LoanDetails({
       providerAmounts: value.providerAmounts.filter(
         (x) => x.provider !== "Others",
       ),
-
-      leadType: value.leadType || "null",
       hasRunningLoans: (value.hasRunningLoans || "") as any,
       whichLoan: value.whichLoan || "",
       runningLoanAmount: value.runningLoanAmount || "",
@@ -250,7 +256,6 @@ export default function Step0LoanDetails({
     };
 
     const res = step0Schema.safeParse(payload);
-
     if (res.success) {
       setAllErrors({});
       onValidityChange?.(true);
@@ -265,20 +270,17 @@ export default function Step0LoanDetails({
     value.tenure,
     value.selectedProviders,
     value.providerAmounts,
-    value.leadType,
     value.hasRunningLoans,
     value.whichLoan,
     value.runningLoanAmount,
     value.caseType,
   ]);
 
-  // show errors only when touched
+  // Show errors only when touched
   const showAmountError = touched.amount ? allErrors["amount"] : "";
   const showLoanTypeError = touched.loanType ? allErrors["loanType"] : "";
   const showTenureError = touched.tenure ? allErrors["tenure"] : "";
   const showProvidersError = touched.providers ? allErrors["providers"] : "";
-
-  const showLeadTypeError = touched.leadType ? allErrors["leadType"] : "";
   const showHasRunningLoansError = touched.hasRunningLoans
     ? allErrors["hasRunningLoans"]
     : "";
@@ -295,6 +297,7 @@ export default function Step0LoanDetails({
     return allErrors[`providerAmounts.${idx}.amount`] || "";
   };
 
+  // Handlers
   const setLoanAmount = (amt: string) => {
     const next: Step0Values = {
       ...value,
@@ -372,8 +375,6 @@ export default function Step0LoanDetails({
     });
   };
 
-  const setLeadType = (v: string) => onChange({ ...value, leadType: v });
-
   const setHasRunningLoans = (v: "yes" | "no") => {
     if (v === "no") {
       onChange({
@@ -388,10 +389,8 @@ export default function Step0LoanDetails({
   };
 
   const setWhichLoan = (v: string) => onChange({ ...value, whichLoan: v });
-
   const setRunningLoanAmount = (amt: string) =>
     onChange({ ...value, runningLoanAmount: amt });
-
   const setCaseType = (v: "fresh" | "top_up") =>
     onChange({ ...value, caseType: v });
 
@@ -399,7 +398,7 @@ export default function Step0LoanDetails({
 
   return (
     <View style={{ paddingBottom: keyboardSpace ? keyboardSpace - 40 : 0 }}>
-      {/* info card */}
+      {/* Info Card */}
       {showInfo && (
         <View
           style={{
@@ -454,7 +453,6 @@ export default function Step0LoanDetails({
       >
         Loan Amount*
       </Text>
-
       <View
         style={{
           flexDirection: "row",
@@ -488,7 +486,6 @@ export default function Step0LoanDetails({
           }}
         />
       </View>
-
       {!!showAmountError && (
         <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
           {showAmountError}
@@ -506,7 +503,6 @@ export default function Step0LoanDetails({
       >
         Loan Type*
       </Text>
-
       <TouchableOpacity
         onPress={() => setLoanTypeModalOpen(true)}
         activeOpacity={0.8}
@@ -545,7 +541,6 @@ export default function Step0LoanDetails({
           />
         </View>
       </TouchableOpacity>
-
       {!!showLoanTypeError && (
         <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
           {showLoanTypeError}
@@ -565,11 +560,9 @@ export default function Step0LoanDetails({
           ? `Tenure (${value.loanCategory === "secured" ? "Long Term" : "Short Term"})*`
           : "Select Tenure*"}
       </Text>
-
       <TouchableOpacity
         onPress={() => value.loanCategory && setTenureModalOpen(true)}
         disabled={!value.loanCategory}
-        activeOpacity={0.8}
         style={{
           padding: 14,
           borderWidth: 1.5,
@@ -592,11 +585,8 @@ export default function Step0LoanDetails({
             fontSize: 15,
           }}
         >
-          {value.tenure
-            ? value.tenure
-            : value.loanCategory
-              ? "Choose tenure"
-              : "Select loan type first"}
+          {value.tenure ||
+            (value.loanCategory ? "Choose tenure" : "Select loan type first")}
         </Text>
         <View style={{ marginLeft: "auto" }}>
           <Feather
@@ -606,70 +596,13 @@ export default function Step0LoanDetails({
           />
         </View>
       </TouchableOpacity>
-
       {!!showTenureError && (
         <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
           {showTenureError}
         </Text>
       )}
 
-      {/* NEW: Lead Type */}
-      <Text
-        style={{
-          fontSize: 13,
-          fontWeight: "600",
-          color: theme.colors.onSurface,
-          marginBottom: 8,
-        }}
-      >
-        Lead Type (Optional)
-      </Text>
-
-      <TouchableOpacity
-        onPress={() => setLeadTypeModalOpen(true)}
-        activeOpacity={0.8}
-        style={{
-          padding: 14,
-          borderWidth: 1.5,
-          borderColor: theme.colors.outline,
-          borderRadius: 12,
-          backgroundColor: theme.colors.surface,
-          flexDirection: "row",
-          alignItems: "center",
-          marginBottom: 8,
-        }}
-      >
-        <Feather name="user" size={18} color={theme.colors.onSurfaceVariant} />
-        <Text
-          style={{
-            marginLeft: 10,
-            color:
-              value.leadType && value.leadType !== "null"
-                ? theme.colors.onSurface
-                : theme.colors.onSurfaceVariant,
-            fontSize: 15,
-          }}
-        >
-          {value.leadType && value.leadType !== "null"
-            ? toTitleCase(value.leadType)
-            : "Select lead type"}
-        </Text>
-        <View style={{ marginLeft: "auto" }}>
-          <Feather
-            name="chevron-down"
-            size={18}
-            color={theme.colors.onSurfaceVariant}
-          />
-        </View>
-      </TouchableOpacity>
-
-      {!!showLeadTypeError && (
-        <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
-          {showLeadTypeError}
-        </Text>
-      )}
-
-      {/* NEW: Running Customer Loans */}
+      {/* Running Customer Loans */}
       <Text
         style={{
           fontSize: 13,
@@ -1503,28 +1436,6 @@ export default function Step0LoanDetails({
                 <Feather name="x" size={20} color={theme.colors.onSurface} />
               </TouchableOpacity>
             </View>
-
-            <ScrollView>
-              {leadTypeOptions.map((x) => (
-                <TouchableOpacity
-                  key={x.value}
-                  onPress={() => {
-                    setLeadType(x.value);
-                    setLeadTypeModalOpen(false);
-                    setTouched((t) => ({ ...t, leadType: true }));
-                  }}
-                  style={{
-                    paddingVertical: 14,
-                    borderBottomWidth: 1,
-                    borderBottomColor: theme.colors.outlineVariant,
-                  }}
-                >
-                  <Text style={{ color: theme.colors.onSurface }}>
-                    {x.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
           </View>
         </View>
       </Modal>

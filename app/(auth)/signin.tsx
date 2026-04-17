@@ -23,6 +23,7 @@ import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
 
 import TurnstileCaptcha from "@/components/login_Signup/TurnstileCaptcha"; // ✅ add this
+import * as WebBrowser from "expo-web-browser";
 
 // Decode JWT payload (companyId token me hi hai)
 const parseJwt = (token: string) => {
@@ -184,6 +185,36 @@ export default function SignIn() {
               {errors.password.message}
             </Text>
           )}
+
+          {/* Updated Forgot Password Section */}
+          <TouchableOpacity
+            onPress={async () => {
+              // 1. Grab the URL from your env
+              const forgotPasswordUrl =
+                process.env.EXPO_PUBLIC_FORGOT_PASSWORD_URL;
+
+              // 2. Safety check: make sure the env variable actually exists
+              if (!forgotPasswordUrl) {
+                showError("Reset link is not configured.");
+                return;
+              }
+
+              try {
+                await WebBrowser.openBrowserAsync(forgotPasswordUrl, {
+                  toolbarColor: "#0F1729",
+                  enableBarCollapsing: true,
+                  showTitle: true,
+                });
+              } catch (error) {
+                showError("Could not open the browser");
+              }
+            }}
+            style={{ alignSelf: "flex-end", marginTop: 5, marginBottom: 15 }}
+          >
+            <Text style={{ color: "#FFD600", fontSize: 13, fontWeight: "600" }}>
+              Forgot Password?
+            </Text>
+          </TouchableOpacity>
 
           {/*  Turnstile */}
           <View

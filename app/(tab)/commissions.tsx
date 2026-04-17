@@ -1,9 +1,9 @@
+// app/(tabs)/commissions.tsx
 import { useIsFocused } from "@react-navigation/native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  AppState,
   RefreshControl,
   ScrollView,
   Text,
@@ -25,82 +25,69 @@ export default function CommissionsScreen() {
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
   const isFocused = useIsFocused();
 
-  const params = useLocalSearchParams<{ tab?: string; navId?: string }>();
+  const params = useLocalSearchParams<{ tab?: string }>();
 
+  // ==================== STATES ====================
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | string>("all");
+  const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d" | "1y">(
+    "30d",
+  );
   const [selectedTab, setSelectedTab] = useState<"trends" | "history">(
     "trends",
   );
+
   const [pageSize] = useState(50);
   const [refreshing, setRefreshing] = useState(false);
+
+  // ==================== HOOK ====================
+  const commissionsQuery = useCommissionTransactionsInfinite({
+    limit: pageSize,
+    filters: {
+      status: filterStatus === "all" ? undefined : filterStatus,
+      // productType removed completely
+    },
+    dateRange,
+  });
+
+  const transactions: CommissionTransaction[] = useMemo(() => {
+    const pages = commissionsQuery.data?.pages ?? [];
+    return pages.flatMap((p) => (p?.data ?? []) as any);
+  }, [commissionsQuery.data]);
+
+  const total = useMemo(() => {
+    const last =
+      commissionsQuery.data?.pages?.[commissionsQuery.data.pages.length - 1];
+    return Number(last?.total ?? 0);
+  }, [commissionsQuery.data]);
+
+  // Reset when filters change
+  useEffect(() => {
+    commissionsQuery.refetch();
+  }, [filterStatus, dateRange]);
 
   useFocusEffect(
     useCallback(() => {
       const t = String(params?.tab || "").toLowerCase();
       if (t === "history") setSelectedTab("history");
       if (t === "trends") setSelectedTab("trends");
-    }, [params?.tab, params?.navId]),
+    }, [params?.tab]),
   );
 
-  const commissions = useCommissionTransactionsInfinite({
-    limit: pageSize,
-    filters: undefined,
-    enabled: true,
-  });
-
-  const transactions: CommissionTransaction[] = useMemo(() => {
-    const pages = commissions.data?.pages ?? [];
-    return pages.flatMap((p) => (p?.data ?? []) as any);
-  }, [commissions.data]);
-
-  const total = useMemo(() => {
-    const last = commissions.data?.pages?.[commissions.data.pages.length - 1];
-    return Number(last?.total ?? 0);
-  }, [commissions.data]);
-
   useEffect(() => {
-    if (isFocused) commissions.refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (isFocused) commissionsQuery.refetch();
   }, [isFocused]);
-
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active" && isFocused) commissions.refetch();
-    });
-    return () => sub.remove();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFocused]);
-
-  const isLoading = commissions.isLoading;
-  const isFetchingNext = commissions.isFetchingNextPage;
-  const hasNext = !!commissions.hasNextPage;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await commissions.refetch();
+      await commissionsQuery.refetch();
     } finally {
       setRefreshing(false);
     }
-  }, [commissions]);
+  }, [commissionsQuery]);
 
-  const onScroll = useCallback(
-    (e: any) => {
-      if (selectedTab !== "history") return;
-      if (!hasNext || isFetchingNext) return;
-
-      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-      const paddingToBottom = 220;
-      const reachedBottom =
-        layoutMeasurement.height + contentOffset.y >=
-        contentSize.height - paddingToBottom;
-
-      if (reachedBottom) commissions.fetchNextPage();
-    },
-    [selectedTab, hasNext, isFetchingNext, commissions],
-  );
-
+  // ==================== FORMATTING ====================
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -119,7 +106,7 @@ export default function CommissionsScreen() {
     });
   };
 
-  const getStatusLabel = (status: CommissionStatus | string) => {
+  const getStatusLabel = (status: any) => {
     switch (status) {
       case CommissionStatus.PAID:
         return "Paid";
@@ -179,6 +166,7 @@ export default function CommissionsScreen() {
     }
   };
 
+  // ==================== METRICS ====================
   const metrics = useMemo(() => {
     if (!transactions.length) {
       return {
@@ -215,11 +203,12 @@ export default function CommissionsScreen() {
         0,
       );
 
-    const avgRate =
-      transactions.reduce(
-        (sum, t: any) => sum + Number(t.commissionRate ?? 0),
-        0,
-      ) / transactions.length;
+    const avgRate = transactions.length
+      ? transactions.reduce(
+          (sum, t: any) => sum + Number(t.commissionRate ?? 0),
+          0,
+        ) / transactions.length
+      : 0;
 
     return {
       totalEarned,
@@ -229,6 +218,7 @@ export default function CommissionsScreen() {
     };
   }, [transactions]);
 
+  // ==================== TRENDS (Monthly) ====================
   const commissionTrends = useMemo(() => {
     if (!transactions.length) return [];
 
@@ -240,7 +230,6 @@ export default function CommissionsScreen() {
     transactions.forEach((t: any) => {
       const baseDate = t.calculatedAt || t.createdAt;
       if (!baseDate) return;
-
       const d = new Date(baseDate);
       if (Number.isNaN(d.getTime())) return;
 
@@ -252,7 +241,6 @@ export default function CommissionsScreen() {
       if (!monthly[key]) monthly[key] = { earned: 0, paid: 0, pending: 0 };
 
       const amt = Number(t.finalCommission ?? t.commissionAmount ?? 0);
-
       monthly[key].earned += amt;
       if (t.status === CommissionStatus.PAID) monthly[key].paid += amt;
       else monthly[key].pending += amt;
@@ -263,50 +251,39 @@ export default function CommissionsScreen() {
       .slice(-6);
   }, [transactions]);
 
-  const commissionHistory = useMemo(
-    () =>
-      transactions.map((t: any) => ({
-        id: String(t.id ?? t._id ?? ""),
-        applicationId: String(t.ticketId ?? t.applicationId ?? t.id ?? ""),
-        lenderName: t.lenderName ?? t.provider ?? t.lender ?? "N/A",
-        loanType: t.loanType ?? t.productType ?? t.product_name ?? "N/A",
-        productType: t.productType ?? t.loanType ?? "N/A",
-        disbursedAmount: Number(t.disbursedAmount ?? t.loanAmount ?? 0),
-        commissionRate: Number(t.commissionRate ?? 0),
-        commissionAmount: Number(t.finalCommission ?? t.commissionAmount ?? 0),
-        status: getStatusLabel(t.status),
-        disbursedDate: formatDate(
-          t.calculatedAt ?? t.disbursedDate ?? t.createdAt,
-        ),
-        paidDate: t.paidAt
-          ? formatDate(t.paidAt)
-          : t.paidDate
-            ? formatDate(t.paidDate)
-            : null,
-        utr: t.utr ?? t.utrNumber ?? "-",
-        utrNumber: t.utrNumber ?? t.utr ?? "-",
-      })),
-    [transactions],
-  );
+  // ==================== COMMISSION HISTORY ====================
+  const commissionHistory = useMemo(() => {
+    return transactions.map((t: any) => ({
+      id: String(t.id ?? t._id ?? ""),
+      applicationId: String(t.ticketId ?? t.applicationId ?? ""),
+      lenderName: t.provider ?? t.lenderName ?? t.lender ?? "N/A",
+      loanType: t.loanType ?? t.productType ?? "N/A",
+      disbursedAmount: Number(t.disbursedAmount ?? 0),
+      commissionRate: Number(t.commissionRate ?? 0),
+      commissionAmount: Number(t.finalCommission ?? t.commissionAmount ?? 0),
+      status: getStatusLabel(t.status),
+      disbursedDate: formatDate(t.calculatedAt ?? t.createdAt),
+      paidDate: t.paidAt ? formatDate(t.paidAt) : null,
+      utrNumber: t.utrNumber ?? t.utr ?? "-",
+      paymentProofUrl: t.paymentProofUrl,
+    }));
+  }, [transactions]);
 
+  // Only search filter (status is handled by backend now)
   const filteredCommissions = useMemo(() => {
-    const search = (searchTerm ?? "").toLowerCase();
+    const search = searchTerm.toLowerCase().trim();
     return commissionHistory.filter((c) => {
-      const appId = (c.applicationId ?? "").toLowerCase();
-      const lender = (c.lenderName ?? "").toLowerCase();
-      const loanType = (c.loanType ?? "").toLowerCase();
-
       const matchesSearch =
-        appId.includes(search) ||
-        lender.includes(search) ||
-        loanType.includes(search);
+        c.applicationId.toLowerCase().includes(search) ||
+        c.lenderName.toLowerCase().includes(search) ||
+        c.loanType.toLowerCase().includes(search);
 
-      const matchesStatus = filterStatus === "all" || c.status === filterStatus;
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     });
-  }, [commissionHistory, searchTerm, filterStatus]);
+  }, [commissionHistory, searchTerm]);
 
-  if (isLoading) {
+  // ==================== LOADING & ERROR ====================
+  if (commissionsQuery.isLoading) {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -314,7 +291,7 @@ export default function CommissionsScreen() {
     );
   }
 
-  if (commissions.isError) {
+  if (commissionsQuery.isError) {
     return (
       <View style={[styles.container, { justifyContent: "center" }]}>
         <Text style={{ color: theme.colors.error, textAlign: "center" }}>
@@ -328,16 +305,13 @@ export default function CommissionsScreen() {
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={{ paddingTop: 14, paddingBottom: 20 }}
+        contentContainerStyle={{ paddingTop: 14, paddingBottom: 30 }}
         showsVerticalScrollIndicator={false}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             colors={[theme.colors.primary]}
-            tintColor={theme.colors.primary}
           />
         }
       >
@@ -354,34 +328,20 @@ export default function CommissionsScreen() {
             formatCurrency={formatCurrency}
           />
         ) : (
-          <>
-            <CommissionHistory
-              commissions={filteredCommissions}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              filterStatus={filterStatus}
-              setFilterStatus={setFilterStatus}
-              formatCurrency={formatCurrency}
-              getStatusColor={getStatusColor}
-              getStatusIcon={getStatusIcon}
-            />
-
-            <View style={{ paddingTop: 12, alignItems: "center" }}>
-              {isFetchingNext ? (
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              ) : hasNext ? (
-                <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                  Scroll to load more ({filteredCommissions.length}/
-                  {total || "?"})
-                </Text>
-              ) : (
-                <Text style={{ color: theme.colors.onSurfaceVariant }}>
-                  No more records ({filteredCommissions.length}/
-                  {total || filteredCommissions.length})
-                </Text>
-              )}
-            </View>
-          </>
+          <CommissionHistory
+            commissions={filteredCommissions}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            filterStatus={filterStatus}
+            setFilterStatus={setFilterStatus}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            metrics={metrics}
+            formatCurrency={formatCurrency}
+            getStatusColor={getStatusColor}
+            getStatusIcon={getStatusIcon}
+            total={total}
+          />
         )}
       </ScrollView>
     </View>

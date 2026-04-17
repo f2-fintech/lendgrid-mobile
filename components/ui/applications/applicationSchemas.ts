@@ -191,12 +191,15 @@ export const step2Schema = z.object({
 export type Step2FormData = z.infer<typeof step2Schema>;
 
 // Step 3: Profile Details (Aadhar, PAN, Photo)
+// Step 3: Profile Details (Aadhar, PAN, Photo)
 export const step3Schema = z.object({
   aadharFront: pickedFileSchema.refine((v) => !!v?.uri, {
     message: "Aadhar front is required",
   }),
   aadharBack: pickedFileSchema.optional(),
-  pancard: pickedFileSchema.optional(),
+  pancard: pickedFileSchema.refine((v) => !!v?.uri, {
+    message: "PAN Card is required",
+  }),
   passportSizePhoto: pickedFileSchema.optional(),
 });
 

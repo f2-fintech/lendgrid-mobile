@@ -14,6 +14,19 @@ export default {
 
     android: {
       package: "com.lendgrid.mobile",
+      intentFilters: [
+        {
+          action: "VIEW",
+          autoVerify: true,
+          data: [
+            {
+              scheme: "https",
+              host: "lendgrid.in",
+              pathPrefix: "/reset-password",
+            },
+          ],
+        },
+      ],
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon_1.png",
         backgroundColor: "#1D0A33",
@@ -24,6 +37,7 @@ export default {
 
     ios: {
       bundleIdentifier: "com.lendgrid.mobile",
+      associatedDomains: ["applinks:lendgrid.in"],
       supportsTablet: true,
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
@@ -48,6 +62,18 @@ export default {
           dark: { backgroundColor: "#1D0A33" },
         },
       ],
+      // Fixed expo-notifications configuration
+      [
+        "expo-notifications",
+        {
+          icon: "./assets/images/adaptive-icon_1.png",
+          color: "#1D0A33",
+          defaultChannel: "downloads",
+          // Removed "default" sound to fix prebuild error
+          sounds: [],
+        },
+      ],
+      ["expo-web-browser"],
     ],
 
     experiments: {
@@ -64,6 +90,7 @@ export default {
       PRIVACY_URL: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
       TERMS_URL: process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL,
       CAPTCHA_SITE_KEY: process.env.EXPO_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY,
+      forgotPasswordUrl: process.env.EXPO_PUBLIC_FORGOT_PASSWORD_URL,
 
       GRAPHQL_HTTP_URL:
         process.env.EXPO_PUBLIC_GRAPHQL_HTTP_URL ??
@@ -81,8 +108,6 @@ export default {
       eas: {
         projectId: "16608c42-65bc-47d0-9cca-f5158e848475",
       },
-
-      router: {},
     },
   },
 };

@@ -181,3 +181,16 @@ export const removeUserApi = async (id: string) => {
     (d) => d.removeUser,
   );
 };
+
+// forgot password
+export const forgotPasswordApi = async (email: string) => {
+  const query = `
+    mutation ForgotPassword($email: String!) {
+      forgotPassword(email: $email)
+    }
+  `;
+  // Using your existing gqlRequest helper
+  return gqlRequest<{ forgotPassword: boolean }>(query, { email }).then(
+    (d) => d.forgotPassword,
+  );
+};
