@@ -14,6 +14,9 @@ export default {
 
     android: {
       package: "com.lendgrid.mobile",
+      // CRITICAL: Point to your Firebase config file for system notifications
+      googleServicesFile:
+        process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
       intentFilters: [
         {
           action: "VIEW",
@@ -62,14 +65,14 @@ export default {
           dark: { backgroundColor: "#1D0A33" },
         },
       ],
-      // Fixed expo-notifications configuration
       [
         "expo-notifications",
         {
           icon: "./assets/images/adaptive-icon_1.png",
           color: "#1D0A33",
-          defaultChannel: "downloads",
-          // Removed "default" sound to fix prebuild error
+          // UPDATED: Changed from 'downloads' to 'default'
+          // to match setNotificationChannelAsync in RootLayout
+          defaultChannel: "default",
           sounds: [],
         },
       ],

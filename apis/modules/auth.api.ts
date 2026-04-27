@@ -194,3 +194,23 @@ export const forgotPasswordApi = async (email: string) => {
     (d) => d.forgotPassword,
   );
 };
+
+/**
+ * SAVE PUSH TOKEN
+ * Sends the Expo Push Token to the backend to enable mobile notifications
+ */
+export const updatePushTokenApi = async (token: string) => {
+  const query = `
+    mutation UpdatePushToken($token: String!) {
+      updatePushToken(token: $token) {
+        success
+        message
+      }
+    }
+  `;
+
+  return gqlRequest<{ updatePushToken: { success: boolean; message: string } }>(
+    query,
+    { token },
+  ).then((d) => d.updatePushToken);
+};

@@ -1,14 +1,7 @@
-import { ROUTES } from "@/assets/constants/routes";
 import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
-import { Redirect, Tabs, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Share,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Tabs, useRouter } from "expo-router";
+import { useState } from "react";
+import { Alert, Share, TouchableOpacity, View } from "react-native";
 import { Button, Dialog, Portal, Text, useTheme } from "react-native-paper";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -28,49 +21,30 @@ import {
 } from "@/components/common/AppHeader";
 
 export default function Layout() {
-  const dispatch = useAppDispatch();
+  const dispatch = useAppDispatch(); // This will work now because we've ensured the tree order
   const theme = useTheme();
   const router = useRouter();
 
   const [logoutVisible, setLogoutVisible] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // ====================== AUTH GUARD ======================
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = await AsyncStorage.getItem("token");
-      if (!token) {
-        setIsAuthenticated(false);
-      } else {
-        setIsAuthenticated(true);
-      }
-      setIsVerifying(false);
-    };
-    checkAuth();
-  }, []);
+  /** * NOTE: We removed isVerifying and isAuthenticated here.
+   * Your RootLayout already handles the auth logic and
+   * setGraphqlAuthToken. Let RootLayout be the "Source of Truth."
+   */
 
-  // ====================== DYNAMIC BASE URL ======================
   const getBaseUrl = () => {
     if (__DEV__) return "http://localhost:3000";
     return "https://lendgrid.in";
   };
 
-  // ====================== SHARE FUNCTION ======================
   const handleShare = async () => {
     try {
       const companyIdStr = await AsyncStorage.getItem("companyId");
       if (!companyIdStr) {
-        Alert.alert(
-          "Error",
-          "Could not identify your company. Please try logging in again.",
-        );
+        Alert.alert("Error", "Could not identify company. Log in again.");
         return;
       }
-
-      const companyId = Number(companyIdStr);
-      const BASE_URL = getBaseUrl();
-      const shareUrl = `${BASE_URL}/apply?company_id=${companyId}&source=mobile`;
+      const shareUrl = `${getBaseUrl()}/apply?company_id=${Number(companyIdStr)}&source=mobile`;
 
       await Share.share({
         message: `Apply for a loan with me!\n\n${shareUrl}`,
@@ -84,37 +58,18 @@ export default function Layout() {
     }
   };
 
-  const showLogoutDialog = () => setLogoutVisible(true);
-  const hideLogoutDialog = () => setLogoutVisible(false);
-
   const handleLogout = async () => {
-    hideLogoutDialog();
+    setLogoutVisible(false);
     try {
       await AsyncStorage.multiRemove(["token", "user", "companyId"]);
       setGraphqlAuthToken(null);
       dispatch(updateField({ key: "username", value: "" }));
       dispatch(updateField({ key: "email", value: "" }));
-
-      // Use replace to reset the navigation stack
       router.replace("/(auth)/signin");
     } catch (e) {
       console.error("Logout failed", e);
     }
   };
-
-  // Guard: Show nothing or a loader while checking token
-  if (isVerifying) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center" }}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
-  // Guard: Redirect if not logged in
-  if (!isAuthenticated) {
-    return <Redirect href={ROUTES.signin} />;
-  }
 
   // Header Components
   const DashboardHeaderRight = () => (
@@ -148,7 +103,10 @@ export default function Layout() {
 
   const ProfileHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <TouchableOpacity onPress={showLogoutDialog} style={{ marginRight: 12 }}>
+      <TouchableOpacity
+        onPress={() => setLogoutVisible(true)}
+        style={{ marginRight: 12 }}
+      >
         <Ionicons
           name="log-out-outline"
           size={24}
@@ -175,35 +133,22 @@ export default function Layout() {
       <Portal>
         <Dialog
           visible={logoutVisible}
-          onDismiss={hideLogoutDialog}
-          style={{ borderRadius: 16, backgroundColor: theme.colors.surface }}
+          onDismiss={() => setLogoutVisible(false)}
+          style={{ borderRadius: 16 }}
         >
           <Dialog.Icon icon="logout" size={32} color={theme.colors.error} />
-          <Dialog.Title
-            style={{
-              fontWeight: "700",
-              textAlign: "center",
-              fontSize: 20,
-              color: theme.colors.onSurface,
-            }}
-          >
+          <Dialog.Title style={{ fontWeight: "700", textAlign: "center" }}>
             Logout Confirmation
           </Dialog.Title>
           <Dialog.Content>
-            <Text
-              variant="bodyMedium"
-              style={{
-                textAlign: "center",
-                color: theme.colors.onSurfaceVariant,
-              }}
-            >
+            <Text variant="bodyMedium" style={{ textAlign: "center" }}>
               Are you sure you want to log out?
             </Text>
           </Dialog.Content>
           <Dialog.Actions style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
             <Button
               mode="outlined"
-              onPress={hideLogoutDialog}
+              onPress={() => setLogoutVisible(false)}
               style={{ flex: 1, marginRight: 8 }}
             >
               Cancel
@@ -212,7 +157,6 @@ export default function Layout() {
               mode="contained"
               onPress={handleLogout}
               buttonColor={theme.colors.error}
-              textColor={theme.colors.onError}
               style={{ flex: 1 }}
             >
               Logout
@@ -226,12 +170,7 @@ export default function Layout() {
           headerShown: true,
           headerStyle: { backgroundColor: theme.colors.background },
           headerTintColor: theme.colors.onSurface,
-          headerTitleStyle: { fontWeight: "700", fontSize: 18 },
-          tabBarStyle: {
-            backgroundColor: theme.colors.surface,
-            borderTopColor: theme.colors.outline,
-          },
-          sceneStyle: { backgroundColor: theme.colors.background },
+          tabBarStyle: { backgroundColor: theme.colors.surface },
         }}
       >
         <Tabs.Screen

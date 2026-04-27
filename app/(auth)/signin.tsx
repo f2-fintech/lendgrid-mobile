@@ -22,7 +22,9 @@ import { useLogin } from "@/hooks/useAuth";
 import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
 
+import { updatePushTokenApi } from "@/apis/modules/auth.api";
 import TurnstileCaptcha from "@/components/login_Signup/TurnstileCaptcha"; // ✅ add this
+import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
 
 // Decode JWT payload (companyId token me hi hai)
@@ -85,6 +87,7 @@ export default function SignIn() {
       if (response?.success && response?.access_token) {
         const token = response.access_token;
 
+        // 1. Save Auth Token
         await AsyncStorage.setItem("token", token);
 
         const payload = parseJwt(token);
@@ -94,8 +97,37 @@ export default function SignIn() {
           await AsyncStorage.setItem("companyId", String(companyId));
         }
 
+        // 2. Set API Client Header
         setGraphqlAuthToken(token);
 
+        // 3. SYNC PUSH TOKEN (Fixes the Backend "Missing Token" Warning)
+        try {
+          const { status: existingStatus } =
+            await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+
+          if (existingStatus !== "granted") {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+
+          if (finalStatus === "granted") {
+            const expoToken = (
+              await Notifications.getExpoPushTokenAsync({
+                projectId: "16608c42-65bc-47d0-9cca-f5158e848475",
+              })
+            ).data;
+
+            // This ensures your backend maps token to user 69e1...
+            await updatePushTokenApi(expoToken);
+            console.log("🔥 Device token synced successfully:", expoToken);
+          }
+        } catch (tokenErr) {
+          // We log this but don't block the user from entering the app
+          console.error("Push registration failed during sign-in:", tokenErr);
+        }
+
+        // 4. Redirect to Dashboard
         router.replace(ROUTES.Dashboard);
       } else {
         showError(response?.message || "Login failed");
