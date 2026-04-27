@@ -33,8 +33,13 @@ export default function TurnstileCaptcha({
         onMessage={(event) => {
           try {
             const data = JSON.parse(event.nativeEvent.data);
-            if (data?.type === "token") onToken(data.token ?? null);
-          } catch {
+
+            // Fix: Match the type "lendgrid_cookie" used in your Next.js file
+            if (data?.type === "lendgrid_cookie") {
+              onToken(data.token ?? null);
+            }
+          } catch (err) {
+            console.error("Captcha parse error:", err);
             onToken(null);
           }
         }}

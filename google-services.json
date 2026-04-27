@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "659485329236",
+    "project_id": "lendgrid",
+    "storage_bucket": "lendgrid.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659485329236:android:931a8b08ad3b97a09a6ac1",
+        "android_client_info": {
+          "package_name": "com.lendgrid.mobile"
+        }
+      },
+
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzA2NEOfGCIGKWXHetbvK2-bIvUob334g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

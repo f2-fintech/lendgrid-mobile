@@ -18,6 +18,8 @@ type Props = {
   value: Step4Values;
   onChange: (v: Step4Values) => void;
   onValidityChange?: (valid: boolean) => void;
+  customerId?: string | null; // ← NEW
+  onInstantUpload?: (file: PickedFile, docType: string) => Promise<void>; // ← NEW
 };
 
 const MAX_CERT_FILES = 4;
@@ -38,29 +40,29 @@ export default function Step4AdditionalDetails({
   value,
   onChange,
   onValidityChange,
+  customerId,
+  onInstantUpload,
 }: Props) {
   const theme = useTheme();
   const [local, setLocal] = useState<Step4Values>(value);
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(true);
+  const [fileError, setFileError] = useState<string>("");
 
-  const [fileError, setFileError] = useState<string>(""); //visible cert error
-
-  // touched fields (no initial errors)
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const markTouched = (k: string) =>
     setTouched((prev) => (prev[k] ? prev : { ...prev, [k]: true }));
 
   useEffect(() => setLocal(value), [value]);
 
-  // map local -> schema keys (same names as website schema)
-  const schemaInput = useMemo(() => {
-    return {
+  const schemaInput = useMemo(
+    () => ({
       salary: local.salary ?? "",
       existing_emi: local.existingEmi || undefined,
       existing_liability: local.existingLiability || undefined,
       certificates: local.certificates?.length ? local.certificates : undefined,
-    };
-  }, [local]);
+    }),
+    [local],
+  );
 
   const parsed = useMemo(
     () => step4Schema.safeParse(schemaInput),
@@ -70,12 +72,9 @@ export default function Step4AdditionalDetails({
     () => (parsed.success ? {} : toFieldErrors(parsed.error.issues)),
     [parsed],
   );
-
   const valid = parsed.success;
 
-  useEffect(() => {
-    onValidityChange?.(valid);
-  }, [valid, onValidityChange]);
+  useEffect(() => onValidityChange?.(valid), [valid, onValidityChange]);
 
   const errorFor = (k: string) => (touched[k] ? (errors as any)[k] : "");
 
@@ -133,6 +132,15 @@ export default function Step4AdditionalDetails({
     }
 
     setField("certificates", validFiles);
+
+    // ===================== INSTANT UPLOAD =====================
+    if (customerId && onInstantUpload) {
+      for (const file of validFiles) {
+        if (file.uri && !file.uri.startsWith("http")) {
+          onInstantUpload(file, "certificate");
+        }
+      }
+    }
   };
 
   const removeCert = (idx: number) => {
@@ -158,9 +166,8 @@ export default function Step4AdditionalDetails({
         }}
       >
         {label}{" "}
-        {required ? <Text style={{ color: theme.colors.error }}>*</Text> : null}
+        {required && <Text style={{ color: theme.colors.error }}>*</Text>}
       </Text>
-
       <View
         style={{
           flexDirection: "row",
@@ -189,7 +196,6 @@ export default function Step4AdditionalDetails({
           }}
         />
       </View>
-
       {!!errorFor(key) && (
         <Text style={{ color: "#EF4444", marginTop: 6, fontSize: 12 }}>
           {errorFor(key)}
@@ -218,7 +224,6 @@ export default function Step4AdditionalDetails({
             color={theme.colors.onPrimaryContainer}
             style={{ marginTop: 2 }}
           />
-
           <Text
             style={{
               flex: 1,
@@ -230,15 +235,10 @@ export default function Step4AdditionalDetails({
             Fill additional details (salary/turnover is required). Certificates
             are optional.
           </Text>
-
           <TouchableOpacity
             onPress={() => setShowAdditionalInfo(false)}
             activeOpacity={0.7}
-            style={{
-              padding: 4,
-              borderRadius: 999,
-              marginTop: -2,
-            }}
+            style={{ padding: 4, borderRadius: 999, marginTop: -2 }}
           >
             <Feather
               name="x"
@@ -268,7 +268,6 @@ export default function Step4AdditionalDetails({
         >
           Additional Details
         </Text>
-
         {input(
           "salary",
           "Salary/Turnover (p.a)",
@@ -277,7 +276,6 @@ export default function Step4AdditionalDetails({
           "Enter amount",
           true,
         )}
-
         {input(
           "existing_emi",
           "Existing EMI Amount (optional)",
@@ -285,7 +283,6 @@ export default function Step4AdditionalDetails({
           (t) => setField("existingEmi", t),
           "Enter EMI",
         )}
-
         {input(
           "existing_liability",
           "Existing Credit Card Liability (optional)",
@@ -391,7 +388,6 @@ export default function Step4AdditionalDetails({
                 {MAX_CERT_MB}MB)
               </Text>
             </View>
-
             <TouchableOpacity
               onPress={() => removeCert(idx)}
               style={{

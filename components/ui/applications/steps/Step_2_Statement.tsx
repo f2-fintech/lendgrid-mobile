@@ -16,8 +16,10 @@ export type PickedFile = {
 type Props = {
   value: PickedFile[];
   onChange: (files: PickedFile[]) => void;
-  onValidityChange?: (valid: boolean) => void; // optional gating
-  maxFiles?: number; // default 10
+  onValidityChange?: (valid: boolean) => void;
+  maxFiles?: number;
+  customerId?: string | null;
+  onInstantUpload?: (file: PickedFile, docType: string) => Promise<void>; // ← NEW
 };
 
 const MAX_MB = 1;
@@ -33,15 +35,16 @@ export default function Step2Statement({
   onChange,
   onValidityChange,
   maxFiles = 10,
+  customerId,
+  onInstantUpload,
 }: Props) {
   const theme = useTheme();
   const [localFiles, setLocalFiles] = useState<PickedFile[]>(value || []);
   const [showStatementInfo, setShowStatementInfo] = useState(true);
-  const [fileError, setFileError] = useState<string>(""); //  visible error
+  const [fileError, setFileError] = useState<string>("");
 
   useEffect(() => setLocalFiles(value || []), [value]);
 
-  // Step2 is optional per website schema => always valid
   const isValid = useMemo(() => {
     const parsed = step2Schema.safeParse({ files: localFiles });
     return parsed.success;
@@ -97,7 +100,17 @@ export default function Step2Statement({
 
     setLocalFiles(valid);
     onChange(valid);
-  }, [localFiles, maxFiles, onChange]);
+
+    // ===================== INSTANT UPLOAD =====================
+    if (customerId && onInstantUpload) {
+      for (const file of valid) {
+        // Only upload newly added local files (not already uploaded ones)
+        if (file.uri && !file.uri.startsWith("http")) {
+          onInstantUpload(file, "bank statement");
+        }
+      }
+    }
+  }, [localFiles, maxFiles, onChange, customerId, onInstantUpload]);
 
   const removeFile = (idx: number) => {
     const next = localFiles.filter((_, i) => i !== idx);
@@ -125,7 +138,6 @@ export default function Step2Statement({
             color={theme.colors.onTertiaryContainer}
             style={{ marginTop: 2 }}
           />
-
           <Text
             style={{
               flex: 1,
@@ -141,11 +153,7 @@ export default function Step2Statement({
           <TouchableOpacity
             onPress={() => setShowStatementInfo(false)}
             activeOpacity={0.7}
-            style={{
-              padding: 4,
-              borderRadius: 999,
-              marginTop: -2,
-            }}
+            style={{ padding: 4, borderRadius: 999, marginTop: -2 }}
           >
             <Feather
               name="x"

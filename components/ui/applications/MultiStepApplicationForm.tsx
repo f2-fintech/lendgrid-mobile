@@ -5,8 +5,7 @@ import {
   normalizeString,
   uploadToS3,
 } from "@/lib/utils/utils";
-import { Feather } from "@expo/vector-icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -21,6 +20,7 @@ import { useTheme } from "react-native-paper";
 
 import HorizontalStepper, { StepConfig } from "./Verticalstepper";
 
+import { Feather } from "@expo/vector-icons";
 import Step0LoanDetails, { Step0Values } from "./steps/Step_0_LoanDetails";
 import Step1BasicDetails, { Step1Values } from "./steps/Step_1_BasicDetails";
 import Step2Statement, { PickedFile } from "./steps/Step_2_Statement";
@@ -88,8 +88,7 @@ const ConfettiParticle = ({ delay, theme }: any) => {
         }),
       ]),
     ]).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [delay, theme]);
 
   const rotateInterpolate = rotate.interpolate({
     inputRange: [0, 1],
@@ -121,6 +120,7 @@ export default function MultiStepApplicationForm({
 }: Props) {
   const theme = useTheme();
 
+  const [applicationNo, setApplicationNo] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [skipped, setSkipped] = useState<Record<number, boolean>>({});
   const formScrollRef = useRef<ScrollView>(null);
@@ -269,7 +269,6 @@ export default function MultiStepApplicationForm({
     tenure: "",
     selectedProviders: [],
     providerAmounts: [],
-    leadType: "null",
     hasRunningLoans: "no",
     whichLoan: "",
     runningLoanAmount: "",
@@ -318,7 +317,6 @@ export default function MultiStepApplicationForm({
   const [step4Valid, setStep4Valid] = useState(false);
 
   const isStep2Skipped = !!skipped[2];
-  const isStep3Skipped = !!skipped[3];
 
   const step1Valid = useMemo(() => {
     const isTitleOk = normalizeString(step1.title).length > 0;
@@ -363,14 +361,8 @@ export default function MultiStepApplicationForm({
 
   const step2HasAtLeastOneDoc = step2Files.length >= 1;
 
-  const step3HasAtLeastOneDoc =
-    !!step3.aadharFront ||
-    !!step3.aadharBack ||
-    !!step3.pancard ||
-    !!step3.passportPhoto;
-
   const step2EffectiveValid = isStep2Skipped || step2HasAtLeastOneDoc;
-  const step3EffectiveValid = isStep3Skipped || step3HasAtLeastOneDoc;
+  const step3EffectiveValid = !!step3.aadharFront && !!step3.pancard;
 
   useEffect(() => {
     if (skipped[2] && step2Files.length > 0) {
@@ -424,22 +416,21 @@ export default function MultiStepApplicationForm({
     return true;
   }, [step, step0Valid, step1Valid, step2EffectiveValid, step3EffectiveValid]);
 
-  const canSubmit = useMemo(() => {
-    if (step !== 4) return false;
-    return step4Valid && !isSubmitting && !isUploading;
-  }, [step, step4Valid, isSubmitting, isUploading]);
+  const canSubmit = useMemo(
+    () => step === 4 && step4Valid && !isSubmitting && !isUploading,
+    [step, step4Valid, isSubmitting, isUploading],
+  );
 
   // -----------------------------
   // NAV ACTIONS
   // -----------------------------
   const next = () => {
-    if (!canGoNext) return;
-    setStep((s0) => Math.min(STEPS.length - 1, s0 + 1));
+    if (canGoNext) setStep((s0) => Math.min(STEPS.length - 1, s0 + 1));
   };
 
   const back = () => {
-    if (step === 0) return onClose();
-    setStep((s0) => Math.max(0, s0 - 1));
+    if (step === 0) onClose();
+    else setStep((s0) => Math.max(0, s0 - 1));
   };
 
   const canSkip = step === 2 || step === 3;
@@ -470,11 +461,31 @@ export default function MultiStepApplicationForm({
     await coreApi.patch("/customer-info-update", payload);
   };
 
-  // -----------------------------
-  // SUBMIT (CORE API FLOW)
-  // -----------------------------
+  // ==================== INSTANT UPLOAD ====================
+  const uploadFileInstantly = useCallback(
+    async (file: PickedFile, docType: string) => {
+      if (!customerId || !file?.uri) return;
+
+      try {
+        const url = await uploadToS3(file, `document/${file.name || docType}`);
+        await createDocument({
+          customer_id: customerId,
+          document_url: url,
+          type: docType,
+        });
+        console.log(`✅ Instant upload successful: ${docType} - ${file.name}`);
+      } catch (err: any) {
+        console.error(`❌ Instant upload failed for ${docType}:`, err);
+      }
+    },
+    [customerId],
+  );
+
   const randomFourDigit = 8462;
   const password = `${step1.name.replace(/\s/g, "")}@${randomFourDigit}`;
+
+  // 1. Add this state at the top of your component with your other useState hooks:
+  // const [applicationNo, setApplicationNo] = useState<string | null>(null);
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -488,6 +499,9 @@ export default function MultiStepApplicationForm({
     });
 
     setIsSubmitting(true);
+
+    // Local array to track generated numbers for the UI
+    const generatedNumbers: string[] = [];
 
     try {
       setStage("Creating customer");
@@ -537,6 +551,9 @@ export default function MultiStepApplicationForm({
       for (const pa of step0.providerAmounts) {
         const application_no = generateApplicationNumber();
 
+        // Store the number to display in the success toast
+        generatedNumbers.push(application_no);
+
         const appRes = await coreApi.post("/create-application", {
           application_no,
           customer_id: newCustomerId,
@@ -545,7 +562,6 @@ export default function MultiStepApplicationForm({
           loan_type: step0.loanType,
           loan_category: step0.loanCategory,
           tenure: step0.tenure,
-          lead_type: step0.leadType || "null",
           has_running_loans: step0.hasRunningLoans,
           which_loan: step0.hasRunningLoans === "yes" ? step0.whichLoan : "",
           running_loan_amount:
@@ -559,136 +575,44 @@ export default function MultiStepApplicationForm({
           appRes?.data?.data?.id ||
           appRes?.data?.id;
 
-        if (!applicationId) {
-          throw new Error(
-            appRes?.data?.message ||
-              `Application create failed for ${pa.provider}`,
-          );
-        }
-
-        try {
-          await coreApi.post("/create-loan-tracking", {
-            customer_application_id: applicationId,
-            status: "submitted",
-          });
-        } catch (e) {}
-      }
-
-      setSubmitStatus((p) => ({ ...p, applicationCreated: true }));
-      setStage("Application created. Uploading documents...");
-
-      const uploadErrors: string[] = [];
-
-      // Step2 (bank statement)
-      if (!isStep2Skipped && step2Files?.length) {
-        setIsUploading(true);
-        for (const f of step2Files) {
+        if (applicationId) {
           try {
-            const url = await uploadToS3(
-              f,
-              `document/${f.name || "bank-statement"}`,
-            );
-            await createDocument({
-              customer_id: String(newCustomerId),
-              document_url: url,
-              type: "bank statement",
+            await coreApi.post("/create-loan-tracking", {
+              customer_application_id: applicationId,
+              status: "submitted",
             });
-          } catch (err: any) {
-            uploadErrors.push(`Bank Statement: ${getPrettyError(err)}`);
+          } catch (e) {
+            console.warn("Tracking creation failed, continuing...", e);
           }
-        }
-        setIsUploading(false);
-      }
-
-      // Step3 (id proof)
-      if (!isStep3Skipped) {
-        const uploads: { file: PickedFile | null; type: string }[] = [
-          { file: step3.aadharFront as any, type: "aadhaar front" },
-          { file: step3.aadharBack as any, type: "aadhaar back" },
-          { file: step3.pancard as any, type: "pancard" },
-          { file: step3.passportPhoto as any, type: "photo" },
-        ];
-
-        const anySelected = uploads.some((u) => !!(u.file as any)?.uri);
-        if (anySelected) {
-          setIsUploading(true);
-          for (const u of uploads) {
-            try {
-              if (!(u.file as any)?.uri) continue;
-              const url = await uploadToS3(
-                u.file as any,
-                `document/${(u.file as any).name || u.type}`,
-              );
-              await createDocument({
-                customer_id: String(newCustomerId),
-                document_url: url,
-                type: u.type,
-              });
-            } catch (err: any) {
-              uploadErrors.push(`${u.type}: ${getPrettyError(err)}`);
-            }
-          }
-          setIsUploading(false);
         }
       }
 
-      // Step4 (salary update + certificates)
-      try {
-        if (step4?.salary) {
+      // Update the state with the numbers (comma separated if multiple)
+      setApplicationNo(generatedNumbers.join(", "));
+      setSubmitStatus((p) => ({ ...p, applicationCreated: true }));
+
+      // 4) Update salary if present
+      if (step4?.salary) {
+        try {
           await updateCustomerInfo({
             customer_id: String(newCustomerId),
             salary: step4.salary,
             existing_emi: step4.existingEmi || "",
             existing_liability: step4.existingLiability || "",
           });
+        } catch (err: any) {
+          console.error("Salary update failed:", err);
         }
-      } catch (err: any) {
-        uploadErrors.push(`Customer Info Update: ${getPrettyError(err)}`);
-      }
-
-      if (step4?.certificates?.length) {
-        setIsUploading(true);
-        for (const c of step4.certificates as any as PickedFile[]) {
-          try {
-            const url = await uploadToS3(
-              c,
-              `document/${c.name || "certificate"}`,
-            );
-            await createDocument({
-              customer_id: String(newCustomerId),
-              document_url: url,
-              type: "certificate",
-            });
-          } catch (err: any) {
-            uploadErrors.push(`Certificate: ${getPrettyError(err)}`);
-          }
-        }
-        setIsUploading(false);
-      }
-
-      if (uploadErrors.length) {
-        const joined = uploadErrors.slice(0, 3).join("\n");
-        setSubmitStatus((p) => ({
-          ...p,
-          docsUploaded: false,
-          docUploadFailed: true,
-          docUploadError:
-            uploadErrors.length > 3
-              ? `${joined}\n(+${uploadErrors.length - 3} more)`
-              : joined,
-          lastStage: "Application created, but document upload failed.",
-        }));
-        return;
       }
 
       setSubmitStatus((p) => ({
         ...p,
         docsUploaded: true,
         docUploadFailed: false,
-        docUploadError: "",
         lastStage: "Application & documents submitted successfully.",
       }));
 
+      // Trigger the animation
       playSuccessToast();
     } catch (e: any) {
       const msg = getPrettyError(e);
@@ -697,7 +621,7 @@ export default function MultiStepApplicationForm({
         docUploadFailed: true,
         docUploadError: msg,
         lastStage: p.applicationCreated
-          ? "Application created but something failed after that."
+          ? "Application created but final submission failed."
           : "Application submission failed.",
       }));
       console.log("❌ SUBMIT ERROR:", e?.response?.data || e?.message || e);
@@ -834,16 +758,27 @@ export default function MultiStepApplicationForm({
             value={step2Files}
             onChange={setStep2Files}
             maxFiles={10}
+            customerId={customerId}
+            onInstantUpload={uploadFileInstantly}
           />
         )}
 
-        {step === 3 && <Step3IdProof value={step3} onChange={setStep3} />}
+        {step === 3 && (
+          <Step3IdProof
+            value={step3}
+            onChange={setStep3}
+            customerId={customerId}
+            onInstantUpload={uploadFileInstantly}
+          />
+        )}
 
         {step === 4 && (
           <Step4AdditionalDetails
             value={step4}
             onChange={setStep4}
             onValidityChange={setStep4Valid}
+            customerId={customerId}
+            onInstantUpload={uploadFileInstantly}
           />
         )}
       </ScrollView>
@@ -878,13 +813,10 @@ export default function MultiStepApplicationForm({
               width: "85%",
               maxWidth: 360,
               alignItems: "center",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 20 },
-              shadowOpacity: 0.3,
-              shadowRadius: 30,
               elevation: 20,
             }}
           >
+            {/* Icon Section */}
             <Animated.View
               style={{
                 width: 100,
@@ -895,11 +827,6 @@ export default function MultiStepApplicationForm({
                 alignItems: "center",
                 marginBottom: 24,
                 transform: [{ scale: circleScale }],
-                shadowColor: "#00C853",
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.4,
-                shadowRadius: 16,
-                elevation: 8,
               }}
             >
               <Animated.View
@@ -913,7 +840,6 @@ export default function MultiStepApplicationForm({
                   transform: [{ scale: pulseAnim }],
                 }}
               />
-
               <Animated.View
                 style={{
                   transform: [
@@ -932,24 +858,37 @@ export default function MultiStepApplicationForm({
                 fontWeight: "900",
                 fontSize: 22,
                 textAlign: "center",
-                marginBottom: 8,
-                letterSpacing: 0.2,
+                marginBottom: 4,
               }}
             >
               Application Submitted!
             </Text>
 
-            <Text
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                fontSize: 14,
-                textAlign: "center",
-                lineHeight: 20,
-                marginBottom: 4,
-              }}
-            >
-              Your loan application has been
-            </Text>
+            {/* --- NEW APPLICATION NUMBER SECTION --- */}
+            {applicationNo && (
+              <View
+                style={{
+                  backgroundColor: theme.colors.secondaryContainer,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  marginTop: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.colors.onSecondaryContainer,
+                    fontWeight: "700",
+                    fontSize: 13,
+                    letterSpacing: 1,
+                  }}
+                >
+                  Application Number is: {applicationNo}
+                </Text>
+              </View>
+            )}
+            {/* --------------------------------------- */}
 
             <Text
               style={{
@@ -959,13 +898,14 @@ export default function MultiStepApplicationForm({
                 lineHeight: 20,
               }}
             >
-              successfully submitted for processing
+              Your loan application has been successfully submitted for
+              processing.
             </Text>
 
             <View
               style={{
-                marginTop: 20,
-                width: 60,
+                marginTop: 24,
+                width: 40,
                 height: 4,
                 borderRadius: 2,
                 backgroundColor: theme.colors.primary,
@@ -1053,7 +993,7 @@ export default function MultiStepApplicationForm({
           </TouchableOpacity>
         ) : (
           <>
-            {(step === 2 || step === 3) && (
+            {step === 2 && (
               <TouchableOpacity
                 onPress={skipThisStep}
                 activeOpacity={0.85}

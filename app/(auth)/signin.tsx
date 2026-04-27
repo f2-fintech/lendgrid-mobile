@@ -22,7 +22,10 @@ import { useLogin } from "@/hooks/useAuth";
 import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
 
+import { updatePushTokenApi } from "@/apis/modules/auth.api";
 import TurnstileCaptcha from "@/components/login_Signup/TurnstileCaptcha"; // ✅ add this
+import * as Notifications from "expo-notifications";
+import * as WebBrowser from "expo-web-browser";
 
 // Decode JWT payload (companyId token me hi hai)
 const parseJwt = (token: string) => {
@@ -84,6 +87,7 @@ export default function SignIn() {
       if (response?.success && response?.access_token) {
         const token = response.access_token;
 
+        // 1. Save Auth Token
         await AsyncStorage.setItem("token", token);
 
         const payload = parseJwt(token);
@@ -93,8 +97,37 @@ export default function SignIn() {
           await AsyncStorage.setItem("companyId", String(companyId));
         }
 
+        // 2. Set API Client Header
         setGraphqlAuthToken(token);
 
+        // 3. SYNC PUSH TOKEN (Fixes the Backend "Missing Token" Warning)
+        try {
+          const { status: existingStatus } =
+            await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+
+          if (existingStatus !== "granted") {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+
+          if (finalStatus === "granted") {
+            const expoToken = (
+              await Notifications.getExpoPushTokenAsync({
+                projectId: "16608c42-65bc-47d0-9cca-f5158e848475",
+              })
+            ).data;
+
+            // This ensures your backend maps token to user 69e1...
+            await updatePushTokenApi(expoToken);
+            console.log("🔥 Device token synced successfully:", expoToken);
+          }
+        } catch (tokenErr) {
+          // We log this but don't block the user from entering the app
+          console.error("Push registration failed during sign-in:", tokenErr);
+        }
+
+        // 4. Redirect to Dashboard
         router.replace(ROUTES.Dashboard);
       } else {
         showError(response?.message || "Login failed");
@@ -184,6 +217,36 @@ export default function SignIn() {
               {errors.password.message}
             </Text>
           )}
+
+          {/* Updated Forgot Password Section */}
+          <TouchableOpacity
+            onPress={async () => {
+              // 1. Grab the URL from your env
+              const forgotPasswordUrl =
+                process.env.EXPO_PUBLIC_FORGOT_PASSWORD_URL;
+
+              // 2. Safety check: make sure the env variable actually exists
+              if (!forgotPasswordUrl) {
+                showError("Reset link is not configured.");
+                return;
+              }
+
+              try {
+                await WebBrowser.openBrowserAsync(forgotPasswordUrl, {
+                  toolbarColor: "#0F1729",
+                  enableBarCollapsing: true,
+                  showTitle: true,
+                });
+              } catch (error) {
+                showError("Could not open the browser");
+              }
+            }}
+            style={{ alignSelf: "flex-end", marginTop: 5, marginBottom: 15 }}
+          >
+            <Text style={{ color: "#FFD600", fontSize: 13, fontWeight: "600" }}>
+              Forgot Password?
+            </Text>
+          </TouchableOpacity>
 
           {/*  Turnstile */}
           <View
