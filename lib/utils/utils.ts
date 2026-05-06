@@ -4,6 +4,7 @@ import Constants from "expo-constants";
 const extra = (Constants.expoConfig?.extra ?? {}) as any;
 
 const UPLOAD_API_URL = String(extra?.UPLOAD_API_URL).replace(/\/+$/, "");
+console.log("UPLOAD_API_URL:", UPLOAD_API_URL);
 
 /* =========================
    Storage helpers (mobile)
@@ -125,6 +126,8 @@ export function normalizeString(v?: string | null): string {
    Upload to S3 (mobile)
    ========================= */
 
+// Same name as website: uploadToS3(file, folder)
+// On mobile: file is RNFileAsset (uri-based), folder is string (same backend param)
 export const uploadToS3 = async (
   file: RNFileAsset,
   folder: string,
@@ -132,11 +135,12 @@ export const uploadToS3 = async (
   if (!file?.uri) throw new Error("Missing file uri");
 
   const name = file.name || `upload-${Date.now()}.jpg`;
-  const type = file.mimeType || file.type || guessMimeTypeFromName(name);
+  const type = file.type || guessMimeTypeFromName(name);
 
   const formData = new FormData();
   formData.append("folder", folder);
 
+  // React Native FormData file object
   // @ts-ignore
   formData.append("document", {
     uri: file.uri,
@@ -155,7 +159,7 @@ export const uploadToS3 = async (
   }
 
   const result = await response.json();
-  return result?.data;
+  return result.data; // backend returns { data: "S3_URL" }
 };
 
 /* =========================

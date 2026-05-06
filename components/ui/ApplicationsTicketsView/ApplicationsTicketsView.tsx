@@ -26,7 +26,7 @@ type Props = {
   theme: any;
   styles: any;
   router: any;
-  pagerRef: React.RefObject<PagerView>;
+  pagerRef: React.RefObject<PagerView | null>;
 
   activeTab: "applications" | "tickets";
   setTab: (t: "applications" | "tickets") => void;

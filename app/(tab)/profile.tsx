@@ -81,7 +81,7 @@ export default function ProfileScreen() {
     bankStatement: urlToFile(docs?.bankStatement),
     cancelledCheque: urlToFile(docs?.cancelledCheque),
     addressProof: urlToFile(docs?.addressProof),
-    authorizedSignatory: urlToFile(docs?.authorizedSignatory),
+    // authorizedSignatory: urlToFile(docs?.authorizedSignatory),
   });
 
   const toDocUrl = (f: any) => {
@@ -107,7 +107,7 @@ export default function ProfileScreen() {
         bankStatement: s.documents?.bankStatement || null,
         cancelledCheque: s.documents?.cancelledCheque || null,
         addressProof: s.documents?.addressProof || null,
-        authorizedSignatory: s.documents?.authorizedSignatory || null,
+        // authorizedSignatory: s.documents?.authorizedSignatory || null,
       },
     },
     shouldUnregister: false,
@@ -209,7 +209,7 @@ export default function ProfileScreen() {
         bankStatement: toDocUrl(values.documents?.bankStatement),
         cancelledCheque: toDocUrl(values.documents?.cancelledCheque),
         addressProof: toDocUrl(values.documents?.addressProof),
-        authorizedSignatory: toDocUrl(values.documents?.authorizedSignatory),
+        // authorizedSignatory: toDocUrl(values.documents?.authorizedSignatory),
       };
 
       await updateAgg.mutateAsync({

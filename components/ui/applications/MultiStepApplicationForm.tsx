@@ -1,10 +1,13 @@
-import { coreApi } from "@/apis/config/axiosConfig";
+import { coreApi, restApi } from "@/apis/config/axiosConfig";
 import {
   generateApplicationNumber,
   getPrettyError,
   normalizeString,
   uploadToS3,
 } from "@/lib/utils/utils";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
+import { Buffer } from "buffer";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -16,7 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useTheme } from "react-native-paper";
+import { Menu, TextInput, useTheme } from "react-native-paper";
 
 import HorizontalStepper, { StepConfig } from "./Verticalstepper";
 
@@ -34,6 +37,12 @@ type Props = {
   onSuccess?: () => void;
 };
 
+type CompanyOption = {
+  id: number;
+  companyId: string;
+  name: string;
+};
+
 const STEPS: StepConfig[] = [
   {
     id: "loan-details",
@@ -46,6 +55,73 @@ const STEPS: StepConfig[] = [
   { id: "proof", title: "ID Proof", icon: "credit-card" },
   { id: "additional", title: "Additional", icon: "edit-3" },
 ];
+
+const decodeJwt = (token: string | null) => {
+  if (!token) return null;
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf-8"));
+  } catch {
+    return null;
+  }
+};
+
+const extractCompanyIdFromClaims = (claims: any) => {
+  return (
+    claims?.companyId ??
+    claims?.company_id ??
+    claims?.company?.id ??
+    claims?.company?.companyId ??
+    claims?.company?.company_id ??
+    claims?.user?.companyId ??
+    claims?.user?.company_id ??
+    claims?.data?.companyId ??
+    claims?.data?.company_id ??
+    claims?.tenant?.companyId ??
+    claims?.tenant?.company_id
+  );
+};
+
+const extractUserIdFromClaims = (claims: any) => {
+  return (
+    claims?.id ??
+    claims?.userId ??
+    claims?.sub ??
+    claims?.salesUserId ??
+    claims?.user_id ??
+    claims?.user?.id ??
+    claims?.user?.userId ??
+    claims?.data?.id ??
+    claims?.data?.userId
+  );
+};
+
+const getCompanyId = async () => {
+  const storedCompanyId = await AsyncStorage.getItem("companyId");
+  if (storedCompanyId) return storedCompanyId;
+
+  const token = await AsyncStorage.getItem("token");
+  const decoded = decodeJwt(token);
+  const fallback = extractCompanyIdFromClaims(decoded);
+  if (fallback !== undefined && fallback !== null) {
+    const stringValue = String(fallback);
+    await AsyncStorage.setItem("companyId", stringValue);
+    console.log(
+      "[MultiStepApplicationForm] recovered companyId from token",
+      stringValue,
+      decoded,
+    );
+    return stringValue;
+  }
+
+  console.warn(
+    "[MultiStepApplicationForm] companyId missing from AsyncStorage and token claims",
+    decoded,
+  );
+  return null;
+};
 
 // Confetti particle component
 const ConfettiParticle = ({ delay, theme }: any) => {
@@ -124,6 +200,7 @@ export default function MultiStepApplicationForm({
   const [step, setStep] = useState(0);
   const [skipped, setSkipped] = useState<Record<number, boolean>>({});
   const formScrollRef = useRef<ScrollView>(null);
+  const queryClient = useQueryClient();
 
   // Server-like state
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -310,6 +387,109 @@ export default function MultiStepApplicationForm({
     certificates: [],
   });
 
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [companiesError, setCompaniesError] = useState<string | null>(null);
+  const [companyMenuVisible, setCompanyMenuVisible] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(
+    null,
+  );
+  const [isOmsStaff, setIsOmsStaff] = useState(false);
+
+  const loadCompanies = useCallback(async () => {
+    setCompaniesLoading(true);
+    setCompaniesError(null);
+    try {
+      const response = await restApi.get("/companies", {
+        params: { page: 1, limit: 100 },
+      });
+      const payload = response?.data;
+      const results =
+        payload?.data?.results || payload?.results || payload?.data || [];
+
+      const items = Array.isArray(results)
+        ? results.map((item: any) => ({
+            id: Number(
+              item.id ?? item._id ?? item.companyId ?? item.company_id ?? 0,
+            ),
+            companyId: String(
+              item.companyId ?? item.company_id ?? item.id ?? "",
+            ),
+            name:
+              item.name ||
+              item.company_name ||
+              item.displayName ||
+              String(item.id),
+          }))
+        : [];
+
+      setCompanies(items);
+    } catch (error: any) {
+      console.error(
+        "[MultiStepApplicationForm] failed to load companies",
+        error,
+      );
+      setCompaniesError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to load aggregators",
+      );
+    } finally {
+      setCompaniesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const initializeCompanySelection = async () => {
+      const token = await AsyncStorage.getItem("token");
+      const decoded = decodeJwt(token);
+      const authSource = await AsyncStorage.getItem("authSource");
+      const userType = await AsyncStorage.getItem("userType");
+      const decodedRole = String(decoded?.role || "").toLowerCase();
+      const oms =
+        authSource === "oms" &&
+        (userType === "sales" || decodedRole === "sales");
+      setIsOmsStaff(oms);
+
+      const savedCompanyIdLegacy = await AsyncStorage.getItem("companyId");
+      if (oms) {
+        const savedCompanyId = await AsyncStorage.getItem("selectedCompanyId");
+        setSelectedCompanyId(savedCompanyId || savedCompanyIdLegacy || "");
+        await loadCompanies();
+        return;
+      }
+
+      setSelectedCompany(null);
+      setSelectedCompanyId(savedCompanyIdLegacy || "");
+    };
+
+    initializeCompanySelection();
+  }, [loadCompanies]);
+
+  useEffect(() => {
+    if (!selectedCompanyId || !companies.length) return;
+
+    const match = companies.find(
+      (company) =>
+        company.companyId === selectedCompanyId ||
+        String(company.id) === selectedCompanyId,
+    );
+
+    if (match) {
+      setSelectedCompany(match);
+    }
+  }, [companies, selectedCompanyId]);
+
+  const selectCompany = async (company: CompanyOption) => {
+    setSelectedCompany(company);
+    setSelectedCompanyId(company.companyId);
+    await AsyncStorage.setItem("selectedCompanyId", company.companyId);
+    await AsyncStorage.setItem("companyId", company.companyId);
+    await AsyncStorage.setItem("selectedAggregatorId", String(company.id));
+    setCompanyMenuVisible(false);
+  };
+
   // -----------------------------
   // VALIDITY FLAGS
   // -----------------------------
@@ -355,9 +535,10 @@ export default function MultiStepApplicationForm({
       isCityStateOk &&
       isEmploymentOk &&
       isDobOk &&
-      isConsentOk
+      isConsentOk &&
+      (!isOmsStaff || !!selectedCompany)
     );
-  }, [step1]);
+  }, [step1, isOmsStaff, selectedCompany]);
 
   const step2HasAtLeastOneDoc = step2Files.length >= 1;
 
@@ -444,35 +625,112 @@ export default function MultiStepApplicationForm({
   // -----------------------------
   // API HELPERS
   // -----------------------------
-  const createDocument = async (payload: {
-    customer_id: string;
-    document_url: string;
-    type: string;
-  }) => {
-    await coreApi.post("/create-document", payload);
+  const createDocument = async (payload, config?: any) => {
+    await coreApi.post("/create-document", payload, config);
   };
 
-  const updateCustomerInfo = async (payload: {
-    customer_id: string;
-    salary: string;
-    existing_emi?: string;
-    existing_liability?: string;
-  }) => {
-    await coreApi.patch("/customer-info-update", payload);
+  const updateCustomerInfo = async (
+    payload: {
+      customer_id: string;
+      salary: string;
+      existing_emi?: string;
+      existing_liability?: string;
+    },
+    config?: Record<string, any>,
+  ) => {
+    await coreApi.patch("/customer-info-update", payload, config);
   };
+
+  const createCustomerEarly = useCallback(async () => {
+    try {
+      if (customerId) return;
+
+      console.log("🚀 Creating customer early...");
+
+      const storedCompanyId = await getCompanyId();
+      const token = await AsyncStorage.getItem("token");
+      const decoded = decodeJwt(token);
+
+      const appliedByUserId = isOmsStaff
+        ? extractUserIdFromClaims(decoded)
+        : undefined;
+
+      const useCompanyId = selectedCompany?.companyId ?? storedCompanyId;
+      const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
+
+      if (isOmsStaff && !useCompanyIdString) return;
+
+      const requestConfig = {
+        headers: {
+          ...(useCompanyIdString ? { companyid: useCompanyIdString } : {}),
+        },
+      };
+
+      const customerPayload = {
+        title: step1.title,
+        name: `${step1.title} ${step1.name}`.trim(),
+        email: step1.email,
+        contact: step1.contact,
+        dob: step1.dob,
+        password,
+        status: "active",
+        ...(useCompanyIdString
+          ? { company_id: Number(useCompanyIdString) }
+          : {}),
+        ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
+      };
+
+      const res = await coreApi.post(
+        "/create-customer",
+        customerPayload,
+        requestConfig,
+      );
+
+      const newCustomerId =
+        res?.data?.data?.id || res?.data?.data?.customerId || res?.data?.id;
+
+      if (!newCustomerId) throw new Error("CustomerId not returned");
+
+      setCustomerId(String(newCustomerId));
+
+      console.log("✅ Early customer created:", newCustomerId);
+    } catch (err) {
+      console.error("❌ Early customer creation failed:", err);
+    }
+  }, [step1, selectedCompany, isOmsStaff, customerId]);
+
+  useEffect(() => {
+    if (step === 1 && step1Valid) {
+      createCustomerEarly();
+    }
+  }, [step, step1Valid, createCustomerEarly]);
 
   // ==================== INSTANT UPLOAD ====================
   const uploadFileInstantly = useCallback(
     async (file: PickedFile, docType: string) => {
-      if (!customerId || !file?.uri) return;
+      if (!file?.uri) return;
+
+      if (!customerId) {
+        console.warn("⏳ Customer not ready, skipping upload");
+        return;
+      }
 
       try {
         const url = await uploadToS3(file, `document/${file.name || docType}`);
-        await createDocument({
-          customer_id: customerId,
-          document_url: url,
-          type: docType,
-        });
+        await createDocument(
+          {
+            customer_id: customerId,
+            document_url: url,
+            type: docType,
+          },
+          {
+            headers: {
+              ...((await getCompanyId())
+                ? { companyid: await getCompanyId() }
+                : {}),
+            },
+          },
+        );
         console.log(`✅ Instant upload successful: ${docType} - ${file.name}`);
       } catch (err: any) {
         console.error(`❌ Instant upload failed for ${docType}:`, err);
@@ -504,10 +762,43 @@ export default function MultiStepApplicationForm({
     const generatedNumbers: string[] = [];
 
     try {
-      setStage("Creating customer");
+      const storedCompanyId = await getCompanyId();
+      const token = await AsyncStorage.getItem("token");
+      const decoded = decodeJwt(token);
+      const appliedByUserId = isOmsStaff
+        ? extractUserIdFromClaims(decoded)
+        : undefined;
+      const useCompanyId = selectedCompany?.companyId ?? storedCompanyId;
+      const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
+      const appliedByNumber =
+        appliedByUserId !== undefined && appliedByUserId !== null
+          ? Number(appliedByUserId)
+          : undefined;
 
-      // 1) create-customer
-      const customerRes = await coreApi.post("/create-customer", {
+      if (isOmsStaff && !useCompanyIdString) {
+        throw new Error(
+          "Please select an aggregator before submitting the application.",
+        );
+      }
+
+      if (
+        isOmsStaff &&
+        (appliedByNumber === undefined || !Number.isFinite(appliedByNumber))
+      ) {
+        throw new Error("Unable to identify OMS staff user for application.");
+      }
+
+      if (useCompanyIdString) {
+        await AsyncStorage.setItem("companyId", useCompanyIdString);
+      }
+
+      const requestConfig = {
+        headers: {
+          ...(useCompanyIdString ? { companyid: useCompanyIdString } : {}),
+        },
+      };
+
+      const customerPayload = {
         title: step1.title,
         name: `${step1.title} ${step1.name}`.trim(),
         email: step1.email,
@@ -515,12 +806,38 @@ export default function MultiStepApplicationForm({
         dob: step1.dob,
         password,
         status: "active",
+        ...(useCompanyIdString
+          ? { company_id: Number(useCompanyIdString) }
+          : {}),
+        ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
+      };
+      console.log("[MultiStepApplicationForm] create-customer payload", {
+        selectedCompany,
+        companyId: useCompanyIdString,
+        isOmsStaff,
+        appliedBy: appliedByNumber,
+        customerPayload,
       });
+      let newCustomerId = customerId;
 
-      const newCustomerId =
-        customerRes?.data?.data?.id ||
-        customerRes?.data?.data?.customerId ||
-        customerRes?.data?.id;
+      if (!newCustomerId) {
+        console.log("⚠️ Creating customer in submit fallback...");
+
+        const customerRes = await coreApi.post(
+          "/create-customer",
+          customerPayload,
+          requestConfig,
+        );
+
+        newCustomerId =
+          customerRes?.data?.data?.id ||
+          customerRes?.data?.data?.customerId ||
+          customerRes?.data?.id;
+
+        if (!newCustomerId) throw new Error("CustomerId not returned");
+
+        setCustomerId(String(newCustomerId));
+      }
 
       if (!newCustomerId) throw new Error("CustomerId not returned from API");
       setCustomerId(String(newCustomerId));
@@ -528,18 +845,22 @@ export default function MultiStepApplicationForm({
       setStage("Creating customer info");
 
       // 2) create-customer-info
-      await coreApi.post("/create-customer-info", {
-        customer_id: newCustomerId,
-        pan: step1.pan,
-        father_name: step1.father_name,
-        mother_name: step1.mother_name,
-        working_address: step1.working_address,
-        permanent_address: step1.permanent_address,
-        current_address: step1.current_address,
-        city: step1.city,
-        state: step1.state,
-        employment_type: step1.employment_type,
-      });
+      await coreApi.post(
+        "/create-customer-info",
+        {
+          customer_id: newCustomerId,
+          pan: step1.pan,
+          father_name: step1.father_name,
+          mother_name: step1.mother_name,
+          working_address: step1.working_address,
+          permanent_address: step1.permanent_address,
+          current_address: step1.current_address,
+          city: step1.city,
+          state: step1.state,
+          employment_type: step1.employment_type,
+        },
+        requestConfig,
+      );
 
       // 3) create application per provider
       if (!step0.providerAmounts?.length) {
@@ -554,7 +875,7 @@ export default function MultiStepApplicationForm({
         // Store the number to display in the success toast
         generatedNumbers.push(application_no);
 
-        const appRes = await coreApi.post("/create-application", {
+        const applicationPayload = {
           application_no,
           customer_id: newCustomerId,
           provider: pa.provider,
@@ -568,7 +889,28 @@ export default function MultiStepApplicationForm({
             step0.hasRunningLoans === "yes" ? step0.runningLoanAmount : "",
           case_type: step0.caseType,
           application_date: new Date().toISOString(),
+          ...(useCompanyIdString
+            ? { company_id: Number(useCompanyIdString) }
+            : {}),
+          ...(isOmsStaff && appliedByNumber
+            ? { applied_by: appliedByNumber, source: "oms", is_picked: 0 }
+            : {}),
+          ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
+        };
+
+        console.log("[MultiStepApplicationForm] create-application payload", {
+          selectedCompany,
+          companyId: useCompanyIdString,
+          isOmsStaff,
+          appliedBy: appliedByNumber,
+          applicationPayload,
         });
+
+        const appRes = await coreApi.post(
+          "/create-application",
+          applicationPayload,
+          requestConfig,
+        );
 
         const applicationId =
           appRes?.data?.data?.applicationId ||
@@ -577,10 +919,17 @@ export default function MultiStepApplicationForm({
 
         if (applicationId) {
           try {
-            await coreApi.post("/create-loan-tracking", {
-              customer_application_id: applicationId,
-              status: "submitted",
-            });
+            await coreApi.post(
+              "/create-loan-tracking",
+              {
+                customer_application_id: applicationId,
+                status: "submitted",
+                ...(useCompanyIdString
+                  ? { company_id: Number(useCompanyIdString) }
+                  : {}),
+              },
+              requestConfig,
+            );
           } catch (e) {
             console.warn("Tracking creation failed, continuing...", e);
           }
@@ -594,12 +943,15 @@ export default function MultiStepApplicationForm({
       // 4) Update salary if present
       if (step4?.salary) {
         try {
-          await updateCustomerInfo({
-            customer_id: String(newCustomerId),
-            salary: step4.salary,
-            existing_emi: step4.existingEmi || "",
-            existing_liability: step4.existingLiability || "",
-          });
+          await updateCustomerInfo(
+            {
+              customer_id: String(newCustomerId),
+              salary: step4.salary,
+              existing_emi: step4.existingEmi || "",
+              existing_liability: step4.existingLiability || "",
+            },
+            requestConfig,
+          );
         } catch (err: any) {
           console.error("Salary update failed:", err);
         }
@@ -612,8 +964,9 @@ export default function MultiStepApplicationForm({
         lastStage: "Application & documents submitted successfully.",
       }));
 
-      // Trigger the animation
       playSuccessToast();
+
+      queryClient.invalidateQueries({ queryKey: ["customer-applications"] });
     } catch (e: any) {
       const msg = getPrettyError(e);
       setSubmitStatus((p) => ({
@@ -745,6 +1098,81 @@ export default function MultiStepApplicationForm({
           />
         )}
 
+        {step === 1 && isOmsStaff && (
+          <View style={{ marginBottom: 18 }}>
+            <Text
+              style={{
+                color: theme.colors.onSurface,
+                fontSize: 16,
+                fontWeight: "700",
+                marginBottom: 8,
+              }}
+            >
+              Select Aggregator
+            </Text>
+            <Menu
+              visible={companyMenuVisible}
+              onDismiss={() => setCompanyMenuVisible(false)}
+              anchor={
+                <TouchableOpacity
+                  onPress={() => setCompanyMenuVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <View pointerEvents="none">
+                    <TextInput
+                      label="Aggregator"
+                      mode="outlined"
+                      value={selectedCompany?.name || ""}
+                      placeholder="Select Aggregator..."
+                      editable={false}
+                      right={
+                        <TextInput.Icon
+                          icon={
+                            companyMenuVisible ? "chevron-up" : "chevron-down"
+                          }
+                        />
+                      }
+                    />
+                  </View>
+                </TouchableOpacity>
+              }
+            >
+              {companiesLoading ? (
+                <Menu.Item title="Loading aggregators..." disabled />
+              ) : companies.length > 0 ? (
+                companies.map((item) => (
+                  <Menu.Item
+                    key={`${item.id}-${item.companyId}`}
+                    title={item.name}
+                    onPress={() => selectCompany(item)}
+                  />
+                ))
+              ) : (
+                <Menu.Item title="No aggregators found" disabled />
+              )}
+            </Menu>
+            {companiesError ? (
+              <Text
+                style={{
+                  color: theme.colors.error,
+                  marginTop: 8,
+                }}
+              >
+                {companiesError}
+              </Text>
+            ) : null}
+            {!selectedCompany && !companiesLoading && !companiesError && (
+              <Text
+                style={{
+                  color: theme.colors.error,
+                  marginTop: 8,
+                }}
+              >
+                Please choose an aggregator to continue.
+              </Text>
+            )}
+          </View>
+        )}
         {step === 1 && (
           <Step1BasicDetails
             value={step1}

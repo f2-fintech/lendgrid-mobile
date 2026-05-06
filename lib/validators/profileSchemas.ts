@@ -25,8 +25,8 @@ const optionalFile = yup
   .notRequired()
   .test("file-shape", "Invalid file", (val: any) => {
     if (!val) return true;
-    if (typeof val === "string") return true; 
-    if (typeof val?.uri === "string") return true; 
+    if (typeof val === "string") return true;
+    if (typeof val?.uri === "string") return true;
     return false;
   });
 
@@ -40,23 +40,26 @@ export interface ProfileInputs {
 }
 
 export const ProfileSchema = yup.object().shape({
-  firstName: yup.string().required("First name is required."),
-  lastName: yup.string().required("Last name is required."),
+  firstName: yup.string().notRequired(),
+  lastName: yup.string().notRequired(),
   email: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .email("Must be a valid email address.")
-    .required("Email address is required."),
+    .notRequired(),
   phone: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .matches(PHONE_REGEX, "Phone number must be exactly 10 digits.")
-    .required("Phone number is required."),
+    .notRequired(),
   avatar: yup
     .object()
     .shape({
-      uri: yup.string().required("Avatar file URI is missing."),
+      uri: yup.string().notRequired(),
     })
     .nullable(true)
-    .default(null),
+    .default(null)
+    .notRequired(),
 });
 
 // 2. BUSINESS TAB SCHEMA
@@ -77,54 +80,59 @@ export interface BusinessInputs {
 export const BusinessSchema = yup.object().shape({
   companyName: yup
     .string()
-    .required("Company name is required.")
-    .min(3, "Company name is too short."),
+    .transform((v) => (v === "" ? undefined : v))
+    .min(3, "Company name is too short.")
+    .notRequired(),
 
   businessType: yup
     .string()
-    .required("Business type is required.")
-    .oneOf(BusinessTypeValues, "Invalid business type selected."),
+    .transform((v) => (v === "" ? undefined : v))
+    .oneOf(
+      [...BusinessTypeValues, "", undefined],
+      "Invalid business type selected.",
+    )
+    .notRequired(),
 
   cinNumber: yup
     .string()
     .transform((v) => (v === "" ? undefined : v))
     .min(21, "CIN must be exactly 21 characters.")
     .max(21, "CIN must be exactly 21 characters.")
-    .when("businessType", {
-      is: (val: string) =>
-        val === "PRIVATE_LIMITED" || val === "PUBLIC_LIMITED" || val === "LLP",
-      then: (schema) =>
-        schema.required("CIN is required for Incorporated entities."),
-      otherwise: (schema) => schema.notRequired(),
-    }),
+    .notRequired(),
 
   gstNumber: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .matches(GST_REGEX, "Invalid GST number format (15 characters).")
-    .required("GST number is required."),
+    .notRequired(),
 
   panNumber: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .matches(PAN_REGEX, "Invalid PAN number format (e.g., ABCDE1234F).")
-    .required("PAN number is required."),
+    .notRequired(),
 
   tanNumber: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .matches(TAN_REGEX, "Invalid TAN format (10 characters, e.g., ABCD12345E).")
-    .required("TAN number is required."),
+    .notRequired(),
 
   pincode: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .matches(PINCODE_REGEX, "Pincode must be 6 digits.")
-    .required("Pincode is required."),
+    .notRequired(),
 
-  city: yup.string().required("City is required."),
-  state: yup.string().required("State is required."),
+  city: yup.string().notRequired(),
+  state: yup.string().notRequired(),
 
   registeredAddress: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .min(10, "Registered Address is too short.")
-    .required("Registered address is required."),
+    .notRequired(),
+
   websiteUrl: yup
     .string()
     .transform((v) => (v === "" ? undefined : v))
@@ -143,25 +151,29 @@ export interface BankingInputs {
 export const BankingSchema = yup.object().shape({
   accountHolderName: yup
     .string()
-    .required("Account Holder name is required.")
-    .min(3, "Name is too short."),
+    .transform((v) => (v === "" ? undefined : v))
+    .min(3, "Name is too short.")
+    .notRequired(),
 
   accountNumber: yup
     .string()
-    .required("Account number is required.")
+    .transform((v) => (v === "" ? undefined : v))
     .min(9, "Account number is too short.")
     .max(18, "Account number is too long.")
-    .matches(/^[0-9]+$/, "Account number must only contain digits."),
+    .matches(/^[0-9]+$/, "Account number must only contain digits.")
+    .notRequired(),
 
   ifscCode: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .matches(IFSC_REGEX, "Invalid IFSC format (e.g., ABCD0123456).")
-    .required("IFSC Code is required."),
+    .notRequired(),
 
   bankName: yup
     .string()
-    .required("Bank name is required.")
-    .min(3, "Bank name is too short."),
+    .transform((v) => (v === "" ? undefined : v))
+    .min(3, "Bank name is too short.")
+    .notRequired(),
 });
 
 // 4. KYC TAB SCHEMA
@@ -177,20 +189,23 @@ export interface KYCInputs {
     bankStatement: any;
     cancelledCheque: any;
     addressProof: any;
-    authorizedSignatory: any;
+    // authorizedSignatory: any;
   };
 }
 
 export const KYCSchema = yup.object().shape({
   aadhaarNumber: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .matches(AADHAAR_REGEX, "Aadhaar number must be exactly 12 digits.")
-    .required("Aadhaar number is required."),
+    .notRequired(),
 
   panNumber: yup
     .string()
+    .transform((v) => (v === "" ? undefined : v))
     .matches(PAN_REGEX, "Invalid PAN number format (e.g., ABCDE1234F).")
-    .required("PAN number is required."),
+    .notRequired(),
+
   documents: yup
     .object()
     .shape({
@@ -202,7 +217,7 @@ export const KYCSchema = yup.object().shape({
       bankStatement: optionalFile,
       cancelledCheque: optionalFile,
       addressProof: optionalFile,
-      authorizedSignatory: optionalFile,
+      // authorizedSignatory: optionalFile,
     })
     .default({})
     .notRequired(),

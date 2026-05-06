@@ -37,17 +37,48 @@ export function fetchCustomerApplications(params: {
   limit?: number;
   status?: string;
   search?: string;
+  appliedBy?: string | number;
+  companyId?: string | number;
 }) {
+  const companyId = params.companyId ? String(params.companyId) : undefined;
+  const queryParams = {
+    page: params.page ?? 1,
+    limit: params.limit ?? 10,
+    ...(params.appliedBy
+      ? {
+          appliedBy: params.appliedBy,
+        }
+      : {}),
+    ...(companyId
+      ? companyId === "all"
+        ? { _cid: companyId }
+        : { _cid: companyId, companyId }
+      : {}),
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.search ? { search: params.search } : {}),
+  };
+
+  if (__DEV__) {
+    console.log("[Applications API] fetchCustomerApplications", {
+      path: "/get-customer-loan-applications",
+      params: queryParams,
+      companyIdHeader: companyId === "all" ? undefined : companyId,
+      allCompanies: companyId === "all",
+    });
+  }
+
   return restRequest<RestEnvelope<ApplicationsPage>>(
     "/get-customer-loan-applications",
     {
       method: "GET",
-      params: {
-        page: params.page ?? 1,
-        limit: params.limit ?? 10,
-        ...(params.status ? { status: params.status } : {}),
-        ...(params.search ? { search: params.search } : {}),
-      },
-    }
+      params: queryParams,
+      config: companyId && companyId !== "all"
+        ? {
+            headers: {
+              companyid: companyId,
+            },
+          }
+        : undefined,
+    },
   );
 }

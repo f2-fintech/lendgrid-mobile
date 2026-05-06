@@ -8,6 +8,7 @@ import {
   split,
 } from "@apollo/client";
 import { getMainDefinition } from "@apollo/client/utilities";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Client, createClient } from "graphql-ws";
 
@@ -69,14 +70,32 @@ export const setGraphqlAuthToken = (token: string | null) => {
 const httpLink = new HttpLink({ uri: GRAPHQL_HTTP_URL });
 
 const authLink = new ApolloLink((operation, forward) => {
-  operation.setContext(({ headers = {} }) => ({
-    headers: {
-      ...headers,
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
-    },
-  }));
-  return forward(operation);
+  return new Observable((observer) => {
+    let subscription: any;
+
+    AsyncStorage.getItem("companyId")
+      .then((companyId) => {
+        operation.setContext(({ headers = {} }) => ({
+          headers: {
+            ...headers,
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+            ...(companyId ? { companyid: companyId } : {}),
+          },
+        }));
+
+        subscription = forward(operation).subscribe({
+          next: (value) => observer.next(value),
+          error: (error) => observer.error(error),
+          complete: () => observer.complete(),
+        });
+      })
+      .catch((error) => observer.error(error));
+
+    return () => {
+      subscription?.unsubscribe?.();
+    };
+  });
 });
 
 // --------------------
@@ -96,10 +115,14 @@ const wsApolloLink = new ApolloLink((operation) => {
         lazy: true,
         retryAttempts: 50,
         keepAlive: 12000,
-        connectionParams: () => ({
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-          ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
-        }),
+        connectionParams: async () => {
+          const companyId = await AsyncStorage.getItem("companyId");
+          return {
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+            ...(companyId ? { companyid: companyId } : {}),
+          };
+        },
         on: {
           connected: () => console.log("[GRAPHQL WS] connected"),
           closed: () => console.log("[GRAPHQL WS] closed"),

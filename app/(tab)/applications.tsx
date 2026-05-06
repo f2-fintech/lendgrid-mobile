@@ -1,4 +1,6 @@
 import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Buffer } from "buffer";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, View } from "react-native";
@@ -9,6 +11,26 @@ import { useCustomerApplications } from "@/hooks/use-customer-applications_rest"
 import { useTickets } from "@/hooks/use-tickets_rest";
 
 import ApplicationsTicketsView from "@/components/ui/ApplicationsTicketsView/ApplicationsTicketsView";
+
+const decodeJwt = (token: string | null) => {
+  if (!token) return null;
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf-8"));
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[ApplicationsScreen] failed to decode token", error);
+    }
+    return null;
+  }
+};
+
+const normalizeStoredValue = (value?: string | null) => {
+  if (!value || value === "undefined" || value === "null") return undefined;
+  return value;
+};
 
 export default function ApplicationsScreen() {
   const theme = useTheme();
@@ -33,6 +55,12 @@ export default function ApplicationsScreen() {
   const [appsRowsPerPageInput, setAppsRowsPerPageInput] = useState("10");
   const [ticketsRowsPerPageInput, setTicketsRowsPerPageInput] = useState("10");
 
+  const [userType, setUserType] = useState<string | undefined>(undefined);
+  const [salesUserId, setSalesUserId] = useState<string | undefined>(undefined);
+  const [authSource, setAuthSource] = useState<string | undefined>(undefined);
+  const [decodedClaims, setDecodedClaims] = useState<any>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
+
   const setTab = useCallback((tab: "applications" | "tickets") => {
     setActiveTab(tab);
 
@@ -49,12 +77,139 @@ export default function ApplicationsScreen() {
     }, [params?.tab, params?.navId, setTab]),
   );
 
+  const [selectedCompanyId, setSelectedCompanyId] = useState<
+    string | undefined
+  >(undefined);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadAuthState = async () => {
+      const [
+        storedUserType,
+        storedUserId,
+        storedSelectedCompanyId,
+        storedCompanyId,
+        storedAuthSource,
+        storedToken,
+      ] = await Promise.all([
+        AsyncStorage.getItem("userType"),
+        AsyncStorage.getItem("userId"),
+        AsyncStorage.getItem("selectedCompanyId"),
+        AsyncStorage.getItem("companyId"),
+        AsyncStorage.getItem("authSource"),
+        AsyncStorage.getItem("token"),
+      ]);
+
+      const decoded = decodeJwt(storedToken);
+      const normalizedAuthSource = normalizeStoredValue(
+        storedAuthSource ?? decoded?.source,
+      );
+      const normalizedUserType = normalizeStoredValue(storedUserType);
+      const decodedRole = String(decoded?.role || "").toLowerCase();
+      const isOmsSalesSession =
+        normalizedAuthSource === "oms" &&
+        (normalizedUserType === "sales" || decodedRole === "sales");
+      if (!mounted) return;
+      setUserType(normalizedUserType);
+      setSalesUserId(
+        normalizeStoredValue(
+          storedUserId ??
+            decoded?.id ??
+            decoded?.userId ??
+            decoded?.sub ??
+            decoded?.salesUserId ??
+            decoded?.user_id,
+        ),
+      );
+      setAuthSource(normalizedAuthSource);
+      setDecodedClaims(decoded);
+      setSelectedCompanyId(
+        isOmsSalesSession
+          ? normalizeStoredValue(storedSelectedCompanyId) ||
+              normalizeStoredValue(storedCompanyId)
+          : normalizeStoredValue(storedCompanyId),
+      );
+      setAuthLoaded(true);
+
+      if (__DEV__) {
+        console.log("[ApplicationsScreen] loaded application auth state", {
+          storedUserType,
+          storedUserId,
+          storedAuthSource,
+          storedSelectedCompanyId,
+          storedCompanyId,
+          decodedRole: decoded?.role,
+          decodedSource: decoded?.source,
+          decodedId: decoded?.id,
+        });
+      }
+    };
+
+    loadAuthState();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const decodedRole = String(decodedClaims?.role || "").toLowerCase();
+  const decodedSource = String(decodedClaims?.source || "").toLowerCase();
+  const isOmsSales =
+    (authSource === "oms" || decodedSource === "oms") &&
+    decodedRole === "sales";
+  const normalizedSalesUserId =
+    (isOmsSales || userType === "sales") && salesUserId
+      ? salesUserId
+      : undefined;
+  const applicationsCompanyId =
+    isOmsSales && normalizedSalesUserId ? "all" : selectedCompanyId;
+
+  useEffect(() => {
+    if (!authLoaded || !__DEV__) return;
+    console.log("[ApplicationsScreen] applications request scope", {
+      isOmsSales,
+      appliedBy: normalizedSalesUserId,
+      companyId: applicationsCompanyId,
+    });
+  }, [applicationsCompanyId, authLoaded, isOmsSales, normalizedSalesUserId]);
+
   const appsQuery = useCustomerApplications({
     page: appsPage,
     limit: appsRowsPerPage,
     search: search || undefined,
-    enabled: activeTab === "applications",
+    appliedBy: normalizedSalesUserId,
+    companyId: applicationsCompanyId,
+    enabled: activeTab === "applications" && authLoaded,
   });
+
+  const visibleAppsData = useMemo(() => {
+    if (!appsQuery.data || isOmsSales) return appsQuery.data;
+
+    const results = appsQuery.data.results.filter((application: any) => {
+      const source = String(application?.source || "").toLowerCase();
+      if (source !== "oms") return true;
+
+      const picked =
+        application?.is_picked ??
+        application?.isPicked ??
+        application?.picked ??
+        application?.isPickedByAggregator;
+
+      return (
+        picked === true ||
+        picked === 1 ||
+        picked === "1" ||
+        picked === "true"
+      );
+    });
+
+    return {
+      ...appsQuery.data,
+      results,
+      count: Math.min(appsQuery.data.count, results.length),
+    };
+  }, [appsQuery.data, isOmsSales]);
 
   const ticketsQuery = useTickets({
     page: ticketsPage,
@@ -64,7 +219,6 @@ export default function ApplicationsScreen() {
   });
 
   const {
-    data: appsData,
     isLoading: appsLoading,
     isError: appsError,
     refetch: refetchApps,
@@ -123,7 +277,7 @@ export default function ApplicationsScreen() {
           setActiveTab={setActiveTab}
           search={search}
           setSearch={setSearch}
-          appsData={appsData}
+          appsData={visibleAppsData}
           appsLoading={appsLoading}
           appsError={appsError}
           refetchApps={refetchApps}

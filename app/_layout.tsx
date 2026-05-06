@@ -17,6 +17,8 @@ import { updatePushTokenApi } from "@/apis/modules/auth.api";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -77,8 +79,8 @@ export default function RootLayout() {
   const [booted, setBooted] = useState(false);
   const router = useRouter();
 
-  const notificationListener = useRef<any>();
-  const responseListener = useRef<any>();
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   // Add this inside RootLayout
   useEffect(() => {
@@ -103,9 +105,18 @@ export default function RootLayout() {
         if (token && alive) {
           setGraphqlAuthToken(token);
 
-          const pushToken = await registerForPushNotificationsAsync();
-          if (pushToken) {
-            await updatePushTokenApi(pushToken);
+          const [userType, authSource] = await Promise.all([
+            AsyncStorage.getItem("userType"),
+            AsyncStorage.getItem("authSource"),
+          ]);
+          const canSyncGraphqlPushToken =
+            userType !== "sales" && authSource !== "oms";
+
+          if (canSyncGraphqlPushToken) {
+            const pushToken = await registerForPushNotificationsAsync();
+            if (pushToken) {
+              await updatePushTokenApi(pushToken);
+            }
           }
         }
       } catch (err) {
@@ -127,7 +138,8 @@ export default function RootLayout() {
         const data = response.notification.request.content.data;
         console.log("Notification Tapped. Data received:", data);
 
-        const webPath = data?.actionUrl;
+        const webPath =
+          typeof data?.actionUrl === "string" ? data.actionUrl : "";
 
         if (webPath) {
           // 1. Create a Mapping for Web -> Mobile routes

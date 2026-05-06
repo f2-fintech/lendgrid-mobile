@@ -2,8 +2,9 @@
 import { useMutation } from "@apollo/client/react";
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -222,6 +223,7 @@ const AnimatedNotificationItem = ({
 // decide final navigation target + internal tab
 const getNotificationTarget = (
   n: any,
+  fallbackPathname: string = MOBILE_ROUTES.dashboard,
 ): { pathname: string; params?: Record<string, string> } => {
   const type = String(n?.type || "").toUpperCase();
   const actionUrl = String(n?.actionUrl || "").toLowerCase();
@@ -245,13 +247,14 @@ const getNotificationTarget = (
     return { pathname: MOBILE_ROUTES.commissions, params: { tab: "history" } };
   }
 
-  return { pathname: MOBILE_ROUTES.dashboard };
+  return { pathname: fallbackPathname };
 };
 
 export default function NotificationsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [userType, setUserType] = useState<string | null>(null);
 
   const { notifications, meta, loading, error, refetch } = useNotifications({
     mode: "list",
@@ -265,6 +268,21 @@ export default function NotificationsScreen() {
   const [listOpacity] = useState(new Animated.Value(1));
 
   const [deleteOne] = useMutation(DELETE_NOTIFICATION);
+
+  useEffect(() => {
+    let mounted = true;
+
+    AsyncStorage.getItem("userType").then((storedUserType) => {
+      if (mounted) setUserType(storedUserType);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const fallbackRoute =
+    userType === "sales" ? MOBILE_ROUTES.applications : MOBILE_ROUTES.dashboard;
 
   const visibleNotifications = useMemo(() => {
     if (!notifications?.length) return [];
@@ -354,7 +372,7 @@ export default function NotificationsScreen() {
   // ✅ FIX: always send navId so params change even if screen already mounted
   const openNotification = useCallback(
     async (n: any) => {
-      const target = getNotificationTarget(n);
+      const target = getNotificationTarget(n, fallbackRoute);
 
       await invalidateForRoute(target.pathname);
 
@@ -366,7 +384,7 @@ export default function NotificationsScreen() {
         },
       } as any);
     },
-    [router, queryClient],
+    [fallbackRoute, router, queryClient],
   );
 
   const visibleTotal = visibleNotifications.length;
