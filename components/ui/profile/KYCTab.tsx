@@ -10,7 +10,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
   bankStatement: "Bank Statement",
   cancelledCheque: "Cancelled Cheque",
   addressProof: "Address Proof",
-  authorizedSignatory: "Authorized Signatory",
+  // authorizedSignatory: "Authorized Signatory",
 };
 
 type Props = {
@@ -78,7 +78,7 @@ export default function KYCTab({ uiState }: Props) {
       RESUBMIT: "RESUBMIT",
     }[rawStatus] || "PENDING";
 
-    // See all the kycStatus labels and update it
+  // See all the kycStatus labels and update it
 
   const statusColor = STATUS_COLORS[rawStatus] || "#FFA726";
 
@@ -260,7 +260,7 @@ export default function KYCTab({ uiState }: Props) {
             "bankStatement",
             "cancelledCheque",
             "addressProof",
-            "authorizedSignatory",
+            // "authorizedSignatory",
           ].map((key) => (
             <View key={key} style={{ marginBottom: 16 }}>
               <FileUploadField

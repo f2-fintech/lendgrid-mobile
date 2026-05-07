@@ -83,7 +83,8 @@ export const useNotifications = ({
   // ----------------------------------------------------
   const [tokenReady, setTokenReady] = useState(false);
   const [hasToken, setHasToken] = useState<boolean>(!!getGraphqlAuthToken());
-  const tokenPollRef = useRef<NodeJS.Timeout | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const tokenPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -91,6 +92,19 @@ export const useNotifications = ({
     (async () => {
       try {
         const existing = getGraphqlAuthToken();
+        const storedUserType = await AsyncStorage.getItem("userType");
+        const storedAuthSource = await AsyncStorage.getItem("authSource");
+        const isSalesOrOms =
+          storedUserType === "sales" || storedAuthSource === "oms";
+
+        if (isSalesOrOms) {
+          if (!alive) return;
+          setNotificationsEnabled(false);
+          setHasToken(false);
+          setTokenReady(true);
+          return;
+        }
+
         if (existing) {
           if (!alive) return;
           setHasToken(true);
@@ -124,6 +138,7 @@ export const useNotifications = ({
     if (tokenPollRef.current) clearInterval(tokenPollRef.current);
 
     tokenPollRef.current = setInterval(() => {
+      if (!notificationsEnabled) return;
       const next = !!getGraphqlAuthToken();
       setHasToken((prev) => (prev !== next ? next : prev));
     }, 800);
@@ -131,7 +146,7 @@ export const useNotifications = ({
     return () => {
       if (tokenPollRef.current) clearInterval(tokenPollRef.current);
     };
-  }, []);
+  }, [notificationsEnabled]);
 
   // ----------------------------------------------------
   // ✅ Queries
@@ -140,7 +155,7 @@ export const useNotifications = ({
     variables: { page, limit, filters },
     fetchPolicy: "cache-and-network",
     nextFetchPolicy: "cache-first",
-    skip: !tokenReady || !hasToken || !isListMode,
+    skip: !notificationsEnabled || !tokenReady || !hasToken || !isListMode,
     notifyOnNetworkStatusChange: true,
   });
 
@@ -149,19 +164,34 @@ export const useNotifications = ({
     {
       fetchPolicy: "cache-and-network",
       nextFetchPolicy: "cache-first",
-      skip: !tokenReady || !hasToken || isListMode,
+      skip: !notificationsEnabled || !tokenReady || !hasToken || isListMode,
       notifyOnNetworkStatusChange: true,
     },
   );
 
-  const loading = isListMode ? listQuery.loading : statsQuery.loading;
-  const error = isListMode ? listQuery.error : statsQuery.error;
+  const loading = notificationsEnabled
+    ? isListMode
+      ? listQuery.loading
+      : statsQuery.loading
+    : false;
+  const error = notificationsEnabled
+    ? isListMode
+      ? listQuery.error
+      : statsQuery.error
+    : undefined;
 
   const refetch = useCallback(async () => {
-    if (!tokenReady || !hasToken) return;
+    if (!notificationsEnabled || !tokenReady || !hasToken) return;
     if (isListMode) return listQuery.refetch();
     return statsQuery.refetch();
-  }, [tokenReady, hasToken, isListMode, listQuery, statsQuery]);
+  }, [
+    notificationsEnabled,
+    tokenReady,
+    hasToken,
+    isListMode,
+    listQuery,
+    statsQuery,
+  ]);
 
   // ----------------------------------------------------
   //  Bridge: Notification event -> React Query invalidate
@@ -206,7 +236,7 @@ export const useNotifications = ({
   const subFiredOnceRef = useRef(false);
 
   useSubscription<NotificationSubscriptionResult>(NOTIFICATION_CREATED_SUB, {
-    skip: !tokenReady || !hasToken,
+    skip: !notificationsEnabled || !tokenReady || !hasToken,
     onData: ({ data }) => {
       const n = data?.data?.notificationCreated;
       if (!n) return;
@@ -233,7 +263,7 @@ export const useNotifications = ({
   const pollingIntervalMs = 3000;
 
   const startPolling = useCallback(() => {
-    if (!tokenReady || !hasToken) return;
+    if (!notificationsEnabled || !tokenReady || !hasToken) return;
 
     const ms = subFiredOnceRef.current ? 8000 : pollingIntervalMs;
 
@@ -241,7 +271,14 @@ export const useNotifications = ({
       if (isListMode) listQuery.startPolling(ms);
       else statsQuery.startPolling(ms);
     } catch {}
-  }, [tokenReady, hasToken, isListMode, listQuery, statsQuery]);
+  }, [
+    notificationsEnabled,
+    tokenReady,
+    hasToken,
+    isListMode,
+    listQuery,
+    statsQuery,
+  ]);
 
   const stopPolling = useCallback(() => {
     try {
@@ -251,7 +288,7 @@ export const useNotifications = ({
   }, [isListMode, listQuery, statsQuery]);
 
   useEffect(() => {
-    if (!tokenReady || !hasToken) return;
+    if (!notificationsEnabled || !tokenReady || !hasToken) return;
 
     startPolling();
 
@@ -286,7 +323,15 @@ export const useNotifications = ({
       sub.remove();
       stopPolling();
     };
-  }, [tokenReady, hasToken, startPolling, stopPolling, refetch, queryClient]);
+  }, [
+    notificationsEnabled,
+    tokenReady,
+    hasToken,
+    startPolling,
+    stopPolling,
+    refetch,
+    queryClient,
+  ]);
 
   // ----------------------------------------------------
   //  Mark-all-read mutation (only on list screen blur)
@@ -298,6 +343,7 @@ export const useNotifications = ({
   useFocusEffect(
     useCallback(() => {
       if (!isListMode) return;
+      if (!notificationsEnabled) return;
 
       return () => {
         (async () => {
@@ -322,7 +368,7 @@ export const useNotifications = ({
           }
         })();
       };
-    }, [isListMode, markAllAsRead, page, limit, filters]),
+    }, [isListMode, notificationsEnabled, markAllAsRead, page, limit, filters]),
   );
 
   // ----------------------------------------------------
@@ -357,7 +403,9 @@ export const useNotifications = ({
   // ✅ Meta for both modes
   // ----------------------------------------------------
   const meta: UseNotificationsMeta = useMemo(() => {
-    if (!tokenReady || !hasToken) return { total: 0, unreadCount: 0 };
+    if (!notificationsEnabled || !tokenReady || !hasToken) {
+      return { total: 0, unreadCount: 0 };
+    }
 
     if (isListMode) {
       return {
@@ -370,7 +418,14 @@ export const useNotifications = ({
       total: statsQuery.data?.getNotificationStats?.totalNotifications ?? 0,
       unreadCount: statsQuery.data?.getNotificationStats?.unreadCount ?? 0,
     };
-  }, [tokenReady, hasToken, isListMode, listQuery.data, statsQuery.data]);
+  }, [
+    notificationsEnabled,
+    tokenReady,
+    hasToken,
+    isListMode,
+    listQuery.data,
+    statsQuery.data,
+  ]);
 
   return {
     notifications,

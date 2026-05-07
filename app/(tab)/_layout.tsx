@@ -1,7 +1,13 @@
 import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
-import { Tabs, useRouter } from "expo-router";
-import { useState } from "react";
-import { Alert, Share, TouchableOpacity, View } from "react-native";
+import { Tabs, useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Share,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Button, Dialog, Portal, Text, useTheme } from "react-native-paper";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -26,6 +32,53 @@ export default function Layout() {
   const router = useRouter();
 
   const [logoutVisible, setLogoutVisible] = useState(false);
+  const [userType, setUserType] = useState<string | null | undefined>(
+    undefined,
+  );
+
+  const loadUserType = useCallback(async () => {
+    const type = await AsyncStorage.getItem("userType");
+    if (__DEV__) {
+      console.log("Tab layout userType:", type);
+    }
+    setUserType(type);
+  }, []);
+
+  useEffect(() => {
+    loadUserType();
+  }, [loadUserType]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserType();
+    }, [loadUserType]),
+  );
+
+  if (userType === undefined) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  const isSales = userType === "sales";
+  const notificationBackRoute = isSales ? "/applications" : "/dashboard";
+
+  if (__DEV__) {
+    console.log("[TAB LAYOUT] isSales:", isSales, "userType:", userType);
+    console.log(
+      "[TAB LAYOUT] Tab visibility config:",
+      `dashboard=${isSales ? "hidden" : "visible"}, commissions=${isSales ? "hidden" : "visible"}, applications=visible, profile=${isSales ? "hidden" : "visible"}, notifications=hidden`,
+    );
+  }
 
   /** * NOTE: We removed isVerifying and isAuthenticated here.
    * Your RootLayout already handles the auth logic and
@@ -61,7 +114,16 @@ export default function Layout() {
   const handleLogout = async () => {
     setLogoutVisible(false);
     try {
-      await AsyncStorage.multiRemove(["token", "user", "companyId"]);
+      await AsyncStorage.multiRemove([
+        "token",
+        "user",
+        "companyId",
+        "userType",
+        "userId",
+        "authSource",
+        "selectedCompanyId",
+        "selectedAggregatorId",
+      ]);
       setGraphqlAuthToken(null);
       dispatch(updateField({ key: "username", value: "" }));
       dispatch(updateField({ key: "email", value: "" }));
@@ -120,12 +182,29 @@ export default function Layout() {
 
   const NotificationsHeaderLeft = () => (
     <TouchableOpacity
-      onPress={() => router.back()}
+      onPress={() => router.replace(notificationBackRoute)}
       style={{ marginLeft: 15 }}
       activeOpacity={0.7}
     >
       <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
     </TouchableOpacity>
+  );
+
+  const AppsHeaderRightWithLogout = () => (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <TouchableOpacity
+        onPress={() => setLogoutVisible(true)}
+        style={{ marginRight: 12 }}
+        activeOpacity={0.8}
+      >
+        <Ionicons
+          name="log-out-outline"
+          size={24}
+          color={theme.colors.onSurface}
+        />
+      </TouchableOpacity>
+      <AppsHeaderRight />
+    </View>
   );
 
   return (
@@ -177,6 +256,7 @@ export default function Layout() {
           name="dashboard"
           options={{
             title: "Dashboard",
+            href: isSales ? null : "/dashboard",
             headerRight: () => <DashboardHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Feather name="home" size={size} color={color} />
@@ -187,6 +267,7 @@ export default function Layout() {
           name="commissions"
           options={{
             title: "Commissions",
+            href: isSales ? null : "/commissions",
             headerRight: () => <CommissionsHeaderRight />,
             tabBarIcon: ({ color }) => (
               <FontAwesome name="money" size={24} color={color} />
@@ -197,7 +278,9 @@ export default function Layout() {
           name="applications"
           options={{
             title: "Applications",
-            headerRight: () => <AppsHeaderRight />,
+            href: "/applications",
+            headerRight: () =>
+              isSales ? <AppsHeaderRightWithLogout /> : <AppsHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Feather name="file-text" size={size} color={color} />
             ),
@@ -207,6 +290,7 @@ export default function Layout() {
           name="profile"
           options={{
             title: "Profile",
+            href: isSales ? null : "/profile",
             headerRight: () => <ProfileHeaderRight />,
             tabBarIcon: ({ color }) => (
               <FontAwesome name="user-circle-o" size={24} color={color} />
@@ -216,10 +300,17 @@ export default function Layout() {
         <Tabs.Screen
           name="notifications"
           options={{
-            href: null,
             title: "Notifications",
+            href: null,
             headerLeft: () => <NotificationsHeaderLeft />,
             headerRight: () => <NotificationsHeaderRight />,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name="notifications-outline"
+                size={size}
+                color={color}
+              />
+            ),
           }}
         />
       </Tabs>

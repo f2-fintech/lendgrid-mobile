@@ -13,13 +13,18 @@ export default function Index() {
     const checkUser = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
+        const userType = await AsyncStorage.getItem("userType");
 
         setGraphqlAuthToken(token || null);
 
         if (!alive) return;
 
         if (token) {
-          setNextRoute(ROUTES.Dashboard);
+          if (userType === "sales") {
+            setNextRoute("/(tab)/applications");
+          } else {
+            setNextRoute(ROUTES.Dashboard);
+          }
         } else {
           setNextRoute(ROUTES.signin);
         }

@@ -34,12 +34,26 @@ export const coreApi = axios.create({
   instance.interceptors.request.use(async (config) => {
     const token = await AsyncStorage.getItem("token");
     const companyId = await AsyncStorage.getItem("companyId");
+    const isAllCompanyScope = (config.params as any)?._cid === "all";
 
     config.headers = config.headers || {};
     if (token) config.headers.Authorization = `Bearer ${token}`;
 
-    //  backend is reading req.headers.companyid
-    if (companyId) (config.headers as any)["companyid"] = companyId;
+    //  backend is reading req.headers.companyid.
+    //  Keep request-level overrides, e.g. OMS sales list uses companyid=all.
+    if (
+      companyId &&
+      !isAllCompanyScope &&
+      !(config.headers as any)["companyid"] &&
+      !(config.headers as any)["Companyid"]
+    ) {
+      (config.headers as any)["companyid"] = companyId;
+    }
+
+    if (isAllCompanyScope) {
+      delete (config.headers as any)["companyid"];
+      delete (config.headers as any)["Companyid"];
+    }
 
     // FULL URL LOGGER (baseURL + path + query)
     // const fullUrl =
