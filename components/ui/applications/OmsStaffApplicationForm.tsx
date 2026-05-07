@@ -13,7 +13,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { Menu, TextInput, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 import HorizontalStepper, { StepConfig } from "./Verticalstepper";
 import Step0LoanDetails, { Step0Values } from "./steps/Step_0_LoanDetails";
 import Step1BasicDetails, { Step1Values } from "./steps/Step_1_BasicDetails";
@@ -158,9 +158,6 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
-  const [companiesLoading, setCompaniesLoading] = useState(false);
-  const [companiesError, setCompaniesError] = useState<string | null>(null);
-  const [companyMenuVisible, setCompanyMenuVisible] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(
     null,
@@ -185,8 +182,6 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
   }, [step]);
 
   const loadCompanies = useCallback(async () => {
-    setCompaniesLoading(true);
-    setCompaniesError(null);
     try {
       const response = await restApi.get("/companies", {
         params: { page: 1, limit: 100 },
@@ -215,13 +210,6 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
         "[OmsStaffApplicationForm] failed to load companies",
         error,
       );
-      setCompaniesError(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Unable to load aggregators",
-      );
-    } finally {
-      setCompaniesLoading(false);
     }
   }, []);
 
@@ -262,15 +250,6 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
       setSelectedCompany(match);
     }
   }, [companies, selectedCompanyId]);
-
-  const saveSelectedCompany = async (company: CompanyOption) => {
-    setSelectedCompany(company);
-    setSelectedCompanyId(String(company.companyId));
-    await AsyncStorage.setItem("selectedCompanyId", String(company.companyId));
-    await AsyncStorage.setItem("selectedAggregatorId", String(company.id));
-    await AsyncStorage.setItem("companyId", String(company.companyId));
-    setCompanyMenuVisible(false);
-  };
 
   const next = useCallback(() => {
     if (!canGoNext) return;
@@ -581,82 +560,6 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
         >
           OMS Staff Application
         </Text>
-
-        <View style={{ marginBottom: 18 }}>
-          <Text
-            style={{
-              color: theme.colors.onSurface,
-              fontSize: 14,
-              fontWeight: "700",
-              marginBottom: 8,
-            }}
-          >
-            Select Aggregator
-          </Text>
-          <Menu
-            visible={companyMenuVisible}
-            onDismiss={() => setCompanyMenuVisible(false)}
-            anchor={
-              <TouchableOpacity
-                onPress={() => setCompanyMenuVisible(true)}
-                activeOpacity={0.8}
-              >
-                <View pointerEvents="none">
-                  <TextInput
-                    label="Aggregator"
-                    mode="outlined"
-                    value={selectedCompany?.name || ""}
-                    placeholder="Choose aggregator"
-                    editable={false}
-                    right={
-                      <TextInput.Icon
-                        icon={
-                          companyMenuVisible ? "chevron-up" : "chevron-down"
-                        }
-                      />
-                    }
-                  />
-                </View>
-              </TouchableOpacity>
-            }
-          >
-            {companiesLoading ? (
-              <Menu.Item title="Loading aggregators..." disabled />
-            ) : companies.length > 0 ? (
-              companies.map((company) => (
-                <Menu.Item
-                  key={`${company.id}-${company.companyId}`}
-                  title={company.name}
-                  onPress={() => saveSelectedCompany(company)}
-                />
-              ))
-            ) : (
-              <Menu.Item title="No aggregators available" disabled />
-            )}
-          </Menu>
-
-          {companiesError ? (
-            <Text
-              style={{
-                color: theme.colors.error,
-                marginTop: 8,
-              }}
-            >
-              {companiesError}
-            </Text>
-          ) : null}
-
-          {!selectedCompany && !companiesLoading ? (
-            <Text
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                marginTop: 8,
-              }}
-            >
-              Please choose an aggregator for OMS submission.
-            </Text>
-          ) : null}
-        </View>
 
         {step === 0 && (
           <Step0LoanDetails

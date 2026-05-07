@@ -1,4 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Buffer } from "buffer";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -35,6 +37,69 @@ function splitName(fullName?: string) {
   return { firstName, lastName };
 }
 
+const decodeJwt = (token: string | null) => {
+  if (!token) return null;
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(Buffer.from(padded, "base64").toString("utf-8"));
+  } catch {
+    return null;
+  }
+};
+
+const firstDefined = (...values: any[]) =>
+  values.find((value) => value !== undefined && value !== null && value !== "");
+
+const getOmsProfileValues = (claims: any, storedUser: any) => {
+  const username = firstDefined(
+    claims?.username,
+    claims?.name,
+    claims?.fullName,
+    claims?.user?.username,
+    claims?.user?.name,
+    claims?.data?.username,
+    storedUser?.username,
+    storedUser?.name,
+  );
+  const { firstName, lastName } = splitName(username);
+
+  return {
+    firstName: firstDefined(claims?.firstName, claims?.first_name, firstName),
+    lastName: firstDefined(claims?.lastName, claims?.last_name, lastName),
+    email: firstDefined(
+      claims?.email,
+      claims?.user?.email,
+      claims?.data?.email,
+      storedUser?.email,
+    ),
+    phone: String(
+      firstDefined(
+        claims?.contact,
+        claims?.phone,
+        claims?.mobile,
+        claims?.user?.contact,
+        claims?.user?.phone,
+        claims?.data?.contact,
+        storedUser?.contact,
+        storedUser?.phone,
+        "",
+      ),
+    ),
+    status: String(
+      firstDefined(
+        claims?.status,
+        claims?.user?.status,
+        claims?.data?.status,
+        storedUser?.status,
+        "ACTIVE",
+      ),
+    ).toUpperCase(),
+    avatar: null,
+  };
+};
+
 export default function ProfileScreen() {
   const theme = useTheme();
   const dispatch = useDispatch();
@@ -42,6 +107,8 @@ export default function ProfileScreen() {
 
   const [activeTab, setActiveTab] = useState("profile");
   const [isEditMode, setIsEditMode] = useState(false);
+  const [authLoaded, setAuthLoaded] = useState(false);
+  const [isOmsStaff, setIsOmsStaff] = useState(false);
 
   // Snackbar
   const [snackVisible, setSnackVisible] = useState(false);
@@ -52,12 +119,14 @@ export default function ProfileScreen() {
   };
 
   // ---------------- FETCH AUTH PROFILE ----------------
-  const { data: user, isLoading: loadingUser } = useProfile();
+  const { data: user, isLoading: loadingUser } = useProfile(
+    authLoaded && !isOmsStaff,
+  );
   const profileId = user?.profileId;
 
   // ---------------- FETCH AGGREGATOR PROFILE ----------------
   const { data: aggProfile, isLoading: loadingAgg } = useAggregatorDetails(
-    profileId ?? "",
+    !isOmsStaff ? profileId ?? "" : "",
   );
 
   // ---------------- UPDATE MUTATION ----------------
@@ -119,9 +188,54 @@ export default function ProfileScreen() {
     return { isEditMode, activeTab };
   }, [isEditMode, activeTab]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadOmsProfile = async () => {
+      const [storedUserType, storedAuthSource, storedToken, storedUser] =
+        await Promise.all([
+          AsyncStorage.getItem("userType"),
+          AsyncStorage.getItem("authSource"),
+          AsyncStorage.getItem("token"),
+          AsyncStorage.getItem("user"),
+        ]);
+
+      const claims = decodeJwt(storedToken);
+      const role = String(claims?.role || "").toLowerCase();
+      const isStaff =
+        storedAuthSource === "oms" &&
+        (storedUserType === "sales" || role === "sales");
+
+      if (!mounted) return;
+
+      setIsOmsStaff(isStaff);
+      if (isStaff) {
+        let parsedUser = null;
+        try {
+          parsedUser = storedUser ? JSON.parse(storedUser) : null;
+        } catch {
+          parsedUser = null;
+        }
+        methods.reset({
+          ...methods.getValues(),
+          ...getOmsProfileValues(claims, parsedUser),
+        });
+        setActiveTab("profile");
+        setIsEditMode(false);
+      }
+      setAuthLoaded(true);
+    };
+
+    loadOmsProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, [methods]);
+
   // ---------------- MAP BACKEND DATA → FORM + REDUX ----------------
   useEffect(() => {
-    if (!aggProfile) return;
+    if (isOmsStaff || !aggProfile) return;
 
     const { firstName, lastName } = splitName(aggProfile.user?.username);
     const normalizedDocs = normalizeDocsFromBackend(aggProfile.documents);
@@ -161,10 +275,10 @@ export default function ProfileScreen() {
       lastName,
       avatar: avatarToUse,
     });
-  }, [aggProfile, dispatch, methods]);
+  }, [aggProfile, dispatch, isOmsStaff, methods]);
 
   // ---------------- LOADING STATES ----------------
-  if (loadingUser || loadingAgg) {
+  if (!authLoaded || (!isOmsStaff && (loadingUser || loadingAgg))) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
@@ -173,7 +287,7 @@ export default function ProfileScreen() {
     );
   }
 
-  if (!profileId) {
+  if (!isOmsStaff && !profileId) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <Text>No aggregator profile found.</Text>
@@ -255,6 +369,10 @@ export default function ProfileScreen() {
   };
 
   const renderTab = () => {
+    if (isOmsStaff) {
+      return <ProfileTab uiState={formContextValue} onSnack={showSnack} />;
+    }
+
     switch (activeTab) {
       case "profile":
         return <ProfileTab uiState={formContextValue} onSnack={showSnack} />;
@@ -298,120 +416,128 @@ export default function ProfileScreen() {
             </Text>
           </View>
 
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <TouchableOpacity
-              onPress={() => setIsEditMode((p) => !p)}
-              style={{
-                alignItems: "center",
-                justifyContent: "center",
-                paddingHorizontal: 16,
-                paddingVertical: 6,
-                borderRadius: 20,
-                backgroundColor: isEditMode
-                  ? theme.colors.errorContainer
-                  : theme.colors.primaryContainer,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "500",
-                  color: isEditMode
-                    ? theme.colors.onErrorContainer
-                    : theme.colors.onPrimaryContainer,
-                }}
-              >
-                {isEditMode ? "Cancel" : "Edit"}
-              </Text>
-            </TouchableOpacity>
-
-            {isEditMode && (
+          {!isOmsStaff && (
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <TouchableOpacity
-                onPress={() =>
-                  methods.handleSubmit(onSave, () =>
-                    showSnack(
-                      "Please fill all the required details correctly.",
-                    ),
-                  )()
-                }
+                onPress={() => setIsEditMode((p) => !p)}
                 style={{
                   alignItems: "center",
                   justifyContent: "center",
                   paddingHorizontal: 16,
                   paddingVertical: 6,
                   borderRadius: 20,
-                  backgroundColor: theme.colors.primary,
+                  backgroundColor: isEditMode
+                    ? theme.colors.errorContainer
+                    : theme.colors.primaryContainer,
                 }}
               >
                 <Text
-                  style={{ fontSize: 14, fontWeight: "500", color: "white" }}
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "500",
+                    color: isEditMode
+                      ? theme.colors.onErrorContainer
+                      : theme.colors.onPrimaryContainer,
+                  }}
                 >
-                  Save
+                  {isEditMode ? "Cancel" : "Edit"}
                 </Text>
               </TouchableOpacity>
-            )}
-          </View>
+
+              {isEditMode && (
+                <TouchableOpacity
+                  onPress={() =>
+                    methods.handleSubmit(onSave, () =>
+                      showSnack(
+                        "Please fill all the required details correctly.",
+                      ),
+                    )()
+                  }
+                  style={{
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingHorizontal: 16,
+                    paddingVertical: 6,
+                    borderRadius: 20,
+                    backgroundColor: theme.colors.primary,
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 14, fontWeight: "500", color: "white" }}
+                  >
+                    Save
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-around",
-            marginBottom: 10,
-            paddingVertical: 4,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.outline,
-          }}
-        >
-          {[
-            { key: "profile", label: "Profile", icon: "person-circle-outline" },
-            { key: "business", label: "Business", icon: "briefcase-outline" },
-            { key: "banking", label: "Banking", icon: "business-outline" },
-            { key: "kyc", label: "KYC", icon: "shield-checkmark-outline" },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
-              style={{ alignItems: "center", width: 70, paddingVertical: 2 }}
-            >
-              <Ionicons
-                name={tab.icon as any}
-                size={23}
-                color={
-                  activeTab === tab.key
-                    ? theme.colors.primary
-                    : theme.colors.onSurfaceVariant
-                }
-              />
-
-              <Text
-                style={{
-                  marginTop: 3,
-                  fontSize: 13,
-                  fontWeight: activeTab === tab.key ? "700" : "500",
-                  color:
+        {!isOmsStaff && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-around",
+              marginBottom: 10,
+              paddingVertical: 4,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.outline,
+            }}
+          >
+            {[
+              {
+                key: "profile",
+                label: "Profile",
+                icon: "person-circle-outline",
+              },
+              { key: "business", label: "Business", icon: "briefcase-outline" },
+              { key: "banking", label: "Banking", icon: "business-outline" },
+              { key: "kyc", label: "KYC", icon: "shield-checkmark-outline" },
+            ].map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                style={{ alignItems: "center", width: 70, paddingVertical: 2 }}
+              >
+                <Ionicons
+                  name={tab.icon as any}
+                  size={23}
+                  color={
                     activeTab === tab.key
                       ? theme.colors.primary
-                      : theme.colors.onSurface,
-                }}
-              >
-                {tab.label}
-              </Text>
-
-              {activeTab === tab.key && (
-                <View
-                  style={{
-                    marginTop: 4,
-                    height: 2,
-                    width: "100%",
-                    backgroundColor: theme.colors.primary,
-                    borderRadius: 10,
-                  }}
+                      : theme.colors.onSurfaceVariant
+                  }
                 />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
+
+                <Text
+                  style={{
+                    marginTop: 3,
+                    fontSize: 13,
+                    fontWeight: activeTab === tab.key ? "700" : "500",
+                    color:
+                      activeTab === tab.key
+                        ? theme.colors.primary
+                        : theme.colors.onSurface,
+                  }}
+                >
+                  {tab.label}
+                </Text>
+
+                {activeTab === tab.key && (
+                  <View
+                    style={{
+                      marginTop: 4,
+                      height: 2,
+                      width: "100%",
+                      backgroundColor: theme.colors.primary,
+                      borderRadius: 10,
+                    }}
+                  />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         <View>{renderTab()}</View>
         <View style={{ height: 60 }} />

@@ -6,7 +6,7 @@ const lightTheme = {
   colors: {
     ...DefaultTheme.colors,
 
-    primary: COLORS.brandBg,
+    primary: COLORS.primary,
     secondary: "#B19CD9",
 
     background: COLORS.surfaceLight,
@@ -15,6 +15,7 @@ const lightTheme = {
 
     tertiary: COLORS.brandAccent,
 
+    onPrimary: COLORS.textPrimaryDark,
     onSurface: COLORS.textPrimaryLight,
     onSurfaceVariant: COLORS.textSecondaryLight,
 

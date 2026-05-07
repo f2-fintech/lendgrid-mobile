@@ -36,10 +36,11 @@ export const useSignUp = () =>
 /**
  * CURRENT USER PROFILE
  */
-export const useProfile = () =>
+export const useProfile = (enabled = true) =>
   useQuery({
     queryKey: ["profile"],
     queryFn: getProfileApi,
+    enabled,
   });
 
 /**

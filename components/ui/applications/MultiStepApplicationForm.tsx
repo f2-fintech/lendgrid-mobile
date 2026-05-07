@@ -19,7 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Menu, TextInput, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 
 import HorizontalStepper, { StepConfig } from "./Verticalstepper";
 
@@ -388,9 +388,6 @@ export default function MultiStepApplicationForm({
   });
 
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
-  const [companiesLoading, setCompaniesLoading] = useState(false);
-  const [companiesError, setCompaniesError] = useState<string | null>(null);
-  const [companyMenuVisible, setCompanyMenuVisible] = useState(false);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(
     null,
@@ -398,8 +395,6 @@ export default function MultiStepApplicationForm({
   const [isOmsStaff, setIsOmsStaff] = useState(false);
 
   const loadCompanies = useCallback(async () => {
-    setCompaniesLoading(true);
-    setCompaniesError(null);
     try {
       const response = await restApi.get("/companies", {
         params: { page: 1, limit: 100 },
@@ -430,13 +425,6 @@ export default function MultiStepApplicationForm({
         "[MultiStepApplicationForm] failed to load companies",
         error,
       );
-      setCompaniesError(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Unable to load aggregators",
-      );
-    } finally {
-      setCompaniesLoading(false);
     }
   }, []);
 
@@ -452,14 +440,14 @@ export default function MultiStepApplicationForm({
         (userType === "sales" || decodedRole === "sales");
       setIsOmsStaff(oms);
 
-      const savedCompanyIdLegacy = await AsyncStorage.getItem("companyId");
       if (oms) {
         const savedCompanyId = await AsyncStorage.getItem("selectedCompanyId");
-        setSelectedCompanyId(savedCompanyId || savedCompanyIdLegacy || "");
+        setSelectedCompanyId(savedCompanyId || "");
         await loadCompanies();
         return;
       }
 
+      const savedCompanyIdLegacy = await AsyncStorage.getItem("companyId");
       setSelectedCompany(null);
       setSelectedCompanyId(savedCompanyIdLegacy || "");
     };
@@ -480,15 +468,6 @@ export default function MultiStepApplicationForm({
       setSelectedCompany(match);
     }
   }, [companies, selectedCompanyId]);
-
-  const selectCompany = async (company: CompanyOption) => {
-    setSelectedCompany(company);
-    setSelectedCompanyId(company.companyId);
-    await AsyncStorage.setItem("selectedCompanyId", company.companyId);
-    await AsyncStorage.setItem("companyId", company.companyId);
-    await AsyncStorage.setItem("selectedAggregatorId", String(company.id));
-    setCompanyMenuVisible(false);
-  };
 
   // -----------------------------
   // VALIDITY FLAGS
@@ -535,10 +514,9 @@ export default function MultiStepApplicationForm({
       isCityStateOk &&
       isEmploymentOk &&
       isDobOk &&
-      isConsentOk &&
-      (!isOmsStaff || !!selectedCompany)
+      isConsentOk
     );
-  }, [step1, isOmsStaff, selectedCompany]);
+  }, [step1]);
 
   const step2HasAtLeastOneDoc = step2Files.length >= 1;
 
@@ -655,7 +633,9 @@ export default function MultiStepApplicationForm({
         ? extractUserIdFromClaims(decoded)
         : undefined;
 
-      const useCompanyId = selectedCompany?.companyId ?? storedCompanyId;
+      const useCompanyId = isOmsStaff
+        ? selectedCompany?.companyId ?? selectedCompanyId
+        : selectedCompany?.companyId ?? storedCompanyId;
       const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
 
       if (isOmsStaff && !useCompanyIdString) return;
@@ -697,7 +677,7 @@ export default function MultiStepApplicationForm({
     } catch (err) {
       console.error("❌ Early customer creation failed:", err);
     }
-  }, [step1, selectedCompany, isOmsStaff, customerId]);
+  }, [step1, selectedCompany, selectedCompanyId, isOmsStaff, customerId]);
 
   useEffect(() => {
     if (step === 1 && step1Valid) {
@@ -768,7 +748,9 @@ export default function MultiStepApplicationForm({
       const appliedByUserId = isOmsStaff
         ? extractUserIdFromClaims(decoded)
         : undefined;
-      const useCompanyId = selectedCompany?.companyId ?? storedCompanyId;
+      const useCompanyId = isOmsStaff
+        ? selectedCompany?.companyId ?? selectedCompanyId
+        : selectedCompany?.companyId ?? storedCompanyId;
       const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
       const appliedByNumber =
         appliedByUserId !== undefined && appliedByUserId !== null
@@ -776,9 +758,7 @@ export default function MultiStepApplicationForm({
           : undefined;
 
       if (isOmsStaff && !useCompanyIdString) {
-        throw new Error(
-          "Please select an aggregator before submitting the application.",
-        );
+        throw new Error("First select the company name.");
       }
 
       if (
@@ -1098,81 +1078,6 @@ export default function MultiStepApplicationForm({
           />
         )}
 
-        {step === 1 && isOmsStaff && (
-          <View style={{ marginBottom: 18 }}>
-            <Text
-              style={{
-                color: theme.colors.onSurface,
-                fontSize: 16,
-                fontWeight: "700",
-                marginBottom: 8,
-              }}
-            >
-              Select Aggregator
-            </Text>
-            <Menu
-              visible={companyMenuVisible}
-              onDismiss={() => setCompanyMenuVisible(false)}
-              anchor={
-                <TouchableOpacity
-                  onPress={() => setCompanyMenuVisible(true)}
-                  activeOpacity={0.8}
-                >
-                  <View pointerEvents="none">
-                    <TextInput
-                      label="Aggregator"
-                      mode="outlined"
-                      value={selectedCompany?.name || ""}
-                      placeholder="Select Aggregator..."
-                      editable={false}
-                      right={
-                        <TextInput.Icon
-                          icon={
-                            companyMenuVisible ? "chevron-up" : "chevron-down"
-                          }
-                        />
-                      }
-                    />
-                  </View>
-                </TouchableOpacity>
-              }
-            >
-              {companiesLoading ? (
-                <Menu.Item title="Loading aggregators..." disabled />
-              ) : companies.length > 0 ? (
-                companies.map((item) => (
-                  <Menu.Item
-                    key={`${item.id}-${item.companyId}`}
-                    title={item.name}
-                    onPress={() => selectCompany(item)}
-                  />
-                ))
-              ) : (
-                <Menu.Item title="No aggregators found" disabled />
-              )}
-            </Menu>
-            {companiesError ? (
-              <Text
-                style={{
-                  color: theme.colors.error,
-                  marginTop: 8,
-                }}
-              >
-                {companiesError}
-              </Text>
-            ) : null}
-            {!selectedCompany && !companiesLoading && !companiesError && (
-              <Text
-                style={{
-                  color: theme.colors.error,
-                  marginTop: 8,
-                }}
-              >
-                Please choose an aggregator to continue.
-              </Text>
-            )}
-          </View>
-        )}
         {step === 1 && (
           <Step1BasicDetails
             value={step1}

@@ -17,9 +17,10 @@ import { Snackbar, useTheme } from "react-native-paper";
 import TurnstileCaptcha from "@/components/login_Signup/TurnstileCaptcha";
 import { useSignUp } from "@/hooks/useAuth";
 import { signUpSchema, SignUpSchemaType } from "@/lib/validators/signup.schema";
+import { COLORS } from "@/styles/theme/tokens";
 
 // ─── Brand colors for light mode ──────────────────────────────────────────────
-const BRAND = "#2D42D8";
+const BRAND = COLORS.primary;
 const BRAND_BG = "#EEF0FD";
 const BRAND_BORDER = "#B0B8F0";
 
