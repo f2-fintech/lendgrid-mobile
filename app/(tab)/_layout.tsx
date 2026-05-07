@@ -76,7 +76,7 @@ export default function Layout() {
     console.log("[TAB LAYOUT] isSales:", isSales, "userType:", userType);
     console.log(
       "[TAB LAYOUT] Tab visibility config:",
-      `dashboard=${isSales ? "hidden" : "visible"}, commissions=${isSales ? "hidden" : "visible"}, applications=visible, profile=${isSales ? "hidden" : "visible"}, notifications=hidden`,
+      `dashboard=${isSales ? "hidden" : "visible"}, commissions=${isSales ? "hidden" : "visible"}, applications=visible, tickets=${isSales ? "visible" : "hidden"}, profile=visible, notifications=hidden`,
     );
   }
 
@@ -287,10 +287,22 @@ export default function Layout() {
           }}
         />
         <Tabs.Screen
+          name="tickets"
+          options={{
+            title: "Tickets",
+            href: isSales ? "/tickets" : null,
+            headerRight: () =>
+              isSales ? <AppsHeaderRightWithLogout /> : <AppsHeaderRight />,
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="clipboard" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="profile"
           options={{
             title: "Profile",
-            href: isSales ? null : "/profile",
+            href: "/profile",
             headerRight: () => <ProfileHeaderRight />,
             tabBarIcon: ({ color }) => (
               <FontAwesome name="user-circle-o" size={24} color={color} />

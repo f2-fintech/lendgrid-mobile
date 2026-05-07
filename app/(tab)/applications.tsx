@@ -1,5 +1,6 @@
 import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { restApi } from "@/apis/config/axiosConfig";
 import { Buffer } from "buffer";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,7 +33,17 @@ const normalizeStoredValue = (value?: string | null) => {
   return value;
 };
 
-export default function ApplicationsScreen() {
+type CompanyOption = {
+  id: number;
+  companyId: number | string;
+  name: string;
+};
+
+type ApplicationsContentProps = {
+  lockedTab?: "applications" | "tickets";
+};
+
+export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   const theme = useTheme();
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
@@ -43,7 +54,7 @@ export default function ApplicationsScreen() {
 
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"applications" | "tickets">(
-    "applications",
+    lockedTab ?? "applications",
   );
 
   const [appsPage, setAppsPage] = useState(1);
@@ -60,26 +71,78 @@ export default function ApplicationsScreen() {
   const [authSource, setAuthSource] = useState<string | undefined>(undefined);
   const [decodedClaims, setDecodedClaims] = useState<any>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [companiesError, setCompaniesError] = useState<string | null>(null);
+  const [companyMenuVisible, setCompanyMenuVisible] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(
+    null,
+  );
 
   const setTab = useCallback((tab: "applications" | "tickets") => {
+    if (lockedTab && tab !== lockedTab) return;
+
     setActiveTab(tab);
 
     requestAnimationFrame(() => {
       pagerRef.current?.setPage(tab === "applications" ? 0 : 1);
     });
-  }, []);
+  }, [lockedTab]);
 
   useFocusEffect(
     useCallback(() => {
+      if (lockedTab) {
+        setActiveTab(lockedTab);
+        return;
+      }
+
       const t = String(params?.tab || "").toLowerCase();
       if (t === "tickets") setTab("tickets");
       if (t === "applications") setTab("applications");
-    }, [params?.tab, params?.navId, setTab]),
+    }, [lockedTab, params?.tab, params?.navId, setTab]),
   );
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<
     string | undefined
   >(undefined);
+
+  const loadCompanies = useCallback(async () => {
+    setCompaniesLoading(true);
+    setCompaniesError(null);
+    try {
+      const response = await restApi.get("/companies", {
+        params: { page: 1, limit: 100 },
+      });
+      const payload = response?.data;
+      const results =
+        payload?.data?.results || payload?.results || payload?.data || [];
+
+      const items = Array.isArray(results)
+        ? results.map((item: any) => ({
+            id: Number(
+              item.id ?? item._id ?? item.companyId ?? item.company_id ?? 0,
+            ),
+            companyId:
+              item.companyId ?? item.company_id ?? item.companyId ?? item.id,
+            name:
+              item.name ||
+              item.company_name ||
+              item.displayName ||
+              String(item.id),
+          }))
+        : [];
+      setCompanies(items);
+    } catch (error: any) {
+      console.error("[ApplicationsScreen] failed to load companies", error);
+      setCompaniesError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to load companies",
+      );
+    } finally {
+      setCompaniesLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -126,8 +189,7 @@ export default function ApplicationsScreen() {
       setDecodedClaims(decoded);
       setSelectedCompanyId(
         isOmsSalesSession
-          ? normalizeStoredValue(storedSelectedCompanyId) ||
-              normalizeStoredValue(storedCompanyId)
+          ? normalizeStoredValue(storedSelectedCompanyId)
           : normalizeStoredValue(storedCompanyId),
       );
       setAuthLoaded(true);
@@ -157,13 +219,40 @@ export default function ApplicationsScreen() {
   const decodedSource = String(decodedClaims?.source || "").toLowerCase();
   const isOmsSales =
     (authSource === "oms" || decodedSource === "oms") &&
-    decodedRole === "sales";
+    (decodedRole === "sales" || userType === "sales");
   const normalizedSalesUserId =
     (isOmsSales || userType === "sales") && salesUserId
       ? salesUserId
       : undefined;
   const applicationsCompanyId =
     isOmsSales && normalizedSalesUserId ? "all" : selectedCompanyId;
+  const viewLockedTab = lockedTab ?? (isOmsSales ? "applications" : undefined);
+
+  useEffect(() => {
+    if (authLoaded && isOmsSales && viewLockedTab !== "tickets") {
+      loadCompanies();
+    }
+  }, [authLoaded, isOmsSales, loadCompanies, viewLockedTab]);
+
+  useEffect(() => {
+    if (!companies.length || !selectedCompanyId) return;
+    const match = companies.find(
+      (company) =>
+        String(company.companyId) === selectedCompanyId ||
+        String(company.id) === selectedCompanyId,
+    );
+    if (match) setSelectedCompany(match);
+  }, [companies, selectedCompanyId]);
+
+  const saveSelectedCompany = useCallback(async (company: CompanyOption) => {
+    setSelectedCompany(company);
+    setSelectedCompanyId(String(company.companyId));
+    setAppsPage(1);
+    await AsyncStorage.setItem("selectedCompanyId", String(company.companyId));
+    await AsyncStorage.setItem("selectedAggregatorId", String(company.id));
+    await AsyncStorage.setItem("companyId", String(company.companyId));
+    setCompanyMenuVisible(false);
+  }, []);
 
   useEffect(() => {
     if (!authLoaded || !__DEV__) return;
@@ -295,8 +384,22 @@ export default function ApplicationsScreen() {
           ticketsRowsPerPage={ticketsRowsPerPage}
           ticketsRowsPerPageInput={ticketsRowsPerPageInput}
           setTicketsRowsPerPageInput={setTicketsRowsPerPageInput}
+          isOmsSales={isOmsSales}
+          companies={companies}
+          companiesLoading={companiesLoading}
+          companiesError={companiesError}
+          selectedCompany={selectedCompany}
+          companyMenuVisible={companyMenuVisible}
+          setCompanyMenuVisible={setCompanyMenuVisible}
+          onSelectCompany={saveSelectedCompany}
+          lockedTab={viewLockedTab}
+          hasSelectedCompany={!!selectedCompanyId}
         />
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+export default function ApplicationsScreen() {
+  return <ApplicationsContent />;
 }

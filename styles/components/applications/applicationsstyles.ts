@@ -32,7 +32,7 @@ export const commissionsStyles = (theme: MD3Theme) =>
       backgroundColor: "transparent",
     },
     activeTab: {
-      backgroundColor: "#0EA5E9",
+      backgroundColor: theme.colors.primary,
     },
     tabText: {
       fontSize: 15,
@@ -40,7 +40,7 @@ export const commissionsStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
     },
     activeTabText: {
-      color: "#000",
+      color: theme.colors.onPrimary,
       fontWeight: "600",
     },
     // Metrics Container

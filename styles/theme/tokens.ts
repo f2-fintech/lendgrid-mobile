@@ -3,7 +3,8 @@ export const COLORS = {
   brandBg: "#0F1F3A",
   brandAccent: "#FFD700",
 
-  primary: "#1E90FF",
+  // primary: "#1E90FF",
+  primary: "#3238F3",
 
   // text
   textPrimaryDark: "#FFFFFF",

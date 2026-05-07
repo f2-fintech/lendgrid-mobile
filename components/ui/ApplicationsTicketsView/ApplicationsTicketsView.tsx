@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import PagerView from "react-native-pager-view";
-import { ActivityIndicator } from "react-native-paper";
+import { ActivityIndicator, Menu } from "react-native-paper";
 
 if (
   Platform.OS === "android" &&
@@ -54,6 +54,21 @@ type Props = {
   ticketsRowsPerPage: number;
   ticketsRowsPerPageInput: string;
   setTicketsRowsPerPageInput: (v: string) => void;
+
+  isOmsSales?: boolean;
+  companies?: { id: number; companyId: number | string; name: string }[];
+  companiesLoading?: boolean;
+  companiesError?: string | null;
+  selectedCompany?: { id: number; companyId: number | string; name: string } | null;
+  companyMenuVisible?: boolean;
+  setCompanyMenuVisible?: (visible: boolean) => void;
+  onSelectCompany?: (company: {
+    id: number;
+    companyId: number | string;
+    name: string;
+  }) => void;
+  lockedTab?: "applications" | "tickets";
+  hasSelectedCompany?: boolean;
 };
 
 // -------------------- Helpers --------------------
@@ -661,7 +676,18 @@ export default function ApplicationsTicketsView(props: Props) {
     ticketsRowsPerPage,
     ticketsRowsPerPageInput,
     setTicketsRowsPerPageInput,
+    isOmsSales = false,
+    companies = [],
+    companiesLoading = false,
+    companiesError,
+    selectedCompany,
+    companyMenuVisible = false,
+    setCompanyMenuVisible,
+    onSelectCompany,
+    lockedTab,
+    hasSelectedCompany = false,
   } = props;
+  const [createWarning, setCreateWarning] = useState("");
 
   const statColors = getStatsCardColors(theme);
 
@@ -778,7 +804,14 @@ export default function ApplicationsTicketsView(props: Props) {
     return `${start}–${end} of ${total}`;
   };
 
-  const handleApplyPress = () => router.push("/create-application");
+  const handleApplyPress = () => {
+    if (isOmsSales && !hasSelectedCompany) {
+      setCreateWarning("First select the company name.");
+      return;
+    }
+    setCreateWarning("");
+    router.push("/create-application");
+  };
 
   const handleAppsPrev = () =>
     appsPage > 1 && !appsLoading && setAppsPage((p: number) => p - 1);
@@ -793,6 +826,87 @@ export default function ApplicationsTicketsView(props: Props) {
     ticketsPage < ticketsTotalPages &&
     !ticketsLoading &&
     setTicketsPage((p: number) => p + 1);
+
+  const renderCompanySelect = () => (
+    <View style={{ flex: 1 }}>
+      <Text
+        style={{
+          color: theme.colors.onSurface,
+          fontSize: 13,
+          fontWeight: "700",
+          marginBottom: 6,
+        }}
+      >
+        Select Company Name
+      </Text>
+      <Menu
+        visible={companyMenuVisible}
+        onDismiss={() => setCompanyMenuVisible?.(false)}
+        anchor={
+          <TouchableOpacity
+            onPress={() => setCompanyMenuVisible?.(true)}
+            activeOpacity={0.85}
+            style={[
+              styles.searchContainer,
+              {
+                marginTop: 0,
+                marginBottom: 0,
+                height: 48,
+                borderRadius: 10,
+                justifyContent: "space-between",
+              },
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={{
+                flex: 1,
+                color: selectedCompany?.name
+                  ? theme.colors.onSurface
+                  : theme.colors.onSurfaceVariant,
+                fontSize: 14,
+              }}
+            >
+              {selectedCompany?.name || "Select Company Name"}
+            </Text>
+            <Feather
+              name={companyMenuVisible ? "chevron-up" : "chevron-down"}
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </TouchableOpacity>
+        }
+      >
+        {companiesLoading ? (
+          <Menu.Item title="Loading companies..." disabled />
+        ) : companies.length > 0 ? (
+          companies.map((company) => (
+                    <Menu.Item
+                      key={`${company.id}-${company.companyId}`}
+                      title={company.name}
+                      onPress={() => {
+                        setCreateWarning("");
+                        onSelectCompany?.(company);
+                      }}
+                    />
+          ))
+        ) : (
+          <Menu.Item title="No companies available" disabled />
+        )}
+      </Menu>
+      {companiesError ? (
+        <Text
+          style={{
+            color: theme.colors.error,
+            fontSize: 12,
+            marginTop: 6,
+          }}
+        >
+          {companiesError}
+        </Text>
+      ) : null}
+    </View>
+  );
 
   const renderApplicationsTab = () => (
     <View style={{ paddingHorizontal: 16 }}>
@@ -909,38 +1023,42 @@ export default function ApplicationsTicketsView(props: Props) {
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 4,
+            alignItems: "flex-end",
+            gap: 12,
+            marginBottom: 10,
           }}
         >
-          <Text style={styles.cardTitle}>Fresh Applications</Text>
+          {isOmsSales ? (
+            renderCompanySelect()
+          ) : (
+            <Text style={styles.cardTitle}>Fresh Applications</Text>
+          )}
 
           <TouchableOpacity
             onPress={handleApplyPress}
             style={{
               flexDirection: "row",
               alignItems: "center",
-              paddingHorizontal: 12,
-              paddingVertical: 7,
-              borderRadius: 999,
+              justifyContent: "center",
+              height: 48,
+              minWidth: 112,
+              paddingHorizontal: 14,
+              borderRadius: 10,
               borderWidth: 1,
               borderColor: theme.colors.primary,
-              backgroundColor: hexToRgba(
-                theme.colors.primary,
-                theme.dark ? 0.18 : 0.08,
-              ),
+              backgroundColor: theme.colors.primary,
             }}
           >
             <Feather
               name="plus-circle"
-              size={15}
-              color={theme.colors.primary}
+              size={16}
+              color={theme.colors.onPrimary}
               style={{ marginRight: 6 }}
             />
             <Text
               style={{
                 fontSize: 14,
-                color: theme.colors.primary,
+                color: theme.colors.onPrimary,
                 fontWeight: "700",
               }}
             >
@@ -948,6 +1066,32 @@ export default function ApplicationsTicketsView(props: Props) {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {!!createWarning && (
+          <View
+            style={{
+              marginBottom: 10,
+              paddingVertical: 9,
+              paddingHorizontal: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: theme.colors.error,
+              backgroundColor: theme.dark
+                ? "rgba(239,68,68,0.12)"
+                : "rgba(239,68,68,0.08)",
+            }}
+          >
+            <Text
+              style={{
+                color: theme.colors.error,
+                fontSize: 13,
+                fontWeight: "700",
+              }}
+            >
+              {createWarning}
+            </Text>
+          </View>
+        )}
 
         <Text style={styles.cardSubtitle}>Recent submissions</Text>
 
@@ -1350,6 +1494,21 @@ export default function ApplicationsTicketsView(props: Props) {
     </View>
   );
 
+  if (lockedTab) {
+    return (
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingTop: 14 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {lockedTab === "applications"
+          ? renderApplicationsTab()
+          : renderTicketsTab()}
+      </ScrollView>
+    );
+  }
+
   return (
     <>
       <View
@@ -1369,7 +1528,7 @@ export default function ApplicationsTicketsView(props: Props) {
             size={18}
             color={
               activeTab === "applications"
-                ? "#000"
+                ? theme.colors.onPrimary
                 : theme.colors.onSurfaceVariant
             }
             style={{ marginRight: 8 }}
@@ -1392,7 +1551,9 @@ export default function ApplicationsTicketsView(props: Props) {
             name="clipboard"
             size={18}
             color={
-              activeTab === "tickets" ? "#000" : theme.colors.onSurfaceVariant
+              activeTab === "tickets"
+                ? theme.colors.onPrimary
+                : theme.colors.onSurfaceVariant
             }
             style={{ marginRight: 8 }}
           />

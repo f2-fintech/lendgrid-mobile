@@ -30,12 +30,13 @@ import { useLogin } from "@/hooks/useAuth";
 import { useOmsLogin } from "@/hooks/useOMSauth";
 import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
+import { COLORS } from "@/styles/theme/tokens";
 import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
 
 // ─── Brand color (matches logo blue exactly) ──────────────────────────────────
-const BRAND = "#2D42D8";
-const BRAND_DARK = "#4D60E8";
+const BRAND = COLORS.primary;
+const BRAND_DARK = COLORS.primary;
 const BRAND_BG = "#EEF0FD";
 const BRAND_BORDER = "#B0B8F0";
 
