@@ -1,8 +1,11 @@
 import { useTicketHistory } from "@/hooks/use-ticket-history_rest";
-import { Feather, FontAwesome5 } from "@expo/vector-icons";
-import React, { useMemo, useRef, useState } from "react";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -13,7 +16,7 @@ import {
   View,
 } from "react-native";
 import PagerView from "react-native-pager-view";
-import { ActivityIndicator, Menu } from "react-native-paper";
+import { ActivityIndicator } from "react-native-paper";
 
 if (
   Platform.OS === "android" &&
@@ -56,17 +59,6 @@ type Props = {
   setTicketsRowsPerPageInput: (v: string) => void;
 
   isOmsSales?: boolean;
-  companies?: { id: number; companyId: number | string; name: string }[];
-  companiesLoading?: boolean;
-  companiesError?: string | null;
-  selectedCompany?: { id: number; companyId: number | string; name: string } | null;
-  companyMenuVisible?: boolean;
-  setCompanyMenuVisible?: (visible: boolean) => void;
-  onSelectCompany?: (company: {
-    id: number;
-    companyId: number | string;
-    name: string;
-  }) => void;
   lockedTab?: "applications" | "tickets";
   hasSelectedCompany?: boolean;
 };
@@ -140,41 +132,64 @@ const getStatsCardColors = (theme: any) => {
 
   return {
     applicationsTotal: {
-      bg: isDark ? "#0F172A" : "#EFF6FF",
-      border: isDark ? "rgba(59,130,246,0.30)" : "rgba(59,130,246,0.18)",
-      icon: isDark ? "#60A5FA" : "#2563EB",
-      value: isDark ? "#DBEAFE" : "#1D4ED8",
+      bg: isDark
+        ? ["rgba(99,102,241,0.24)", "rgba(99,102,241,0.08)"]
+        : ["#EEF2FF", "#E0E7FF"],
+      border: isDark ? "rgba(129,140,248,0.30)" : "rgba(99,102,241,0.20)",
+      icon: isDark ? "#818CF8" : "#4F46E5",
+      value: isDark ? "#A5B4FC" : "#4F46E5",
     },
     applicationsPicked: {
-      bg: isDark ? "#0F1A14" : "#ECFDF5",
-      border: isDark ? "rgba(16,185,129,0.30)" : "rgba(16,185,129,0.18)",
+      bg: isDark
+        ? ["rgba(16,185,129,0.20)", "rgba(16,185,129,0.07)"]
+        : ["#D1FAE5", "#A7F3D0"],
+      border: isDark ? "rgba(52,211,153,0.28)" : "rgba(16,185,129,0.24)",
       icon: isDark ? "#34D399" : "#059669",
-      value: isDark ? "#D1FAE5" : "#047857",
+      value: isDark ? "#34D399" : "#059669",
     },
     ticketsTotal: {
-      bg: isDark ? "#111827" : "#F8FAFC",
-      border: isDark ? "rgba(148,163,184,0.25)" : "rgba(148,163,184,0.18)",
-      icon: isDark ? "#CBD5E1" : "#334155",
-      value: isDark ? "#F8FAFC" : "#0F172A",
+      bg: isDark
+        ? ["rgba(99,102,241,0.24)", "rgba(99,102,241,0.08)"]
+        : ["#EEF2FF", "#E0E7FF"],
+      border: isDark ? "rgba(129,140,248,0.30)" : "rgba(99,102,241,0.20)",
+      icon: isDark ? "#818CF8" : "#4F46E5",
+      value: isDark ? "#A5B4FC" : "#4F46E5",
     },
     ticketsReview: {
-      bg: isDark ? "#1A1408" : "#FFFBEB",
-      border: isDark ? "rgba(245,158,11,0.30)" : "rgba(245,158,11,0.18)",
-      icon: "#F59E0B",
-      value: "#F59E0B",
+      bg: isDark
+        ? ["rgba(245,158,11,0.20)", "rgba(245,158,11,0.07)"]
+        : ["#FFFBEB", "#FEF3C7"],
+      border: isDark ? "rgba(245,158,11,0.28)" : "rgba(245,158,11,0.24)",
+      icon: isDark ? "#FBBF24" : "#D97706",
+      value: isDark ? "#FBBF24" : "#D97706",
     },
     ticketsApproved: {
-      bg: isDark ? "#0F1A14" : "#ECFDF5",
-      border: isDark ? "rgba(16,185,129,0.30)" : "rgba(16,185,129,0.18)",
-      icon: "#10B981",
-      value: "#10B981",
+      bg: isDark
+        ? ["rgba(16,185,129,0.20)", "rgba(16,185,129,0.07)"]
+        : ["#ECFDF5", "#D1FAE5"],
+      border: isDark ? "rgba(52,211,153,0.28)" : "rgba(16,185,129,0.22)",
+      icon: isDark ? "#34D399" : "#059669",
+      value: isDark ? "#34D399" : "#059669",
     },
     ticketsDisbursed: {
-      bg: isDark ? "#171028" : "#F5F3FF",
-      border: isDark ? "rgba(139,92,246,0.30)" : "rgba(139,92,246,0.18)",
-      icon: "#8B5CF6",
-      value: "#8B5CF6",
+      bg: isDark
+        ? ["rgba(139,92,246,0.22)", "rgba(139,92,246,0.08)"]
+        : ["#F5F3FF", "#EDE9FE"],
+      border: isDark ? "rgba(167,139,250,0.30)" : "rgba(139,92,246,0.20)",
+      icon: isDark ? "#A78BFA" : "#7C3AED",
+      value: isDark ? "#A78BFA" : "#7C3AED",
     },
+  };
+};
+
+const getSurfacePalette = (theme: any) => {
+  const isDark = !!theme?.dark;
+
+  return {
+    cardTopAccent: isDark ? "rgba(129,140,248,0.42)" : "rgba(99,102,241,0.30)",
+    control: isDark ? "rgba(255,255,255,0.05)" : "#FFFFFF",
+    controlBorder: isDark ? "rgba(255,255,255,0.10)" : "rgba(15,23,42,0.10)",
+    divider: isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.07)",
   };
 };
 
@@ -204,6 +219,8 @@ function AppTicketCard({
   } = useTicketHistory(ticketId ?? null, openHistory);
 
   const handleToggleHistory = () => {
+    if (!showHistoryIcon || !ticketId) return;
+
     const newValue = !openHistory;
 
     if (newValue) {
@@ -293,8 +310,22 @@ function AppTicketCard({
       ]}
     >
       {!openHistory ? (
-        <TouchableOpacity activeOpacity={0.7} onPress={handleToggleHistory}>
+        <TouchableOpacity
+          activeOpacity={showHistoryIcon ? 0.75 : 1}
+          disabled={!showHistoryIcon}
+          onPress={handleToggleHistory}
+        >
           <Animated.View style={{ opacity: fadeAnim }}>
+            <LinearGradient
+              colors={[
+                "transparent",
+                getSurfacePalette(theme).cardTopAccent,
+                "transparent",
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.cardTopAccent}
+            />
             <View style={styles.commissionHeader}>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={styles.applicationId}>{title}</Text>
@@ -309,7 +340,10 @@ function AppTicketCard({
                 <View
                   style={[
                     styles.statusBadge,
-                    { backgroundColor: `${statusColor}22` },
+                    {
+                      backgroundColor: `${statusColor}22`,
+                      borderColor: `${statusColor}44`,
+                    },
                   ]}
                 >
                   <Text
@@ -355,8 +389,8 @@ function AppTicketCard({
                         paddingVertical: 6,
                         borderRadius: 999,
                         borderWidth: 1,
-                        borderColor: theme.colors.primary,
-                        backgroundColor: theme.colors.surface,
+                        borderColor: `${theme.colors.primary}44`,
+                        backgroundColor: `${theme.colors.primary}18`,
                         gap: 6,
                       }}
                     >
@@ -677,22 +711,25 @@ export default function ApplicationsTicketsView(props: Props) {
     ticketsRowsPerPageInput,
     setTicketsRowsPerPageInput,
     isOmsSales = false,
-    companies = [],
-    companiesLoading = false,
-    companiesError,
-    selectedCompany,
-    companyMenuVisible = false,
-    setCompanyMenuVisible,
-    onSelectCompany,
     lockedTab,
     hasSelectedCompany = false,
   } = props;
   const [createWarning, setCreateWarning] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+  const fabPulse = useRef(new Animated.Value(0)).current;
 
   const statColors = getStatsCardColors(theme);
+  const surfacePalette = getSurfacePalette(theme);
 
-  const applications = appsData?.results ?? [];
-  const tickets = ticketsData?.results ?? [];
+  const applications = useMemo(
+    () => appsData?.results ?? [],
+    [appsData?.results],
+  );
+  const tickets = useMemo(
+    () => ticketsData?.results ?? [],
+    [ticketsData?.results],
+  );
 
   const totalApplications = appsData?.count ?? 0;
   const totalTickets = ticketsData?.count ?? 0;
@@ -747,7 +784,7 @@ export default function ApplicationsTicketsView(props: Props) {
         return "#F59E0B";
       case "rejected":
         return "#EF4444";
-      case "Submitted":
+      case "submitted":
         return theme.colors.primary;
       default:
         return theme.colors.onSurfaceVariant;
@@ -775,6 +812,21 @@ export default function ApplicationsTicketsView(props: Props) {
       );
     });
   }, [tickets, search]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const focusTimer = setTimeout(() => searchInputRef.current?.focus(), 120);
+    return () => clearTimeout(focusTimer);
+  }, [searchOpen]);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (activeTab === "applications") {
+      setAppsPage(1);
+    } else {
+      setTicketsPage(1);
+    }
+  };
 
   const renderLoading = () => (
     <View style={styles.emptyState}>
@@ -813,6 +865,26 @@ export default function ApplicationsTicketsView(props: Props) {
     router.push("/create-application");
   };
 
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(fabPulse, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fabPulse, {
+          toValue: 0,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [fabPulse]);
+
   const handleAppsPrev = () =>
     appsPage > 1 && !appsLoading && setAppsPage((p: number) => p - 1);
   const handleAppsNext = () =>
@@ -827,84 +899,272 @@ export default function ApplicationsTicketsView(props: Props) {
     !ticketsLoading &&
     setTicketsPage((p: number) => p + 1);
 
-  const renderCompanySelect = () => (
-    <View style={{ flex: 1 }}>
-      <Text
-        style={{
-          color: theme.colors.onSurface,
-          fontSize: 13,
-          fontWeight: "700",
-          marginBottom: 6,
-        }}
+  const renderMetricCard = ({
+    label,
+    value,
+    icon,
+    colors,
+    style,
+  }: {
+    label: string;
+    value: number;
+    icon: React.ReactNode;
+    colors: { bg: string[]; border: string; value: string };
+    style?: any;
+  }) => (
+    <LinearGradient
+      colors={colors.bg as [string, string]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[
+        styles.metricCard,
+        {
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        style,
+      ]}
+    >
+      <Text style={styles.metricTitle}>{label}</Text>
+      <View style={styles.metricValueRow}>
+        <Text style={[styles.metricValue, { color: colors.value }]}>
+          {value}
+        </Text>
+        {icon}
+      </View>
+    </LinearGradient>
+  );
+
+  const renderCreateFab = () => {
+    const scale = fabPulse.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 1.04],
+    });
+    const ringScale = fabPulse.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 1.45],
+    });
+    const ringOpacity = fabPulse.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.28, 0],
+    });
+
+    return (
+      <Animated.View
+        pointerEvents="box-none"
+        style={[
+          styles.createFabWrap,
+          {
+            transform: [{ scale }],
+          },
+        ]}
       >
-        Select Company Name
-      </Text>
-      <Menu
-        visible={companyMenuVisible}
-        onDismiss={() => setCompanyMenuVisible?.(false)}
-        anchor={
-          <TouchableOpacity
-            onPress={() => setCompanyMenuVisible?.(true)}
-            activeOpacity={0.85}
+        <Animated.View
+          style={[
+            styles.createFabPulse,
+            {
+              opacity: ringOpacity,
+              transform: [{ scale: ringScale }],
+              backgroundColor: theme.colors.primary,
+            },
+          ]}
+        />
+
+        <TouchableOpacity
+          onPress={handleApplyPress}
+          activeOpacity={0.86}
+          style={[
+            styles.createFab,
+            {
+              backgroundColor: theme.colors.primary,
+              shadowColor: theme.colors.primary,
+            },
+          ]}
+        >
+          <Feather name="plus" size={20} color={theme.colors.onPrimary} />
+          <Text style={styles.createFabText}>Create</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
+
+  const renderSearchFab = (withCreateButton: boolean) => (
+    <TouchableOpacity
+      onPress={() => setSearchOpen(true)}
+      activeOpacity={0.86}
+      accessibilityLabel="Open search"
+      style={[
+        styles.searchFab,
+        {
+          bottom: withCreateButton ? 82 : 22,
+          backgroundColor: theme.dark ? "#111827" : "#FFFFFF",
+          borderColor: surfacePalette.controlBorder,
+          shadowColor: theme.colors.primary,
+        },
+      ]}
+    >
+      <Feather name="search" size={21} color={theme.colors.primary} />
+      {!!search && <View style={styles.searchActiveDot} />}
+    </TouchableOpacity>
+  );
+
+  const renderSearchPanel = () => {
+    const placeholder =
+      activeTab === "applications"
+        ? "Search by Name or App ID..."
+        : "Search tickets...";
+
+    return (
+      <Modal
+        visible={searchOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSearchOpen(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+          style={styles.searchModalRoot}
+        >
+          <Pressable
+            style={styles.searchBackdrop}
+            onPress={() => setSearchOpen(false)}
+          />
+          <View
             style={[
-              styles.searchContainer,
+              styles.searchPanel,
               {
-                marginTop: 0,
-                marginBottom: 0,
-                height: 48,
-                borderRadius: 10,
-                justifyContent: "space-between",
+                backgroundColor: theme.dark ? "#111827" : "#FFFFFF",
+                borderColor: surfacePalette.controlBorder,
               },
             ]}
           >
-            <Text
-              numberOfLines={1}
-              style={{
-                flex: 1,
-                color: selectedCompany?.name
-                  ? theme.colors.onSurface
-                  : theme.colors.onSurfaceVariant,
-                fontSize: 14,
-              }}
-            >
-              {selectedCompany?.name || "Select Company Name"}
-            </Text>
             <Feather
-              name={companyMenuVisible ? "chevron-up" : "chevron-down"}
+              name="search"
               size={18}
               color={theme.colors.onSurfaceVariant}
+              style={styles.searchIcon}
             />
-          </TouchableOpacity>
-        }
-      >
-        {companiesLoading ? (
-          <Menu.Item title="Loading companies..." disabled />
-        ) : companies.length > 0 ? (
-          companies.map((company) => (
-                    <Menu.Item
-                      key={`${company.id}-${company.companyId}`}
-                      title={company.name}
-                      onPress={() => {
-                        setCreateWarning("");
-                        onSelectCompany?.(company);
-                      }}
-                    />
-          ))
-        ) : (
-          <Menu.Item title="No companies available" disabled />
-        )}
-      </Menu>
-      {companiesError ? (
-        <Text
-          style={{
-            color: theme.colors.error,
-            fontSize: 12,
-            marginTop: 6,
-          }}
+            <TextInput
+              ref={searchInputRef}
+              value={search}
+              onChangeText={handleSearchChange}
+              placeholder={placeholder}
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              returnKeyType="search"
+              style={styles.searchInput}
+            />
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={() =>
+                search ? handleSearchChange("") : setSearchOpen(false)
+              }
+              style={[
+                styles.searchPanelAction,
+                {
+                  backgroundColor: theme.dark
+                    ? "rgba(255,255,255,0.08)"
+                    : "rgba(15,23,42,0.06)",
+                },
+              ]}
+            >
+              <Feather
+                name={search ? "x" : "check"}
+                size={18}
+                color={theme.colors.onSurface}
+              />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    );
+  };
+
+  const renderPagination = ({
+    value,
+    onChangeText,
+    onEndEditing,
+    rangeLabel,
+    onPrev,
+    prevDisabled,
+    onNext,
+    nextDisabled,
+  }: {
+    value: string;
+    onChangeText: (value: string) => void;
+    onEndEditing: () => void;
+    rangeLabel: string;
+    onPrev: () => void;
+    prevDisabled: boolean;
+    onNext: () => void;
+    nextDisabled: boolean;
+  }) => (
+    <View
+      style={[styles.paginationRow, { borderTopColor: surfacePalette.divider }]}
+    >
+      <View style={styles.rowsControl}>
+        <Text style={styles.rowsLabel}>Rows per page</Text>
+        <TextInput
+          value={value}
+          keyboardType="numeric"
+          onChangeText={onChangeText}
+          onEndEditing={onEndEditing}
+          style={[
+            styles.rowsInput,
+            {
+              borderColor: surfacePalette.controlBorder,
+              backgroundColor: theme.dark
+                ? "rgba(255,255,255,0.07)"
+                : "rgba(15,23,42,0.05)",
+              color: theme.colors.onSurface,
+            },
+          ]}
+        />
+      </View>
+
+      <View style={styles.pageControl}>
+        <Text style={styles.rowsLabel}>{rangeLabel}</Text>
+
+        <TouchableOpacity
+          onPress={onPrev}
+          disabled={prevDisabled}
+          style={[
+            styles.pageButton,
+            {
+              opacity: prevDisabled ? 0.4 : 1,
+              backgroundColor: theme.dark
+                ? "rgba(255,255,255,0.07)"
+                : "rgba(15,23,42,0.05)",
+            },
+          ]}
         >
-          {companiesError}
-        </Text>
-      ) : null}
+          <Feather
+            name="chevron-left"
+            size={16}
+            color={theme.colors.onSurface}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onNext}
+          disabled={nextDisabled}
+          style={[
+            styles.pageButton,
+            {
+              opacity: nextDisabled ? 0.4 : 1,
+              backgroundColor: theme.dark
+                ? "rgba(255,255,255,0.07)"
+                : "rgba(15,23,42,0.05)",
+            },
+          ]}
+        >
+          <Feather
+            name="chevron-right"
+            size={16}
+            color={theme.colors.onSurface}
+          />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -913,101 +1173,43 @@ export default function ApplicationsTicketsView(props: Props) {
       <View
         style={{
           marginBottom: SECTION_GAP,
-          marginHorizontal: -2, // little wider only for application stats
-          paddingHorizontal: 2,
         }}
       >
         <View
           style={{
             flexDirection: "row",
-            gap: 8,
+            gap: 10,
           }}
         >
-          <View
-            style={[
-              styles.metricCard,
-              {
-                flex: 1,
-                backgroundColor: statColors.applicationsTotal.bg,
-                borderWidth: 1,
-                borderColor: statColors.applicationsTotal.border,
-              },
-            ]}
-          >
-            <Text style={styles.metricTitle}>Total Applications</Text>
-            <View style={styles.metricValueRow}>
-              <Text
-                style={[
-                  styles.metricValue,
-                  { color: statColors.applicationsTotal.value },
-                ]}
-              >
-                {totalApplications}
-              </Text>
+          {renderMetricCard({
+            label: "Total Applications",
+            value: totalApplications,
+            colors: statColors.applicationsTotal,
+            style: { flex: 1 },
+            icon: (
               <Feather
                 name="file-text"
                 size={24}
                 color={statColors.applicationsTotal.icon}
                 style={styles.metricIcon}
               />
-            </View>
-          </View>
+            ),
+          })}
 
-          <View
-            style={[
-              styles.metricCard,
-              {
-                flex: 1,
-                backgroundColor: statColors.applicationsPicked.bg,
-                borderWidth: 1,
-                borderColor: statColors.applicationsPicked.border,
-              },
-            ]}
-          >
-            <Text style={styles.metricTitle}>Picked Applications</Text>
-            <View style={styles.metricValueRow}>
-              <Text
-                style={[
-                  styles.metricValue,
-                  { color: statColors.applicationsPicked.value },
-                ]}
-              >
-                {pickedApplications}
-              </Text>
+          {renderMetricCard({
+            label: "Picked Applications",
+            value: pickedApplications,
+            colors: statColors.applicationsPicked,
+            style: { flex: 1 },
+            icon: (
               <Feather
                 name="check-circle"
                 size={24}
                 color={statColors.applicationsPicked.icon}
                 style={styles.metricIcon}
               />
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <View style={{ marginBottom: SECTION_GAP }}>
-        <View
-          style={[
-            styles.searchContainer,
-            {
-              marginTop: 0,
-              marginBottom: 0,
-            },
-          ]}
-        >
-          <Feather
-            name="search"
-            size={18}
-            color={theme.colors.onSurfaceVariant}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search by Name or App ID..."
-            placeholderTextColor={theme.colors.onSurfaceVariant}
-            style={styles.searchInput}
-          />
+            ),
+          })}
         </View>
       </View>
 
@@ -1016,56 +1218,13 @@ export default function ApplicationsTicketsView(props: Props) {
           styles.contentCard,
           {
             marginTop: 0,
+            backgroundColor: "transparent",
+            borderWidth: 0,
+            padding: 0,
           },
         ]}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            gap: 12,
-            marginBottom: 10,
-          }}
-        >
-          {isOmsSales ? (
-            renderCompanySelect()
-          ) : (
-            <Text style={styles.cardTitle}>Fresh Applications</Text>
-          )}
-
-          <TouchableOpacity
-            onPress={handleApplyPress}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              height: 48,
-              minWidth: 112,
-              paddingHorizontal: 14,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: theme.colors.primary,
-              backgroundColor: theme.colors.primary,
-            }}
-          >
-            <Feather
-              name="plus-circle"
-              size={16}
-              color={theme.colors.onPrimary}
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              style={{
-                fontSize: 14,
-                color: theme.colors.onPrimary,
-                fontWeight: "700",
-              }}
-            >
-              Create
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.cardTitle}>Fresh Applications</Text>
 
         {!!createWarning && (
           <View
@@ -1121,89 +1280,73 @@ export default function ApplicationsTicketsView(props: Props) {
         })}
 
         {!appsLoading && !appsError && filteredApps.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No applications found</Text>
-            <Text style={styles.emptyStateSubtext}>
-              Try different search keywords
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingHorizontal: 15,
+              paddingVertical: 15,
+              marginTop: 0,
+            }}
+          >
+            <View
+              style={{
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+                backgroundColor: "#F1F5F9",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 20,
+              }}
+            >
+              <Ionicons name="folder-open-outline" size={56} color="#94A3B8" />
+            </View>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#334155",
+                marginBottom: 8,
+                textAlign: "center",
+                letterSpacing: 0.3,
+              }}
+            >
+              No applications found
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#64748B",
+                textAlign: "center",
+                lineHeight: 22,
+              }}
+            >
+              You don't have any applications yet. Click the create button below
+              to get started.
             </Text>
           </View>
         )}
 
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 16,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text
-              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
-            >
-              Rows per page
-            </Text>
-
-            <TextInput
-              value={appsRowsPerPageInput}
-              keyboardType="numeric"
-              onChangeText={setAppsRowsPerPageInput}
-              onEndEditing={() => {
-                const n = parseInt(appsRowsPerPageInput.trim(), 10);
-                if (isNaN(n) || n <= 0)
-                  setAppsRowsPerPageInput(String(appsRowsPerPage));
-              }}
-              style={{
-                minWidth: 48,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderWidth: 1,
-                borderColor: theme.colors.outline,
-                borderRadius: 6,
-                color: theme.colors.onSurface,
-                textAlign: "center",
-              }}
-            />
-          </View>
-
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Text
-              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
-            >
-              {getRangeLabel(appsPage, appsRowsPerPage, totalApplications)}
-            </Text>
-
-            <TouchableOpacity
-              onPress={handleAppsPrev}
-              disabled={appsPage === 1 || appsLoading}
-              style={{
-                paddingHorizontal: 4,
-                opacity: appsPage === 1 || appsLoading ? 0.4 : 1,
-              }}
-            >
-              <Feather
-                name="chevron-left"
-                size={18}
-                color={theme.colors.onSurface}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleAppsNext}
-              disabled={appsPage === appsTotalPages || appsLoading}
-              style={{
-                paddingHorizontal: 4,
-                opacity: appsPage === appsTotalPages || appsLoading ? 0.4 : 1,
-              }}
-            >
-              <Feather
-                name="chevron-right"
-                size={18}
-                color={theme.colors.onSurface}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {renderPagination({
+          value: appsRowsPerPageInput,
+          onChangeText: setAppsRowsPerPageInput,
+          onEndEditing: () => {
+            const n = parseInt(appsRowsPerPageInput.trim(), 10);
+            if (isNaN(n) || n <= 0)
+              setAppsRowsPerPageInput(String(appsRowsPerPage));
+          },
+          rangeLabel: getRangeLabel(
+            appsPage,
+            appsRowsPerPage,
+            totalApplications,
+          ),
+          onPrev: handleAppsPrev,
+          prevDisabled: appsPage === 1 || appsLoading,
+          onNext: handleAppsNext,
+          nextDisabled: appsPage === appsTotalPages || appsLoading,
+        })}
       </View>
     </View>
   );
@@ -1223,148 +1366,66 @@ export default function ApplicationsTicketsView(props: Props) {
             },
           ]}
         >
-          <View
-            style={[
-              styles.ticketMetricCard,
-              {
-                backgroundColor: statColors.ticketsTotal.bg,
-                borderWidth: 1,
-                borderColor: statColors.ticketsTotal.border,
-              },
-            ]}
-          >
-            <Text style={styles.metricTitle}>Total Tickets</Text>
-            <View style={styles.metricValueRow}>
-              <Text
-                style={[
-                  styles.metricValue,
-                  { color: statColors.ticketsTotal.value },
-                ]}
-              >
-                {totalTickets}
-              </Text>
+          {renderMetricCard({
+            label: "Total Tickets",
+            value: totalTickets,
+            colors: statColors.ticketsTotal,
+            style: styles.ticketMetricCard,
+            icon: (
               <Feather
                 name="clipboard"
                 size={24}
                 color={statColors.ticketsTotal.icon}
                 style={styles.metricIcon}
               />
-            </View>
-          </View>
+            ),
+          })}
 
-          <View
-            style={[
-              styles.ticketMetricCard,
-              {
-                backgroundColor: statColors.ticketsReview.bg,
-                borderWidth: 1,
-                borderColor: statColors.ticketsReview.border,
-              },
-            ]}
-          >
-            <Text style={styles.metricTitle}>Under Credit Review</Text>
-            <View style={styles.metricValueRow}>
-              <Text
-                style={[
-                  styles.metricValue,
-                  { color: statColors.ticketsReview.value },
-                ]}
-              >
-                {ticketsSummary.underCreditReview}
-              </Text>
+          {renderMetricCard({
+            label: "Credit Review",
+            value: ticketsSummary.underCreditReview,
+            colors: statColors.ticketsReview,
+            style: styles.ticketMetricCard,
+            icon: (
               <Feather
                 name="clock"
                 size={24}
                 color={statColors.ticketsReview.icon}
                 style={styles.metricIcon}
               />
-            </View>
-          </View>
+            ),
+          })}
 
-          <View
-            style={[
-              styles.ticketMetricCard,
-              {
-                backgroundColor: statColors.ticketsApproved.bg,
-                borderWidth: 1,
-                borderColor: statColors.ticketsApproved.border,
-              },
-            ]}
-          >
-            <Text style={styles.metricTitle}>Approved</Text>
-            <View style={styles.metricValueRow}>
-              <Text
-                style={[
-                  styles.metricValue,
-                  { color: statColors.ticketsApproved.value },
-                ]}
-              >
-                {ticketsSummary.approved}
-              </Text>
+          {renderMetricCard({
+            label: "Approved",
+            value: ticketsSummary.approved,
+            colors: statColors.ticketsApproved,
+            style: styles.ticketMetricCard,
+            icon: (
               <Feather
                 name="check-circle"
                 size={24}
                 color={statColors.ticketsApproved.icon}
                 style={styles.metricIcon}
               />
-            </View>
-          </View>
+            ),
+          })}
 
-          <View
-            style={[
-              styles.ticketMetricCard,
-              {
-                backgroundColor: statColors.ticketsDisbursed.bg,
-                borderWidth: 1,
-                borderColor: statColors.ticketsDisbursed.border,
-              },
-            ]}
-          >
-            <Text style={styles.metricTitle}>Disbursed</Text>
-            <View style={styles.metricValueRow}>
-              <Text
-                style={[
-                  styles.metricValue,
-                  { color: statColors.ticketsDisbursed.value },
-                ]}
-              >
-                {ticketsSummary.disbursed}
-              </Text>
-              <FontAwesome5
-                name="rupee-sign"
-                size={22}
+          {renderMetricCard({
+            label: "Disbursed",
+            value: ticketsSummary.disbursed,
+            colors: statColors.ticketsDisbursed,
+            style: styles.ticketMetricCard,
+            icon: (
+              <Feather
+                name="credit-card"
+                size={24}
                 color={statColors.ticketsDisbursed.icon}
                 style={styles.metricIcon}
               />
-            </View>
-          </View>
+            ),
+          })}
         </ScrollView>
-      </View>
-
-      <View style={{ marginBottom: SECTION_GAP }}>
-        <View
-          style={[
-            styles.searchContainer,
-            {
-              marginTop: 0,
-              marginBottom: 0,
-            },
-          ]}
-        >
-          <Feather
-            name="search"
-            size={18}
-            color={theme.colors.onSurfaceVariant}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search tickets..."
-            placeholderTextColor={theme.colors.onSurfaceVariant}
-            style={styles.searchInput}
-          />
-        </View>
       </View>
 
       <View
@@ -1372,6 +1433,9 @@ export default function ApplicationsTicketsView(props: Props) {
           styles.contentCard,
           {
             marginTop: 0,
+            backgroundColor: "transparent",
+            borderWidth: 0,
+            padding: 0,
           },
         ]}
       >
@@ -1406,111 +1470,103 @@ export default function ApplicationsTicketsView(props: Props) {
         })}
 
         {!ticketsLoading && !ticketsError && filteredTickets.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No tickets found</Text>
-            <Text style={styles.emptyStateSubtext}>
-              Try different search keywords
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingHorizontal: 15,
+              paddingVertical: 15,
+              marginTop: 0,
+            }}
+          >
+            <View
+              style={{
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+                backgroundColor: "#F1F5F9",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 20,
+              }}
+            >
+              <Ionicons name="folder-open-outline" size={56} color="#94A3B8" />
+            </View>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#334155",
+                marginBottom: 8,
+                textAlign: "center",
+                letterSpacing: 0.3,
+              }}
+            >
+              No Tickets found
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#64748B",
+                textAlign: "center",
+                lineHeight: 22,
+              }}
+            >
+              You don't have any tickets yet. Click the create button below to
+              get started.
             </Text>
           </View>
         )}
 
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 16,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text
-              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
-            >
-              Rows per page
-            </Text>
-
-            <TextInput
-              value={ticketsRowsPerPageInput}
-              keyboardType="numeric"
-              onChangeText={setTicketsRowsPerPageInput}
-              onEndEditing={() => {
-                const n = parseInt(ticketsRowsPerPageInput.trim(), 10);
-                if (isNaN(n) || n <= 0)
-                  setTicketsRowsPerPageInput(String(ticketsRowsPerPage));
-              }}
-              style={{
-                minWidth: 48,
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderWidth: 1,
-                borderColor: theme.colors.outline,
-                borderRadius: 6,
-                color: theme.colors.onSurface,
-                textAlign: "center",
-              }}
-            />
-          </View>
-
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Text
-              style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}
-            >
-              {getRangeLabel(ticketsPage, ticketsRowsPerPage, totalTickets)}
-            </Text>
-
-            <TouchableOpacity
-              onPress={handleTicketsPrev}
-              disabled={ticketsPage === 1 || ticketsLoading}
-              style={{
-                paddingHorizontal: 4,
-                opacity: ticketsPage === 1 || ticketsLoading ? 0.4 : 1,
-              }}
-            >
-              <Feather
-                name="chevron-left"
-                size={18}
-                color={theme.colors.onSurface}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleTicketsNext}
-              disabled={ticketsPage === ticketsTotalPages || ticketsLoading}
-              style={{
-                paddingHorizontal: 4,
-                opacity:
-                  ticketsPage === ticketsTotalPages || ticketsLoading ? 0.4 : 1,
-              }}
-            >
-              <Feather
-                name="chevron-right"
-                size={18}
-                color={theme.colors.onSurface}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {renderPagination({
+          value: ticketsRowsPerPageInput,
+          onChangeText: setTicketsRowsPerPageInput,
+          onEndEditing: () => {
+            const n = parseInt(ticketsRowsPerPageInput.trim(), 10);
+            if (isNaN(n) || n <= 0)
+              setTicketsRowsPerPageInput(String(ticketsRowsPerPage));
+          },
+          rangeLabel: getRangeLabel(
+            ticketsPage,
+            ticketsRowsPerPage,
+            totalTickets,
+          ),
+          onPrev: handleTicketsPrev,
+          prevDisabled: ticketsPage === 1 || ticketsLoading,
+          onNext: handleTicketsNext,
+          nextDisabled: ticketsPage === ticketsTotalPages || ticketsLoading,
+        })}
       </View>
     </View>
   );
 
   if (lockedTab) {
+    const showCreateButton = lockedTab === "applications";
     return (
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{ paddingTop: 14 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {lockedTab === "applications"
-          ? renderApplicationsTab()
-          : renderTicketsTab()}
-      </ScrollView>
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{
+            paddingTop: 14,
+            paddingBottom: lockedTab === "applications" ? 112 : 24,
+          }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {lockedTab === "applications"
+            ? renderApplicationsTab()
+            : renderTicketsTab()}
+        </ScrollView>
+        {renderSearchFab(showCreateButton)}
+        {showCreateButton ? renderCreateFab() : null}
+        {renderSearchPanel()}
+      </View>
     );
   }
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <View
         style={[
           styles.tabContainer,
@@ -1582,6 +1638,7 @@ export default function ApplicationsTicketsView(props: Props) {
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 112 }}
           >
             {renderApplicationsTab()}
           </ScrollView>
@@ -1592,11 +1649,15 @@ export default function ApplicationsTicketsView(props: Props) {
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 24 }}
           >
             {renderTicketsTab()}
           </ScrollView>
         </View>
       </PagerView>
-    </>
+      {renderSearchFab(activeTab === "applications")}
+      {activeTab === "applications" ? renderCreateFab() : null}
+      {renderSearchPanel()}
+    </View>
   );
 }

@@ -5,10 +5,18 @@ import {
   ActivityIndicator,
   Alert,
   Share,
+  StatusBar,
   TouchableOpacity,
   View,
 } from "react-native";
-import { Button, Dialog, Portal, Text, useTheme } from "react-native-paper";
+import {
+  Button,
+  Dialog,
+  Menu,
+  Portal,
+  Text,
+  useTheme,
+} from "react-native-paper";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -27,20 +35,18 @@ import {
 } from "@/components/common/AppHeader";
 
 export default function Layout() {
-  const dispatch = useAppDispatch(); // This will work now because we've ensured the tree order
+  const dispatch = useAppDispatch();
   const theme = useTheme();
   const router = useRouter();
 
   const [logoutVisible, setLogoutVisible] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
   const [userType, setUserType] = useState<string | null | undefined>(
     undefined,
   );
 
   const loadUserType = useCallback(async () => {
     const type = await AsyncStorage.getItem("userType");
-    if (__DEV__) {
-      console.log("Tab layout userType:", type);
-    }
     setUserType(type);
   }, []);
 
@@ -71,19 +77,6 @@ export default function Layout() {
 
   const isSales = userType === "sales";
   const notificationBackRoute = isSales ? "/applications" : "/dashboard";
-
-  if (__DEV__) {
-    console.log("[TAB LAYOUT] isSales:", isSales, "userType:", userType);
-    console.log(
-      "[TAB LAYOUT] Tab visibility config:",
-      `dashboard=${isSales ? "hidden" : "visible"}, commissions=${isSales ? "hidden" : "visible"}, applications=visible, tickets=${isSales ? "visible" : "hidden"}, profile=visible, notifications=hidden`,
-    );
-  }
-
-  /** * NOTE: We removed isVerifying and isAuthenticated here.
-   * Your RootLayout already handles the auth logic and
-   * setGraphqlAuthToken. Let RootLayout be the "Source of Truth."
-   */
 
   const getBaseUrl = () => {
     if (__DEV__) return "http://localhost:3000";
@@ -133,7 +126,7 @@ export default function Layout() {
     }
   };
 
-  // Header Components
+  // --- HEADER COMPONENTS ---
   const DashboardHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
       <TouchableOpacity onPress={handleShare} activeOpacity={0.8}>
@@ -165,16 +158,6 @@ export default function Layout() {
 
   const ProfileHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <TouchableOpacity
-        onPress={() => setLogoutVisible(true)}
-        style={{ marginRight: 12 }}
-      >
-        <Ionicons
-          name="log-out-outline"
-          size={24}
-          color={theme.colors.onSurface}
-        />
-      </TouchableOpacity>
       <ThemeToggleBtn />
       <NotificationBtn />
     </View>
@@ -190,25 +173,49 @@ export default function Layout() {
     </TouchableOpacity>
   );
 
-  const AppsHeaderRightWithLogout = () => (
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <TouchableOpacity
-        onPress={() => setLogoutVisible(true)}
-        style={{ marginRight: 12 }}
-        activeOpacity={0.8}
-      >
-        <Ionicons
-          name="log-out-outline"
-          size={24}
-          color={theme.colors.onSurface}
-        />
-      </TouchableOpacity>
-      <AppsHeaderRight />
-    </View>
+  // ✅ THE FIX: Renamed, removed capsule styles, added Data menu item
+  const GlobalMenu = () => (
+    <Menu
+      visible={sidebarVisible}
+      onDismiss={() => setSidebarVisible(false)}
+      anchor={
+        <TouchableOpacity
+          onPress={() => setSidebarVisible(true)}
+          style={{
+            marginLeft: 14,
+            padding: 8, // Clean padding instead of a capsule
+          }}
+          activeOpacity={0.8}
+        >
+          <Feather name="menu" size={24} color={theme.colors.onSurface} />
+        </TouchableOpacity>
+      }
+    >
+      <Menu.Item
+        leadingIcon="database"
+        title="Data"
+        onPress={() => {
+          setSidebarVisible(false);
+          router.push("/data"); // Push to the new data screen
+        }}
+      />
+      <Menu.Item
+        leadingIcon="logout"
+        title="Logout"
+        onPress={() => {
+          setSidebarVisible(false);
+          setLogoutVisible(true);
+        }}
+      />
+    </Menu>
   );
 
   return (
     <>
+      <StatusBar
+        barStyle={theme.dark ? "light-content" : "dark-content"}
+        backgroundColor={theme.colors.background}
+      />
       <Portal>
         <Dialog
           visible={logoutVisible}
@@ -250,6 +257,7 @@ export default function Layout() {
           headerStyle: { backgroundColor: theme.colors.background },
           headerTintColor: theme.colors.onSurface,
           tabBarStyle: { backgroundColor: theme.colors.surface },
+          headerLeft: () => <GlobalMenu />, // ✅ Applies the menu globally to ALL tabs
         }}
       >
         <Tabs.Screen
@@ -279,8 +287,7 @@ export default function Layout() {
           options={{
             title: "Applications",
             href: "/applications",
-            headerRight: () =>
-              isSales ? <AppsHeaderRightWithLogout /> : <AppsHeaderRight />,
+            headerRight: () => <AppsHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Feather name="file-text" size={size} color={color} />
             ),
@@ -291,8 +298,7 @@ export default function Layout() {
           options={{
             title: "Tickets",
             href: isSales ? "/tickets" : null,
-            headerRight: () =>
-              isSales ? <AppsHeaderRightWithLogout /> : <AppsHeaderRight />,
+            headerRight: () => <AppsHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Feather name="clipboard" size={size} color={color} />
             ),
@@ -309,12 +315,23 @@ export default function Layout() {
             ),
           }}
         />
+
+        {/* ✅ NEW SCREEN ROUTE FOR DATA */}
+        <Tabs.Screen
+          name="data"
+          options={{
+            title: "Data",
+            href: null, // href: null hides it from the bottom tab bar while keeping it accessible
+            headerRight: () => <ThemeToggleBtn />,
+          }}
+        />
+
         <Tabs.Screen
           name="notifications"
           options={{
             title: "Notifications",
             href: null,
-            headerLeft: () => <NotificationsHeaderLeft />,
+            headerLeft: () => <NotificationsHeaderLeft />, // Overrides the GlobalMenu for this screen only
             headerRight: () => <NotificationsHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Ionicons

@@ -42,15 +42,40 @@ export function fetchTickets(params: {
   limit?: number;
   search?: string;
   status?: string;
+  userId?: string | number;
+  appliedBy?: string;
+  companyId?: string | number;
 }) {
-  return restRequest<RestEnvelope<TicketsPage>>("/get-all-tickets", {
+  const companyId = params.companyId ? String(params.companyId) : undefined;
+  const path = params.userId
+    ? `/get-all-tickets/${params.userId}`
+    : "/get-all-tickets";
+  const queryParams = {
+    page: params.page ?? 1,
+    limit: params.limit ?? 10,
+    ...(params.search ? { search: params.search, name: params.search } : {}),
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.appliedBy ? { appliedBy: params.appliedBy } : {}),
+  };
+
+  if (__DEV__) {
+    console.log("[Tickets API] fetchTickets", {
+      path,
+      params: queryParams,
+      companyIdHeader: companyId,
+    });
+  }
+
+  return restRequest<RestEnvelope<TicketsPage>>(path, {
     method: "GET",
-    params: {
-      page: params.page ?? 1,
-      limit: params.limit ?? 10,
-      ...(params.search ? { search: params.search } : {}),
-      ...(params.status ? { status: params.status } : {}),
-    },
+    params: queryParams,
+    config: companyId
+      ? {
+          headers: {
+            companyid: companyId,
+          },
+        }
+      : undefined,
   });
 }
 
@@ -62,6 +87,6 @@ export function fetchTicketHistory(ticketId: number) {
     `/get-ticket-histories/${ticketId}`,
     {
       method: "GET",
-    }
+    },
   );
 }

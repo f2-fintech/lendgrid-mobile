@@ -10,7 +10,6 @@ export const commissionsStyles = (theme: MD3Theme) =>
     scrollView: {
       flex: 1,
     },
-    // Tab Container Styles
     tabContainer: {
       flexDirection: "row",
       paddingHorizontal: 16,
@@ -43,7 +42,6 @@ export const commissionsStyles = (theme: MD3Theme) =>
       color: theme.colors.onPrimary,
       fontWeight: "600",
     },
-    // Metrics Container
     metricsScrollView: {
       marginVertical: 16,
     },
@@ -59,31 +57,24 @@ export const commissionsStyles = (theme: MD3Theme) =>
       marginVertical: 16,
     },
     metricCard: {
-      width: 165,
-      backgroundColor: theme.colors.surface,
       padding: 14,
-      borderRadius: 12,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: theme.colors.outline,
-      marginRight: 10,
-      minHeight: 92, // ✅ add
+      minHeight: 96,
+      overflow: "hidden",
     },
-
     ticketMetricCard: {
-      width: 185,
-      backgroundColor: theme.colors.surface,
-      padding: 14,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: theme.colors.outline,
-      marginRight: 10,
-      minHeight: 92, // ✅ add
+      width: 178,
+      marginRight: 0,
+      minHeight: 96,
     },
-
     metricTitle: {
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
       marginBottom: 8,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
     },
     metricValueRow: {
       flexDirection: "row",
@@ -92,6 +83,7 @@ export const commissionsStyles = (theme: MD3Theme) =>
     },
     metricIcon: {
       marginLeft: 8,
+      opacity: 0.8,
     },
     metricValue: {
       fontSize: 24,
@@ -102,14 +94,15 @@ export const commissionsStyles = (theme: MD3Theme) =>
       fontSize: 12,
       marginTop: 4,
     },
-    // Search Container
     searchContainer: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
+      backgroundColor: theme.dark ? "rgba(255,255,255,0.05)" : "#FFFFFF",
+      borderRadius: 14,
       borderWidth: 1,
-      borderColor: theme.colors.outline,
+      borderColor: theme.dark
+        ? "rgba(255,255,255,0.10)"
+        : "rgba(15,23,42,0.10)",
       paddingHorizontal: 12,
       marginBottom: 16,
     },
@@ -122,14 +115,73 @@ export const commissionsStyles = (theme: MD3Theme) =>
       fontSize: 15,
       color: theme.colors.onSurface,
     },
-    // Content Card
-    contentCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 16,
+    searchFab: {
+      position: "absolute",
+      right: 22,
+      width: 48,
+      height: 48,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
       borderWidth: 1,
-      borderColor: theme.colors.outline,
+      zIndex: 19,
+      elevation: 19,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.22,
+      shadowRadius: 14,
+    },
+    searchActiveDot: {
+      position: "absolute",
+      top: 10,
+      right: 10,
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      backgroundColor: "#EF4444",
+      borderWidth: 1,
+      borderColor: theme.colors.background,
+    },
+    searchModalRoot: {
+      flex: 1,
+      justifyContent: "flex-end",
+    },
+    searchBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: theme.dark ? "rgba(0,0,0,0.36)" : "rgba(15,23,42,0.22)",
+    },
+    searchPanel: {
+      marginHorizontal: 16,
+      marginBottom: 12,
+      minHeight: 56,
+      borderRadius: 18,
+      borderWidth: 1,
+      paddingHorizontal: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      shadowColor: theme.dark ? "#000000" : "#6366F1",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: theme.dark ? 0.28 : 0.16,
+      shadowRadius: 18,
+      elevation: 12,
+    },
+    searchPanelAction: {
+      minWidth: 38,
+      minHeight: 38,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    searchDoneText: {
+      fontSize: 13,
+      fontWeight: "800",
+    },
+    contentCard: {
+      backgroundColor: "transparent",
+      borderRadius: 12,
+      padding: 0,
+      marginBottom: 16,
+      borderWidth: 0,
+      borderColor: "transparent",
     },
     cardTitle: {
       fontSize: 18,
@@ -140,16 +192,30 @@ export const commissionsStyles = (theme: MD3Theme) =>
     cardSubtitle: {
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
-      marginBottom: 16,
+      marginBottom: 10,
     },
-    // Commission Item (Application/Ticket Card)
     commissionItem: {
-      backgroundColor: theme.colors.background,
-      padding: 16,
-      borderRadius: 12,
-      marginBottom: 12,
+      backgroundColor: theme.dark ? "rgba(255,255,255,0.04)" : "#FFFFFF",
+      padding: 14,
+      borderRadius: 18,
+      marginBottom: 10,
       borderWidth: 1,
-      borderColor: theme.colors.outline,
+      borderColor: theme.dark
+        ? "rgba(255,255,255,0.09)"
+        : "rgba(99,102,241,0.12)",
+      overflow: "hidden",
+      shadowColor: theme.dark ? "#000000" : "#6366F1",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: theme.dark ? 0.18 : 0.08,
+      shadowRadius: 12,
+      elevation: 2,
+    },
+    cardTopAccent: {
+      position: "absolute",
+      top: 0,
+      left: 18,
+      right: 18,
+      height: 1.5,
     },
     commissionHeader: {
       flexDirection: "row",
@@ -168,22 +234,24 @@ export const commissionsStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
     },
     statusBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
     },
     statusText: {
       fontSize: 12,
       fontWeight: "600",
     },
-    // Detail Rows
     detailRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      paddingVertical: 8,
+      paddingVertical: 7,
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.surfaceVariant,
+      borderBottomColor: theme.dark
+        ? "rgba(255,255,255,0.06)"
+        : "rgba(15,23,42,0.06)",
     },
     detailLabel: {
       fontSize: 13,
@@ -195,16 +263,15 @@ export const commissionsStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurface,
     },
     dateRow: {
-      marginTop: 12,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.surfaceVariant,
+      marginTop: 10,
+      paddingTop: 0,
+      borderTopWidth: 0,
+      borderTopColor: "transparent",
     },
     dateText: {
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
-    // Empty State
     emptyState: {
       alignItems: "center",
       paddingVertical: 40,
@@ -218,5 +285,95 @@ export const commissionsStyles = (theme: MD3Theme) =>
     emptyStateSubtext: {
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
+    },
+    retryButton: {
+      marginTop: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.dark
+        ? "rgba(99,102,241,0.16)"
+        : "rgba(99,102,241,0.10)",
+    },
+    retryButtonText: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    paginationRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      gap: 8,
+    },
+    rowsControl: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      flexShrink: 1,
+    },
+    rowsLabel: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    rowsInput: {
+      minWidth: 42,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderWidth: 1,
+      borderRadius: 7,
+      textAlign: "center",
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    pageControl: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    pageButton: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    createFabWrap: {
+      position: "absolute",
+      right: 18,
+      bottom: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 20,
+      elevation: 20,
+    },
+    createFabPulse: {
+      position: "absolute",
+      width: 82,
+      height: 48,
+      borderRadius: 999,
+    },
+    createFab: {
+      minWidth: 82,
+      height: 48,
+      borderRadius: 999,
+      paddingHorizontal: 20,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.36,
+      shadowRadius: 18,
+      elevation: 10,
+    },
+    createFabText: {
+      color: theme.colors.onPrimary,
+      fontSize: 14,
+      fontWeight: "800",
     },
   });

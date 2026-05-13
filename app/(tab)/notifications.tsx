@@ -1,24 +1,16 @@
-// app/(tab)/notifications.tsx
-import { useMutation } from "@apollo/client/react";
 import { Ionicons } from "@expo/vector-icons";
-import { useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
   ScrollView,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Divider, Text, useTheme } from "react-native-paper";
 
-import {
-  DELETE_NOTIFICATION,
-  GET_NOTIFICATION_STATS,
-  GET_NOTIFICATIONS,
-} from "@/apis/modules/notifications.api";
 import { useNotifications } from "@/hooks/useNotifications";
 
 // Mobile routes
@@ -28,55 +20,13 @@ const MOBILE_ROUTES = {
   commissions: "/commissions",
 } as const;
 
-const runBatches = async <T,>(
-  items: T[],
-  batchSize: number,
-  worker: (item: T) => Promise<any>,
-) => {
-  for (let i = 0; i < items.length; i += batchSize) {
-    const chunk = items.slice(i, i + batchSize);
-    await Promise.allSettled(chunk.map(worker));
-  }
-};
-
 const getIconComponent = (iconName: string) => (
   <Ionicons name={iconName as any} size={22} color="#FFFFFF" />
 );
 
-const AnimatedNotificationItem = ({
-  notification,
-  theme,
-  onDelete,
-  onOpen,
-  isLast,
-}: any) => {
-  const [fadeAnim] = useState(new Animated.Value(1));
-  const [slideAnim] = useState(new Animated.Value(0));
-
-  const handleDelete = () => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: -40,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onDelete(notification.id);
-    });
-  };
-
+const NotificationItem = ({ notification, theme, onOpen, isLast }: any) => {
   return (
-    <Animated.View
-      style={{
-        opacity: fadeAnim,
-        transform: [{ translateX: slideAnim }],
-      }}
-    >
+    <View>
       <View
         style={{
           paddingHorizontal: 16,
@@ -182,28 +132,6 @@ const AnimatedNotificationItem = ({
               )}
             </View>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleDelete}
-            activeOpacity={0.75}
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              alignItems: "center",
-              justifyContent: "center",
-              marginLeft: 4,
-              backgroundColor: theme.dark
-                ? "rgba(255, 255, 255, 0.05)"
-                : "rgba(0, 0, 0, 0.03)",
-            }}
-          >
-            <Ionicons
-              name="close"
-              size={18}
-              color={theme.colors.onSurfaceVariant}
-            />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -216,11 +144,10 @@ const AnimatedNotificationItem = ({
           }}
         />
       )}
-    </Animated.View>
+    </View>
   );
 };
 
-// decide final navigation target + internal tab
 const getNotificationTarget = (
   n: any,
   fallbackPathname: string = MOBILE_ROUTES.dashboard,
@@ -263,12 +190,6 @@ export default function NotificationsScreen() {
     filters: {},
   });
 
-  const [hiddenIds, setHiddenIds] = useState<Record<string, true>>({});
-  const [clearing, setClearing] = useState(false);
-  const [listOpacity] = useState(new Animated.Value(1));
-
-  const [deleteOne] = useMutation(DELETE_NOTIFICATION);
-
   useEffect(() => {
     let mounted = true;
 
@@ -284,66 +205,9 @@ export default function NotificationsScreen() {
   const fallbackRoute =
     userType === "sales" ? MOBILE_ROUTES.applications : MOBILE_ROUTES.dashboard;
 
-  const visibleNotifications = useMemo(() => {
-    if (!notifications?.length) return [];
-    return notifications.filter((n: any) => !hiddenIds[n.id]);
-  }, [notifications, hiddenIds]);
-
-  const canClear = !clearing && visibleNotifications.length > 0;
-
-  const removeOneOptimistic = async (id: string) => {
-    setHiddenIds((prev) => ({ ...prev, [id]: true }));
-
-    try {
-      await deleteOne({
-        variables: { id },
-        refetchQueries: [
-          {
-            query: GET_NOTIFICATIONS,
-            variables: { page: 1, limit: 50, filters: {} },
-          },
-          { query: GET_NOTIFICATION_STATS },
-        ],
-        awaitRefetchQueries: false,
-      });
-    } catch (e: any) {
-      console.warn("[NOTIFICATIONS] delete error =>", e?.message || e);
-      setHiddenIds((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-    }
-  };
-
-  const clearAll = async () => {
-    if (!canClear) return;
-
-    const ids = visibleNotifications.map((n: any) => n.id);
-
-    Animated.timing(listOpacity, {
-      toValue: 0,
-      duration: 350,
-      useNativeDriver: true,
-    }).start(async () => {
-      setHiddenIds((prev) => {
-        const next = { ...prev };
-        ids.forEach((id: string) => (next[id] = true));
-        return next;
-      });
-
-      setClearing(true);
-      try {
-        await runBatches(ids, 5, (id) => deleteOne({ variables: { id } }));
-        await refetch();
-      } catch (e: any) {
-        console.warn("[NOTIFICATIONS] clearAll error =>", e?.message || e);
-      } finally {
-        setClearing(false);
-        listOpacity.setValue(1);
-      }
-    });
-  };
+  const visibleNotifications = notifications || [];
+  const visibleTotal = visibleNotifications.length;
+  const hasNotifications = visibleNotifications.length > 0;
 
   const invalidateForRoute = async (to: string) => {
     if (to === MOBILE_ROUTES.dashboard) {
@@ -369,7 +233,6 @@ export default function NotificationsScreen() {
     }
   };
 
-  // ✅ FIX: always send navId so params change even if screen already mounted
   const openNotification = useCallback(
     async (n: any) => {
       const target = getNotificationTarget(n, fallbackRoute);
@@ -380,14 +243,12 @@ export default function NotificationsScreen() {
         pathname: target.pathname as any,
         params: {
           ...(target.params ?? {}),
-          navId: String(Date.now()), // ✅ forces focus-effect to re-run
+          navId: String(Date.now()),
         },
       } as any);
     },
     [fallbackRoute, router, queryClient],
   );
-
-  const visibleTotal = visibleNotifications.length;
 
   if (loading && visibleNotifications.length === 0) {
     return (
@@ -444,8 +305,6 @@ export default function NotificationsScreen() {
     );
   }
 
-  const hasNotifications = visibleNotifications.length > 0;
-
   return (
     <ScrollView
       contentContainerStyle={{
@@ -482,33 +341,6 @@ export default function NotificationsScreen() {
             {meta.unreadCount}
           </Text>
         </View>
-
-        <TouchableOpacity
-          onPress={clearAll}
-          activeOpacity={0.85}
-          disabled={!canClear}
-          style={{
-            paddingHorizontal: 12,
-            paddingVertical: 7,
-            borderRadius: 999,
-            borderWidth: 1,
-            borderColor: canClear ? theme.colors.error : theme.colors.outline,
-            opacity: canClear ? 1 : 0.5,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
-        >
-          {clearing ? (
-            <ActivityIndicator size="small" color={theme.colors.error} />
-          ) : (
-            <Ionicons
-              name="trash-outline"
-              size={16}
-              color={theme.colors.error}
-            />
-          )}
-          <Text style={{ marginLeft: 6, fontWeight: "800" }}>Clear All</Text>
-        </TouchableOpacity>
       </View>
 
       {!hasNotifications && (
@@ -524,18 +356,17 @@ export default function NotificationsScreen() {
         </View>
       )}
 
-      <Animated.View style={{ opacity: listOpacity }}>
+      <View>
         {visibleNotifications.map((notification: any, index: number) => (
-          <AnimatedNotificationItem
+          <NotificationItem
             key={notification.id}
             notification={notification}
             theme={theme}
-            onDelete={removeOneOptimistic}
             onOpen={openNotification}
             isLast={index === visibleNotifications.length - 1}
           />
         ))}
-      </Animated.View>
+      </View>
 
       <View style={{ height: 20 }} />
     </ScrollView>

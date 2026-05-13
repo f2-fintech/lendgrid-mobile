@@ -85,12 +85,6 @@ export default function SignIn() {
 
   return (
     <>
-      {/*
-        ── Status Bar fix ──────────────────────────────────────────────────────
-        Dark mode  → light-content  (white time/battery/icons on dark bg)
-        Light mode → dark-content   (dark  time/battery/icons on light bg)
-        backgroundColor keeps the bar consistent with the screen bg on Android.
-      */}
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={theme.colors.background}
@@ -387,19 +381,6 @@ function UserLoginForm({
 
         await AsyncStorage.setItem("userType", userType);
 
-        if (__DEV__) {
-          console.log(
-            "[USER LOGIN] JWT role:",
-            role,
-            "- isSales:",
-            isSales,
-            "isAggregator:",
-            isAggregator,
-            "- stored userType:",
-            userType,
-          );
-        }
-
         const companyIdValue =
           payload?.companyId ??
           payload?.company_id ??
@@ -414,11 +395,6 @@ function UserLoginForm({
           payload?.tenant?.company_id;
         if (companyIdValue !== undefined && companyIdValue !== null) {
           await AsyncStorage.setItem("companyId", String(companyIdValue));
-        } else {
-          console.warn(
-            "[USER LOGIN] companyId not found in token claims",
-            payload,
-          );
         }
 
         const userIdValue =
@@ -474,15 +450,15 @@ function UserLoginForm({
       <FieldLabel label="Email Address" icon="mail-outline" isDark={isDark} />
       <TextInput
         placeholder="Enter your email"
-        placeholderTextColor={isDark ? "#555" : "#AABACF"}
+        placeholderTextColor={isDark ? "#64748B" : "#9CA3AF"}
         onChangeText={(text) => setValue("email", text)}
         style={[
           signInStyles.input,
-          !isDark && {
-            backgroundColor: "#F5F7FF",
-            borderColor: BRAND_BORDER,
+          {
+            backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+            borderColor: isDark ? "#334155" : "#D1D5DB",
             borderWidth: 1.5,
-            color: "#0D1B3E",
+            color: isDark ? "#F8FAFC" : "#111827",
             borderRadius: 10,
           },
         ]}
@@ -499,17 +475,17 @@ function UserLoginForm({
       <View style={signInStyles.passwordContainer}>
         <TextInput
           placeholder="Enter your password"
-          placeholderTextColor={isDark ? "#555" : "#AABACF"}
+          placeholderTextColor={isDark ? "#64748B" : "#9CA3AF"}
           secureTextEntry={!showPassword}
           onChangeText={(text) => setValue("password", text)}
           style={[
             signInStyles.input,
             { flex: 1, marginBottom: 0 },
-            !isDark && {
-              backgroundColor: "#F5F7FF",
-              borderColor: BRAND_BORDER,
+            {
+              backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+              borderColor: isDark ? "#334155" : "#D1D5DB",
               borderWidth: 1.5,
-              color: "#0D1B3E",
+              color: isDark ? "#F8FAFC" : "#111827",
               borderRadius: 10,
             },
           ]}
@@ -709,15 +685,15 @@ function OmsStaffLoginForm({
       <FieldLabel label="Work Email" icon="mail-outline" isDark={isDark} />
       <TextInput
         placeholder="Enter your work email"
-        placeholderTextColor={isDark ? "#555" : "#AABACF"}
+        placeholderTextColor={isDark ? "#64748B" : "#9CA3AF"}
         onChangeText={(text) => setValue("workEmail", text)}
         style={[
           signInStyles.input,
-          !isDark && {
-            backgroundColor: "#F5F7FF",
-            borderColor: BRAND_BORDER,
+          {
+            backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+            borderColor: isDark ? "#334155" : "#D1D5DB",
             borderWidth: 1.5,
-            color: "#0D1B3E",
+            color: isDark ? "#F8FAFC" : "#111827",
             borderRadius: 10,
           },
         ]}
@@ -735,17 +711,17 @@ function OmsStaffLoginForm({
       <View style={signInStyles.passwordContainer}>
         <TextInput
           placeholder="Enter your OMS password"
-          placeholderTextColor={isDark ? "#555" : "#AABACF"}
+          placeholderTextColor={isDark ? "#64748B" : "#9CA3AF"}
           secureTextEntry={!showPassword}
           onChangeText={(text) => setValue("password", text)}
           style={[
             signInStyles.input,
             { flex: 1, marginBottom: 0 },
-            !isDark && {
-              backgroundColor: "#F5F7FF",
-              borderColor: BRAND_BORDER,
+            {
+              backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+              borderColor: isDark ? "#334155" : "#D1D5DB",
               borderWidth: 1.5,
-              color: "#0D1B3E",
+              color: isDark ? "#F8FAFC" : "#111827",
               borderRadius: 10,
             },
           ]}
@@ -814,8 +790,6 @@ function OmsStaffLoginForm({
       {/* ── Info Note ── */}
       <View
         style={{
-          // Dark mode: original dark navy card
-          // Light mode: light brand-tinted card
           backgroundColor: isDark ? "#1A2340" : BRAND_BG,
           borderColor: isDark ? "#2A3A5C" : BRAND_BORDER,
           borderWidth: 1,
@@ -830,12 +804,10 @@ function OmsStaffLoginForm({
         <Ionicons
           name="information-circle-outline"
           size={16}
-          // Dark mode: muted grey; Light mode: brand blue icon
           color={isDark ? "#888" : BRAND}
         />
         <Text
           style={{
-            // Dark mode: muted grey text; Light mode: readable navy text
             color: isDark ? "#888" : "#3A4A6A",
             fontSize: 12,
             flex: 1,
