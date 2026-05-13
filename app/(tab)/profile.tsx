@@ -126,7 +126,7 @@ export default function ProfileScreen() {
 
   // ---------------- FETCH AGGREGATOR PROFILE ----------------
   const { data: aggProfile, isLoading: loadingAgg } = useAggregatorDetails(
-    !isOmsStaff ? profileId ?? "" : "",
+    !isOmsStaff ? (profileId ?? "") : "",
   );
 
   // ---------------- UPDATE MUTATION ----------------
@@ -280,17 +280,35 @@ export default function ProfileScreen() {
   // ---------------- LOADING STATES ----------------
   if (!authLoaded || (!isOmsStaff && (loadingUser || loadingAgg))) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 10 }}>Loading your profile…</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={{ marginTop: 10, color: theme.colors.onSurfaceVariant }}>
+          Loading your profile...
+        </Text>
       </View>
     );
   }
 
   if (!isOmsStaff && !profileId) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>No aggregator profile found.</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text style={{ color: theme.colors.onSurface }}>
+          No aggregator profile found.
+        </Text>
       </View>
     );
   }

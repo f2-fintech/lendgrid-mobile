@@ -1,4 +1,3 @@
-// hooks/useNotifications.ts
 import { useMutation, useQuery, useSubscription } from "@apollo/client/react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
@@ -92,32 +91,26 @@ export const useNotifications = ({
     (async () => {
       try {
         const existing = getGraphqlAuthToken();
-        const storedUserType = await AsyncStorage.getItem("userType");
-        const storedAuthSource = await AsyncStorage.getItem("authSource");
-        const isSalesOrOms =
-          storedUserType === "sales" || storedAuthSource === "oms";
-
-        if (isSalesOrOms) {
-          if (!alive) return;
-          setNotificationsEnabled(false);
-          setHasToken(false);
-          setTokenReady(true);
-          return;
-        }
 
         if (existing) {
           if (!alive) return;
           setHasToken(true);
+          setNotificationsEnabled(true);
           setTokenReady(true);
           return;
         }
 
-        const stored = await AsyncStorage.getItem("token");
+        const stored =
+          (await AsyncStorage.getItem("token")) ||
+          (await AsyncStorage.getItem("omsToken")) ||
+          (await AsyncStorage.getItem("accessToken"));
+
         if (!alive) return;
 
         if (stored) {
           setGraphqlAuthToken(stored);
           setHasToken(true);
+          setNotificationsEnabled(true);
         } else {
           setHasToken(false);
         }
@@ -149,7 +142,7 @@ export const useNotifications = ({
   }, [notificationsEnabled]);
 
   // ----------------------------------------------------
-  // ✅ Queries
+  //  Queries
   // ----------------------------------------------------
   const listQuery = useQuery<GetNotificationsResult>(GET_NOTIFICATIONS, {
     variables: { page, limit, filters },
@@ -207,7 +200,6 @@ export const useNotifications = ({
       const invalidate = (key: any[]) =>
         queryClient.invalidateQueries({ queryKey: key });
 
-      //  commissions
       if (
         type === "COMMISSION_STATUS_CHANGE" ||
         actionUrl.includes("commissions")
@@ -215,15 +207,12 @@ export const useNotifications = ({
         invalidate(["commissions"]);
       }
 
-      //  dashboard stats
       if (
         type === "TICKET_STATUS_CHANGE" ||
         actionUrl.includes("applications")
       ) {
         invalidate(["dashboard-ticket-stats"]);
         invalidate(["application-count"]);
-        // chart changes on disbursed
-        //  safest: chart can change on any ticket update (esp disbursed/backdated)
         invalidate(["disbursed-by-month"]);
       }
     },
@@ -244,11 +233,7 @@ export const useNotifications = ({
       subFiredOnceRef.current = true;
       console.log("[SUB] notificationCreated =>", n._id, n.type);
 
-      // 1) refresh notifications list/stats (Apollo)
       refetch();
-
-      // 2) refresh dashboard/commissions (React Query)
-      // fire and forget is ok (but we keep it safe)
       invalidateForNotification(n);
     },
     onError: (e) => {
@@ -257,7 +242,7 @@ export const useNotifications = ({
   });
 
   // ----------------------------------------------------
-  // ✅ POLLING FALLBACK
+  //  POLLING FALLBACK
   // ----------------------------------------------------
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const pollingIntervalMs = 3000;
@@ -304,15 +289,11 @@ export const useNotifications = ({
         nextState === "inactive" || nextState === "background";
 
       if (becameActive) {
-        // refresh notifications
         refetch();
-
-        // also refresh main screens data when app returns
         queryClient.invalidateQueries({ queryKey: ["commissions"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-ticket-stats"] });
         queryClient.invalidateQueries({ queryKey: ["application-count"] });
         queryClient.invalidateQueries({ queryKey: ["disbursed-by-month"] });
-
         startPolling();
       } else if (becameBackground) {
         stopPolling();
@@ -340,21 +321,37 @@ export const useNotifications = ({
     MARK_ALL_NOTIFICATIONS_AS_READ,
   );
 
+  // ✅ THE FIX: Stringify the filters object so React stops firing infinitely!
+  const filtersString = JSON.stringify(filters);
+
   useFocusEffect(
     useCallback(() => {
-      if (!isListMode) return;
-      if (!notificationsEnabled) return;
+      if (!isListMode || !notificationsEnabled) return;
 
       return () => {
         (async () => {
           try {
-            if (!getGraphqlAuthToken()) return;
+            const currentToken = getGraphqlAuthToken();
+
+            // ✅ SAFEGUARD: Never spam the server if the token isn't ready
+            if (
+              !currentToken ||
+              currentToken === "null" ||
+              currentToken === "undefined"
+            ) {
+              return;
+            }
 
             await markAllAsRead({
               refetchQueries: [
                 {
                   query: GET_NOTIFICATIONS,
-                  variables: { page, limit, filters },
+                  // Re-parse the safely stringified filters
+                  variables: {
+                    page,
+                    limit,
+                    filters: JSON.parse(filtersString),
+                  },
                 },
                 { query: GET_NOTIFICATION_STATS },
               ],
@@ -368,11 +365,12 @@ export const useNotifications = ({
           }
         })();
       };
-    }, [isListMode, notificationsEnabled, markAllAsRead, page, limit, filters]),
+      // ✅ ONLY trigger on primitive values, absolutely NO objects here.
+    }, [isListMode, notificationsEnabled, page, limit, filtersString]),
   );
 
   // ----------------------------------------------------
-  // ✅ Map list -> UI  (UPDATED: actionUrl + ids + type)
+  //  Map list -> UI
   // ----------------------------------------------------
   const notifications: UiNotification[] = useMemo(() => {
     if (!isListMode) return [];
@@ -400,7 +398,7 @@ export const useNotifications = ({
   }, [isListMode, listQuery.data]);
 
   // ----------------------------------------------------
-  // ✅ Meta for both modes
+  //  Meta for both modes
   // ----------------------------------------------------
   const meta: UseNotificationsMeta = useMemo(() => {
     if (!notificationsEnabled || !tokenReady || !hasToken) {

@@ -1,12 +1,24 @@
-import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { restApi } from "@/apis/config/axiosConfig";
+import { commissionsStyles } from "@/styles/components/applications/applicationsstyles";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Buffer } from "buffer";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import PagerView from "react-native-pager-view";
-import { useTheme } from "react-native-paper";
+import { Menu, useTheme } from "react-native-paper";
 
 import { useCustomerApplications } from "@/hooks/use-customer-applications_rest";
 import { useTickets } from "@/hooks/use-tickets_rest";
@@ -48,6 +60,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
   const router = useRouter();
+  const navigation = useNavigation();
   const params = useLocalSearchParams<{ tab?: string; navId?: string }>();
 
   const pagerRef = useRef<PagerView>(null);
@@ -79,15 +92,18 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     null,
   );
 
-  const setTab = useCallback((tab: "applications" | "tickets") => {
-    if (lockedTab && tab !== lockedTab) return;
+  const setTab = useCallback(
+    (tab: "applications" | "tickets") => {
+      if (lockedTab && tab !== lockedTab) return;
 
-    setActiveTab(tab);
+      setActiveTab(tab);
 
-    requestAnimationFrame(() => {
-      pagerRef.current?.setPage(tab === "applications" ? 0 : 1);
-    });
-  }, [lockedTab]);
+      requestAnimationFrame(() => {
+        pagerRef.current?.setPage(tab === "applications" ? 0 : 1);
+      });
+    },
+    [lockedTab],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -99,7 +115,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       const t = String(params?.tab || "").toLowerCase();
       if (t === "tickets") setTab("tickets");
       if (t === "applications") setTab("applications");
-    }, [lockedTab, params?.tab, params?.navId, setTab]),
+    }, [lockedTab, params?.tab, setTab]),
   );
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<
@@ -255,6 +271,122 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   }, []);
 
   useEffect(() => {
+    if (lockedTab === "tickets") {
+      navigation.setOptions({
+        title: "Tickets",
+        headerTitle: undefined,
+      });
+      return;
+    }
+
+    if (!isOmsSales) {
+      navigation.setOptions({
+        title: "Applications",
+        headerTitle: undefined,
+      });
+      return;
+    }
+
+    navigation.setOptions({
+      headerTitle: () => (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            maxWidth: 230,
+          }}
+        >
+          <Text
+            numberOfLines={1}
+            style={{
+              color: theme.colors.onSurface,
+              fontSize: 18,
+              fontWeight: "700",
+            }}
+          >
+            Applications
+          </Text>
+          <Menu
+            visible={companyMenuVisible}
+            onDismiss={() => setCompanyMenuVisible(false)}
+            anchor={
+              <TouchableOpacity
+                onPress={() => setCompanyMenuVisible(true)}
+                activeOpacity={0.84}
+                style={{
+                  maxWidth: 116,
+                  height: 32,
+                  paddingHorizontal: 10,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: theme.dark
+                    ? "rgba(255,255,255,0.12)"
+                    : "rgba(50,56,243,0.16)",
+                  backgroundColor: theme.dark
+                    ? "rgba(255,255,255,0.07)"
+                    : "rgba(50,56,243,0.08)",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    flexShrink: 1,
+                    color: selectedCompany?.name
+                      ? theme.colors.onSurface
+                      : theme.colors.onSurfaceVariant,
+                    fontSize: 12,
+                    fontWeight: "700",
+                  }}
+                >
+                  {selectedCompany?.name || "Company"}
+                </Text>
+                <Feather
+                  name={companyMenuVisible ? "chevron-up" : "chevron-down"}
+                  size={14}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              </TouchableOpacity>
+            }
+          >
+            {companiesLoading ? (
+              <Menu.Item title="Loading companies..." disabled />
+            ) : companiesError ? (
+              <Menu.Item title={companiesError} disabled />
+            ) : companies.length > 0 ? (
+              companies.map((company) => (
+                <Menu.Item
+                  key={`${company.id}-${company.companyId}`}
+                  title={company.name}
+                  onPress={() => saveSelectedCompany(company)}
+                />
+              ))
+            ) : (
+              <Menu.Item title="No companies available" disabled />
+            )}
+          </Menu>
+        </View>
+      ),
+    });
+  }, [
+    companies,
+    companiesError,
+    companiesLoading,
+    companyMenuVisible,
+    isOmsSales,
+    lockedTab,
+    navigation,
+    saveSelectedCompany,
+    selectedCompany?.name,
+    theme.colors.onSurface,
+    theme.colors.onSurfaceVariant,
+    theme.dark,
+  ]);
+
+  useEffect(() => {
     if (!authLoaded || !__DEV__) return;
     console.log("[ApplicationsScreen] applications request scope", {
       isOmsSales,
@@ -286,10 +418,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
         application?.isPickedByAggregator;
 
       return (
-        picked === true ||
-        picked === 1 ||
-        picked === "1" ||
-        picked === "true"
+        picked === true || picked === 1 || picked === "1" || picked === "true"
       );
     });
 
@@ -304,7 +433,12 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     page: ticketsPage,
     limit: ticketsRowsPerPage,
     search: search || undefined,
-    enabled: activeTab === "tickets",
+    userId: isOmsSales ? normalizedSalesUserId : undefined,
+    appliedBy: isOmsSales ? "sales" : undefined,
+    enabled:
+      activeTab === "tickets" &&
+      authLoaded &&
+      (!isOmsSales || !!normalizedSalesUserId),
   });
 
   const {
@@ -385,13 +519,6 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
           ticketsRowsPerPageInput={ticketsRowsPerPageInput}
           setTicketsRowsPerPageInput={setTicketsRowsPerPageInput}
           isOmsSales={isOmsSales}
-          companies={companies}
-          companiesLoading={companiesLoading}
-          companiesError={companiesError}
-          selectedCompany={selectedCompany}
-          companyMenuVisible={companyMenuVisible}
-          setCompanyMenuVisible={setCompanyMenuVisible}
-          onSelectCompany={saveSelectedCompany}
           lockedTab={viewLockedTab}
           hasSelectedCompany={!!selectedCompanyId}
         />

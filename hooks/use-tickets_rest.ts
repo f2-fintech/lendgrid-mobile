@@ -8,6 +8,9 @@ type UseTicketsProps = {
   limit?: number;
   search?: string;
   status?: string;
+  userId?: string | number;
+  appliedBy?: string;
+  companyId?: string | number;
   enabled?: boolean;
 };
 
@@ -16,11 +19,32 @@ export function useTickets({
   limit = 10,
   search,
   status,
+  userId,
+  appliedBy,
+  companyId,
   enabled = true,
 }: UseTicketsProps) {
   return useQuery<RestEnvelope<TicketsPage>, Error, TicketsPage>({
-    queryKey: ["tickets", page, limit, search, status],
-    queryFn: () => fetchTickets({ page, limit, search, status }),
+    queryKey: [
+      "tickets",
+      page,
+      limit,
+      search,
+      status,
+      userId,
+      appliedBy,
+      companyId,
+    ],
+    queryFn: () =>
+      fetchTickets({
+        page,
+        limit,
+        search,
+        status,
+        userId,
+        appliedBy,
+        companyId,
+      }),
     enabled,
     // unwrap { statusCode, message, data } -> just data
     select: (resp) => resp.data,
