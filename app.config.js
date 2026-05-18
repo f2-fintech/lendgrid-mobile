@@ -61,8 +61,8 @@ export default {
           image: "./assets/images/adaptive-icon_1.png",
           imageWidth: 200,
           resizeMode: "contain",
-          backgroundColor: "#1D0A33",
-          dark: { backgroundColor: "#1D0A33" },
+          backgroundColor: "#FFFFFF",
+          dark: { backgroundColor: "#0A1628" },
         },
       ],
       [

@@ -36,30 +36,11 @@ const loanTypes = {
 const tenureOptions = {
   secured: [
     "5 Years",
-    "6 Years",
-    "7 Years",
     "8 Years",
-    "9 Years",
     "10 Years",
-    "11 Years",
-    "12 Years",
-    "13 Years",
-    "14 Years",
     "15 Years",
-    "16 Years",
-    "17 Years",
-    "18 Years",
-    "19 Years",
     "20 Years",
-    "21 Years",
-    "22 Years",
-    "23 Years",
-    "24 Years",
     "25 Years",
-    "26 Years",
-    "27 Years",
-    "28 Years",
-    "29 Years",
     "30 Years",
   ],
   unsecured: [
@@ -71,14 +52,18 @@ const tenureOptions = {
     "6 Years",
     "7 Years",
     "8 Years",
-    "9 Years",
-    "10 Years",
   ],
 };
 
 const caseTypeOptions = [
   { value: "fresh", label: "Fresh" },
   { value: "top_up", label: "Top Up" },
+];
+
+const businessEntityOptions = [
+  { value: "sole_proprietorship", label: "Sole Proprietorship" },
+  { value: "private_limited", label: "Private Limited" },
+  { value: "partnership", label: "Partnership Firm" },
 ];
 
 const getLoanCategory = (type: string): "secured" | "unsecured" | "" => {
@@ -113,6 +98,11 @@ export type Step0Values = {
   whichLoan: string;
   runningLoanAmount: string;
   caseType: "fresh" | "top_up" | "";
+  businessEntityType:
+    | ""
+    | "sole_proprietorship"
+    | "private_limited"
+    | "partnership";
 };
 
 type Props = {
@@ -215,6 +205,7 @@ export default function Step0LoanDetails({
   const [runningLoanModalOpen, setRunningLoanModalOpen] = useState(false);
   const [whichLoanModalOpen, setWhichLoanModalOpen] = useState(false);
   const [caseTypeModalOpen, setCaseTypeModalOpen] = useState(false);
+  const [businessEntityModalOpen, setBusinessEntityModalOpen] = useState(false);
 
   // validation errors
   const [allErrors, setAllErrors] = useState<Record<string, string>>({});
@@ -233,6 +224,7 @@ export default function Step0LoanDetails({
     whichLoan: false,
     runningLoanAmount: false,
     caseType: false,
+    businessEntityType: false,
   });
 
   const tenureList = useMemo(() => {
@@ -252,7 +244,8 @@ export default function Step0LoanDetails({
       hasRunningLoans: (value.hasRunningLoans || "") as any,
       whichLoan: value.whichLoan || "",
       runningLoanAmount: value.runningLoanAmount || "",
-      caseType: (value.caseType || "") as any,
+      caseType: "fresh" as any,
+      businessEntityType: value.businessEntityType || "",
     };
 
     const res = step0Schema.safeParse(payload);
@@ -274,6 +267,7 @@ export default function Step0LoanDetails({
     value.whichLoan,
     value.runningLoanAmount,
     value.caseType,
+    value.businessEntityType,
   ]);
 
   // Show errors only when touched
@@ -289,6 +283,9 @@ export default function Step0LoanDetails({
     ? allErrors["runningLoanAmount"]
     : "";
   const showCaseTypeError = touched.caseType ? allErrors["caseType"] : "";
+  const showBusinessEntityError = touched.businessEntityType
+    ? allErrors["businessEntityType"]
+    : "";
 
   const providerAmountErrorFor = (provider: string) => {
     if (!touched.providerAmounts) return "";
@@ -311,11 +308,14 @@ export default function Step0LoanDetails({
 
   const handleLoanType = (lt: string) => {
     const cat = getLoanCategory(lt);
+    const loanType = String(lt).toLowerCase();
     onChange({
       ...value,
-      loanType: String(lt).toLowerCase(),
+      loanType,
       loanCategory: cat,
       tenure: "",
+      businessEntityType:
+        loanType === "business loan" ? value.businessEntityType : "",
     });
   };
 
@@ -393,8 +393,14 @@ export default function Step0LoanDetails({
     onChange({ ...value, runningLoanAmount: amt });
   const setCaseType = (v: "fresh" | "top_up") =>
     onChange({ ...value, caseType: v });
+  const setBusinessEntityType = (
+    v: "sole_proprietorship" | "private_limited" | "partnership",
+  ) => onChange({ ...value, businessEntityType: v });
 
   const loanTypeDisplay = value.loanType ? toTitleCase(value.loanType) : "";
+  const businessEntityDisplay =
+    businessEntityOptions.find((x) => x.value === value.businessEntityType)
+      ?.label || "";
 
   return (
     <View style={{ paddingBottom: keyboardSpace ? keyboardSpace - 40 : 0 }}>
@@ -545,6 +551,64 @@ export default function Step0LoanDetails({
         <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
           {showLoanTypeError}
         </Text>
+      )}
+
+      {value.loanType === "business loan" && (
+        <>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              color: theme.colors.onSurface,
+              marginBottom: 8,
+            }}
+          >
+            Type of Business Entity*
+          </Text>
+          <TouchableOpacity
+            onPress={() => setBusinessEntityModalOpen(true)}
+            activeOpacity={0.8}
+            style={{
+              padding: 14,
+              borderWidth: 1.5,
+              borderColor: theme.colors.outline,
+              borderRadius: 12,
+              backgroundColor: theme.colors.surface,
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Feather
+              name="briefcase"
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text
+              style={{
+                marginLeft: 10,
+                color: businessEntityDisplay
+                  ? theme.colors.onSurface
+                  : theme.colors.onSurfaceVariant,
+                fontSize: 15,
+              }}
+            >
+              {businessEntityDisplay || "Select entity type"}
+            </Text>
+            <View style={{ marginLeft: "auto" }}>
+              <Feather
+                name="chevron-down"
+                size={18}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </TouchableOpacity>
+          {!!showBusinessEntityError && (
+            <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+              {showBusinessEntityError}
+            </Text>
+          )}
+        </>
       )}
 
       {/* Tenure */}
@@ -1207,6 +1271,77 @@ export default function Step0LoanDetails({
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Business Entity Modal */}
+      <Modal
+        visible={businessEntityModalOpen}
+        transparent
+        animationType="slide"
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.colors.surface,
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              padding: 16,
+              maxHeight: "45%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.onSurface,
+                  fontWeight: "900",
+                  fontSize: 16,
+                }}
+              >
+                Type of Business Entity
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setBusinessEntityModalOpen(false);
+                  setTouched((t) => ({ ...t, businessEntityType: true }));
+                }}
+                style={{ padding: 6 }}
+              >
+                <Feather name="x" size={20} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+
+            {businessEntityOptions.map((x) => (
+              <TouchableOpacity
+                key={x.value}
+                onPress={() => {
+                  setBusinessEntityType(x.value as any);
+                  setBusinessEntityModalOpen(false);
+                  setTouched((t) => ({ ...t, businessEntityType: true }));
+                }}
+                style={{
+                  paddingVertical: 14,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.outlineVariant,
+                }}
+              >
+                <Text style={{ color: theme.colors.onSurface }}>{x.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </Modal>

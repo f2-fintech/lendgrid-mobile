@@ -116,6 +116,7 @@ const INITIAL_STEP0: Step0Values = {
   whichLoan: "",
   runningLoanAmount: "",
   caseType: "fresh",
+  businessEntityType: "",
 };
 
 const INITIAL_STEP1: Step1Values = {

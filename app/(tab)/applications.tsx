@@ -66,6 +66,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   const pagerRef = useRef<PagerView>(null);
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"applications" | "tickets">(
     lockedTab ?? "applications",
   );
@@ -395,10 +396,23 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     });
   }, [applicationsCompanyId, authLoaded, isOmsSales, normalizedSalesUserId]);
 
+  // Debounce search to avoid spamming the API and reset pagination on new search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (search !== debouncedSearch) {
+        setDebouncedSearch(search);
+        setAppsPage(1);
+        setTicketsPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [search, debouncedSearch]);
+
   const appsQuery = useCustomerApplications({
     page: appsPage,
     limit: appsRowsPerPage,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     appliedBy: normalizedSalesUserId,
     companyId: applicationsCompanyId,
     enabled: activeTab === "applications" && authLoaded,
@@ -432,7 +446,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   const ticketsQuery = useTickets({
     page: ticketsPage,
     limit: ticketsRowsPerPage,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     userId: isOmsSales ? normalizedSalesUserId : undefined,
     appliedBy: isOmsSales ? "sales" : undefined,
     enabled:
@@ -485,8 +499,8 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior="padding"
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 80}
     >
       <View style={styles.container}>

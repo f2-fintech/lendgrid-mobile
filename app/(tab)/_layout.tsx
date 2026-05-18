@@ -252,6 +252,8 @@ export default function Layout() {
       </Portal>
 
       <Tabs
+        initialRouteName={isSales ? "applications" : "dashboard"}
+        backBehavior="history"
         screenOptions={{
           headerShown: true,
           headerStyle: { backgroundColor: theme.colors.background },

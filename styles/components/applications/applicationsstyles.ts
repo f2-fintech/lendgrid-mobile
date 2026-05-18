@@ -13,12 +13,12 @@ export const commissionsStyles = (theme: MD3Theme) =>
     tabContainer: {
       flexDirection: "row",
       paddingHorizontal: 16,
-      paddingVertical: 8,
-      paddingTop: 16,
+      paddingVertical: 0,
+      paddingTop: 8,
       backgroundColor: theme.colors.background,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.outline,
-      marginBottom: 8,
+      marginBottom: 0,
     },
     tab: {
       flex: 1,
@@ -27,11 +27,13 @@ export const commissionsStyles = (theme: MD3Theme) =>
       justifyContent: "center",
       paddingVertical: 12,
       paddingHorizontal: 16,
-      borderRadius: 8,
       backgroundColor: "transparent",
+      borderBottomWidth: 2,
+      borderBottomColor: "transparent",
     },
     activeTab: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: "transparent",
+      borderBottomColor: theme.colors.primary,
     },
     tabText: {
       fontSize: 15,
@@ -39,8 +41,8 @@ export const commissionsStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
     },
     activeTabText: {
-      color: theme.colors.onPrimary,
-      fontWeight: "600",
+      color: theme.colors.primary,
+      fontWeight: "700",
     },
     metricsScrollView: {
       marginVertical: 16,
@@ -57,17 +59,17 @@ export const commissionsStyles = (theme: MD3Theme) =>
       marginVertical: 16,
     },
     metricCard: {
-      padding: 14,
+      padding: 10,
       borderRadius: 16,
       borderWidth: 1,
       borderColor: theme.colors.outline,
-      minHeight: 96,
+      minHeight: 64,
       overflow: "hidden",
     },
     ticketMetricCard: {
       width: 178,
       marginRight: 0,
-      minHeight: 96,
+      minHeight: 64,
     },
     metricTitle: {
       fontSize: 12,
@@ -144,6 +146,7 @@ export const commissionsStyles = (theme: MD3Theme) =>
     searchModalRoot: {
       flex: 1,
       justifyContent: "flex-end",
+      backgroundColor: "transparent",
     },
     searchBackdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -212,7 +215,7 @@ export const commissionsStyles = (theme: MD3Theme) =>
     },
     cardTopAccent: {
       position: "absolute",
-      top: 0,
+      top: -8,
       left: 18,
       right: 18,
       height: 1.5,

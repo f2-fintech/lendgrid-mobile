@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname, useRouter } from "expo-router";
 import { useMemo } from "react";
 import { TouchableOpacity, View } from "react-native";
@@ -6,18 +7,21 @@ import { useTheme } from "react-native-paper";
 
 import { useAppDispatch, useAppSelector } from "@/hooks/lightDark";
 import { useNotifications } from "@/hooks/useNotifications";
-import { toggleTheme } from "@/redux/features/themeSlice";
+import { setTheme } from "@/redux/features/themeSlice";
 
 export function ThemeToggleBtn() {
   const dispatch = useAppDispatch();
   const mode = useAppSelector((s) => s.theme.mode);
   const theme = useTheme();
 
+  const handleToggle = async () => {
+    const newMode = mode === "light" ? "dark" : "light";
+    dispatch(setTheme(newMode));
+    await AsyncStorage.setItem("themeMode", newMode);
+  };
+
   return (
-    <TouchableOpacity
-      onPress={() => dispatch(toggleTheme())}
-      style={{ marginRight: 15 }}
-    >
+    <TouchableOpacity onPress={handleToggle} style={{ marginRight: 15 }}>
       <Ionicons
         name={mode === "dark" ? "sunny-outline" : "moon-outline"}
         size={24}

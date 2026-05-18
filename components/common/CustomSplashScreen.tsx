@@ -2,11 +2,18 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useTheme } from "react-native-paper";
 
-import { COLORS } from "@/styles/components/splash/token";
-
-const LogoImage = require("@/assets/images/logo.png");
+const LogoDark = require("@/assets/images/logo.png");
+const LogoLight = require("@/assets/images/logo_blue.png");
 
 type IconItem = { name: string; label: string };
 
@@ -31,6 +38,9 @@ export default function CustomSplashScreen({
   repeatCount = 1,
   sequence = DEFAULT_SEQUENCE,
 }: Props) {
+  const theme = useTheme();
+  const logoSource = theme.dark ? LogoDark : LogoLight;
+
   // icon loop animation
   const iconAnim = useRef(new Animated.Value(0)).current;
 
@@ -176,15 +186,23 @@ export default function CustomSplashScreen({
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
+      <StatusBar
+        barStyle={theme.dark ? "light-content" : "dark-content"}
+        backgroundColor={theme.colors.background}
+      />
       {/*  compact branding */}
       <View style={styles.brandWrap}>
         <Animated.Image
-          source={LogoImage}
+          source={logoSource}
           style={[styles.brandLogo, logoStyle]}
           resizeMode="contain"
         />
-        <Animated.Text style={[styles.brandText, textStyle]}>
+        <Animated.Text
+          style={[styles.brandText, textStyle, { color: theme.colors.primary }]}
+        >
           LendGrid
         </Animated.Text>
       </View>
@@ -194,12 +212,14 @@ export default function CustomSplashScreen({
         <MaterialCommunityIcons
           name={current.name as any}
           size={80}
-          color={COLORS.brandAccent}
+          color={theme.colors.primary}
         />
       </Animated.View>
 
       {/*  tighter gap to subtitle */}
-      <Text style={styles.subtitle}>{current.label} Finance</Text>
+      <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+        {current.label} Finance
+      </Text>
     </View>
   );
 }
@@ -208,7 +228,6 @@ export default function CustomSplashScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.brandBg,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -225,7 +244,6 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   brandText: {
-    color: "#4c7dff",
     fontWeight: "800",
     fontSize: 36,
     marginTop: -25,
@@ -241,7 +259,6 @@ const styles = StyleSheet.create({
 
   subtitle: {
     fontSize: 18,
-    color: COLORS.textMuted,
     marginTop: 4, // tighter
     height: 25,
   },

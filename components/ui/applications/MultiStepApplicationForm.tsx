@@ -26,7 +26,10 @@ import HorizontalStepper, { StepConfig } from "./Verticalstepper";
 import { Feather } from "@expo/vector-icons";
 import Step0LoanDetails, { Step0Values } from "./steps/Step_0_LoanDetails";
 import Step1BasicDetails, { Step1Values } from "./steps/Step_1_BasicDetails";
-import Step2Statement, { PickedFile } from "./steps/Step_2_Statement";
+import Step2Statement, {
+  PickedFile,
+  Step2Value,
+} from "./steps/Step_2_Statement";
 import Step3IdProof, { Step3Values } from "./steps/Step_3_IdProof";
 import Step4AdditionalDetails, {
   Step4Values,
@@ -350,6 +353,7 @@ export default function MultiStepApplicationForm({
     whichLoan: "",
     runningLoanAmount: "",
     caseType: "fresh",
+    businessEntityType: "",
   });
 
   const [step1, setStep1] = useState<Step1Values>({
@@ -371,7 +375,19 @@ export default function MultiStepApplicationForm({
     consent_marketing: true,
   });
 
-  const [step2Files, setStep2Files] = useState<PickedFile[]>([]);
+  const [step2, setStep2] = useState<Step2Value>({
+    files: [],
+    bankingPassword: "",
+    personDetails: [],
+  });
+
+  useEffect(() => {
+    setStep2({
+      files: [],
+      bankingPassword: "",
+      personDetails: [],
+    });
+  }, [step0.loanType, step0.businessEntityType]);
 
   const [step3, setStep3] = useState<Step3Values>({
     aadharFront: null,
@@ -518,20 +534,20 @@ export default function MultiStepApplicationForm({
     );
   }, [step1]);
 
-  const step2HasAtLeastOneDoc = step2Files.length >= 1;
+  const step2HasAtLeastOneDoc = step2.files.length >= 1;
 
   const step2EffectiveValid = isStep2Skipped || step2HasAtLeastOneDoc;
   const step3EffectiveValid = !!step3.aadharFront && !!step3.pancard;
 
   useEffect(() => {
-    if (skipped[2] && step2Files.length > 0) {
+    if (skipped[2] && step2.files.length > 0) {
       setSkipped((prev) => {
         const next = { ...prev };
         delete next[2];
         return next;
       });
     }
-  }, [skipped, step2Files.length]);
+  }, [skipped, step2.files.length]);
 
   useEffect(() => {
     const hasAny =
@@ -603,8 +619,13 @@ export default function MultiStepApplicationForm({
   // -----------------------------
   // API HELPERS
   // -----------------------------
-  const createDocument = async (payload, config?: any) => {
+  const createDocument = async (payload: any, config?: any) => {
     await coreApi.post("/create-document", payload, config);
+  };
+
+  const createCustomerPartners = async (partnersData: any[], config?: any) => {
+    if (!partnersData.length) return;
+    await coreApi.post("/create-customer-partners", partnersData, config);
   };
 
   const updateCustomerInfo = async (
@@ -619,6 +640,9 @@ export default function MultiStepApplicationForm({
     await coreApi.patch("/customer-info-update", payload, config);
   };
 
+  const randomFourDigit = 8462;
+  const password = `${step1.name.replace(/\s/g, "")}@${randomFourDigit}`;
+
   const createCustomerEarly = useCallback(async () => {
     try {
       if (customerId) return;
@@ -626,13 +650,6 @@ export default function MultiStepApplicationForm({
       console.log("🚀 Creating customer early...");
 
       const storedCompanyId = await getCompanyId();
-      const token = await AsyncStorage.getItem("token");
-      const decoded = decodeJwt(token);
-
-      const appliedByUserId = isOmsStaff
-        ? extractUserIdFromClaims(decoded)
-        : undefined;
-
       const useCompanyId = isOmsStaff
         ? selectedCompany?.companyId ?? selectedCompanyId
         : selectedCompany?.companyId ?? storedCompanyId;
@@ -677,7 +694,7 @@ export default function MultiStepApplicationForm({
     } catch (err) {
       console.error("❌ Early customer creation failed:", err);
     }
-  }, [step1, selectedCompany, selectedCompanyId, isOmsStaff, customerId]);
+  }, [step1, selectedCompany, selectedCompanyId, isOmsStaff, customerId, password]);
 
   useEffect(() => {
     if (step === 1 && step1Valid) {
@@ -697,10 +714,14 @@ export default function MultiStepApplicationForm({
 
       try {
         const url = await uploadToS3(file, `document/${file.name || docType}`);
+        const finalUrl =
+          docType === "bank statement" && step2.bankingPassword
+            ? `${url}#pwd=${encodeURIComponent(step2.bankingPassword)}`
+            : url;
         await createDocument(
           {
             customer_id: customerId,
-            document_url: url,
+            document_url: finalUrl,
             type: docType,
           },
           {
@@ -711,16 +732,23 @@ export default function MultiStepApplicationForm({
             },
           },
         );
+        if (file.fieldKey) {
+          setStep2((prev) => ({
+            ...prev,
+            files: prev.files.map((item) =>
+              item.fieldKey === file.fieldKey
+                ? { ...item, uploaded: true }
+                : item,
+            ),
+          }));
+        }
         console.log(`✅ Instant upload successful: ${docType} - ${file.name}`);
       } catch (err: any) {
         console.error(`❌ Instant upload failed for ${docType}:`, err);
       }
     },
-    [customerId],
+    [customerId, step2.bankingPassword],
   );
-
-  const randomFourDigit = 8462;
-  const password = `${step1.name.replace(/\s/g, "")}@${randomFourDigit}`;
 
   // 1. Add this state at the top of your component with your other useState hooks:
   // const [applicationNo, setApplicationNo] = useState<string | null>(null);
@@ -842,77 +870,142 @@ export default function MultiStepApplicationForm({
         requestConfig,
       );
 
-      // 3) create application per provider
+      const pendingStep2Files = (step2.files || []).filter(
+        (file) => file.uri && !file.uri.startsWith("http") && !file.uploaded,
+      );
+
+      if (pendingStep2Files.length > 0) {
+        setStage("Uploading loan documents");
+        setIsUploading(true);
+
+        for (const file of pendingStep2Files) {
+          const docType = file.docType || "bank statement";
+          const url = await uploadToS3(file, `document/${file.name || docType}`);
+          const finalUrl =
+            docType === "bank statement" && step2.bankingPassword
+              ? `${url}#pwd=${encodeURIComponent(step2.bankingPassword)}`
+              : url;
+
+          await createDocument(
+            {
+              customer_id: newCustomerId,
+              document_url: finalUrl,
+              type: docType,
+            },
+            requestConfig,
+          );
+        }
+
+        setStep2((prev) => ({
+          ...prev,
+          files: prev.files.map((file) => ({ ...file, uploaded: true })),
+        }));
+      }
+
+      const partnerRows = (step2.personDetails || []).filter(
+        (person) => person.aadhaar || person.pan || person.mobile,
+      );
+
+      if (partnerRows.length > 0) {
+        await createCustomerPartners(
+          partnerRows.map((person) => ({
+            customer_id: newCustomerId,
+            aadhaar: person.aadhaar,
+            pan: person.pan,
+            mobile: person.mobile,
+          })),
+          requestConfig,
+        );
+      }
+
+      // 3) create one application record with all providers, matching web.
       if (!step0.providerAmounts?.length) {
         throw new Error("No provider selected for application");
       }
 
       setStage("Creating applications");
 
-      for (const pa of step0.providerAmounts) {
-        const application_no = generateApplicationNumber();
+      const application_no = generateApplicationNumber();
+      generatedNumbers.push(application_no);
 
-        // Store the number to display in the success toast
-        generatedNumbers.push(application_no);
+      const providersString = step0.providerAmounts
+        .map((pa) => pa.provider)
+        .filter(Boolean)
+        .join(", ");
 
-        const applicationPayload = {
-          application_no,
-          customer_id: newCustomerId,
-          provider: pa.provider,
-          amount: pa.amount || step0.loanAmount,
-          loan_type: step0.loanType,
-          loan_category: step0.loanCategory,
-          tenure: step0.tenure,
-          has_running_loans: step0.hasRunningLoans,
-          which_loan: step0.hasRunningLoans === "yes" ? step0.whichLoan : "",
-          running_loan_amount:
-            step0.hasRunningLoans === "yes" ? step0.runningLoanAmount : "",
-          case_type: step0.caseType,
-          application_date: new Date().toISOString(),
-          ...(useCompanyIdString
-            ? { company_id: Number(useCompanyIdString) }
-            : {}),
-          ...(isOmsStaff && appliedByNumber
-            ? { applied_by: appliedByNumber, source: "oms", is_picked: 0 }
-            : {}),
-          ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
-        };
+      const numericTenure = step0.tenure
+        ? Number(String(step0.tenure).split(" ")[0])
+        : 5;
 
-        console.log("[MultiStepApplicationForm] create-application payload", {
-          selectedCompany,
-          companyId: useCompanyIdString,
-          isOmsStaff,
-          appliedBy: appliedByNumber,
-          applicationPayload,
-        });
+      const applicationPayload = {
+        application_no,
+        customer_id: newCustomerId,
+        provider: providersString,
+        amount: Number(step0.loanAmount || 100000),
+        loan_type: step0.loanType || "personal loan",
+        loan_category: step0.loanCategory || "unsecured",
+        tenure: numericTenure,
+        has_running_loans: step0.hasRunningLoans === "yes" ? 1 : 0,
+        which_loan:
+          step0.hasRunningLoans === "yes" ? step0.whichLoan || "" : "",
+        running_loan_amount:
+          step0.hasRunningLoans === "yes" && step0.runningLoanAmount
+            ? Number(step0.runningLoanAmount)
+            : null,
+        existing_loans: JSON.stringify([
+          {
+            has_running_loans: step0.hasRunningLoans === "yes" ? 1 : 0,
+            which_loan: step0.hasRunningLoans === "yes" ? step0.whichLoan || null : null,
+            loan_amount:
+              step0.hasRunningLoans === "yes" && step0.runningLoanAmount
+                ? Number(step0.runningLoanAmount)
+                : null,
+            running_emi: null,
+          },
+        ]),
+        case_type: step0.caseType || "fresh",
+        application_date: new Date().toISOString(),
+        ...(useCompanyIdString ? { company_id: Number(useCompanyIdString) } : {}),
+        ...(isOmsStaff && appliedByNumber
+          ? { applied_by: appliedByNumber, source: "oms", is_picked: 0 }
+          : { source: "lendgrid", is_picked: 0 }),
+        ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
+      };
 
-        const appRes = await coreApi.post(
-          "/create-application",
-          applicationPayload,
-          requestConfig,
-        );
+      console.log("[MultiStepApplicationForm] create-application payload", {
+        selectedCompany,
+        companyId: useCompanyIdString,
+        isOmsStaff,
+        appliedBy: appliedByNumber,
+        applicationPayload,
+      });
 
-        const applicationId =
-          appRes?.data?.data?.applicationId ||
-          appRes?.data?.data?.id ||
-          appRes?.data?.id;
+      const appRes = await coreApi.post(
+        "/create-application",
+        applicationPayload,
+        requestConfig,
+      );
 
-        if (applicationId) {
-          try {
-            await coreApi.post(
-              "/create-loan-tracking",
-              {
-                customer_application_id: applicationId,
-                status: "submitted",
-                ...(useCompanyIdString
-                  ? { company_id: Number(useCompanyIdString) }
-                  : {}),
-              },
-              requestConfig,
-            );
-          } catch (e) {
-            console.warn("Tracking creation failed, continuing...", e);
-          }
+      const applicationId =
+        appRes?.data?.data?.applicationId ||
+        appRes?.data?.data?.id ||
+        appRes?.data?.id;
+
+      if (applicationId) {
+        try {
+          await coreApi.post(
+            "/create-loan-tracking",
+            {
+              customer_application_id: applicationId,
+              status: "submitted",
+              ...(useCompanyIdString
+                ? { company_id: Number(useCompanyIdString) }
+                : {}),
+            },
+            requestConfig,
+          );
+        } catch (e) {
+          console.warn("Tracking creation failed, continuing...", e);
         }
       }
 
@@ -1088,10 +1181,12 @@ export default function MultiStepApplicationForm({
 
         {step === 2 && (
           <Step2Statement
-            value={step2Files}
-            onChange={setStep2Files}
+            value={step2}
+            onChange={setStep2}
             maxFiles={10}
             customerId={customerId}
+            loanType={step0.loanType}
+            businessEntityType={step0.businessEntityType}
             onInstantUpload={uploadFileInstantly}
           />
         )}

@@ -40,20 +40,20 @@ export const step0Schema = z
 
     loanType: z.string().min(1, "Loan type is required"),
 
+    businessEntityType: z.string().optional(),
+
     tenure: z.string().min(1, "Tenure is required"),
 
     leadType: z.string().optional().default("null"),
 
     hasRunningLoans: z.enum(["yes", "no"], {
-      required_error: "Running Customer Loans is required",
+      message: "Running Customer Loans is required",
     }),
 
     whichLoan: z.string().optional(),
     runningLoanAmount: z.string().optional(),
 
-    caseType: z.enum(["top_up", "fresh"], {
-      required_error: "Case type is required",
-    }),
+    caseType: z.enum(["top_up", "fresh"]).optional(),
 
     providers: z
       .array(z.string())
@@ -92,6 +92,14 @@ export const step0Schema = z
         });
       }
     }
+
+    if (data.loanType === "business loan" && !data.businessEntityType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["businessEntityType"],
+        message: "Business entity type is required",
+      });
+    }
   });
 
 export type Step0FormData = z.infer<typeof step0Schema>;
@@ -99,7 +107,7 @@ export type Step0FormData = z.infer<typeof step0Schema>;
 // Step 1: Basic Details
 export const step1Schema = z.object({
   title: z.enum(["Mr", "Mrs", "Miss", "Dr", "Ca"], {
-    required_error: "Title is required",
+    message: "Title is required",
   }),
 
   name: z
@@ -164,12 +172,12 @@ export const step1Schema = z.object({
     .regex(/^[a-zA-Z\s]+$/, "State name should only contain letters"),
 
   employment_type: z.enum(["salaried", "business", "professional"], {
-    required_error: "Employment type is required",
+    message: "Employment type is required",
   }),
 
   dob: z
     .date({
-      required_error: "Date of birth is required",
+      message: "Date of birth is required",
     })
     .refine(
       (date) => date < new Date(),

@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import { AppState, RefreshControl, ScrollView, View } from "react-native";
@@ -21,6 +22,7 @@ import { CommissionStatus } from "@/types/commissions";
 
 export default function AggregatorDashboard() {
   const theme = useTheme();
+  const router = useRouter();
   const isDarkMode = useSelector((state: any) => state.theme.mode) === "dark";
   const isFocused = useIsFocused();
 
@@ -28,13 +30,24 @@ export default function AggregatorDashboard() {
   const year = new Date().getFullYear();
 
   const [companyId, setCompanyId] = useState<number | undefined>(undefined);
+  const [isSalesUser, setIsSalesUser] = useState<boolean | null>(null);
 
   useEffect(() => {
     (async () => {
-      const cid = await AsyncStorage.getItem("companyId");
+      const [cid, userType] = await Promise.all([
+        AsyncStorage.getItem("companyId"),
+        AsyncStorage.getItem("userType"),
+      ]);
       setCompanyId(cid ? Number(cid) : undefined);
+      setIsSalesUser(userType === "sales");
     })();
   }, []);
+
+  useEffect(() => {
+    if (isSalesUser) {
+      router.replace("/(tab)/applications");
+    }
+  }, [isSalesUser, router]);
 
   const appCount = useApplicationCount(true);
   const approved = useDashboardTicketStats({ status: "approved" }, true);
@@ -139,7 +152,7 @@ export default function AggregatorDashboard() {
     setRefreshing(false);
   };
 
-  if (loading) {
+  if (isSalesUser !== false || loading) {
     return (
       <View
         style={{
