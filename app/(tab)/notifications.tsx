@@ -17,6 +17,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 const MOBILE_ROUTES = {
   dashboard: "/dashboard",
   applications: "/applications",
+  tickets: "/tickets",
   commissions: "/commissions",
 } as const;
 
@@ -148,15 +149,37 @@ const NotificationItem = ({ notification, theme, onOpen, isLast }: any) => {
   );
 };
 
+const normalizeTicketId = (value: any) => {
+  if (value === null || value === undefined) return "";
+  const match = String(value).match(/\d+/);
+  return match?.[0] ?? "";
+};
+
+const getNotificationTicketId = (n: any) => {
+  const directTicketId = normalizeTicketId(
+    n?.ticketId ?? n?.ticketNo ?? n?.ticketNumber ?? n?.ticket_id,
+  );
+  if (directTicketId) return directTicketId;
+
+  return normalizeTicketId(n?.actionUrl);
+};
+
 const getNotificationTarget = (
   n: any,
   fallbackPathname: string = MOBILE_ROUTES.dashboard,
 ): { pathname: string; params?: Record<string, string> } => {
   const type = String(n?.type || "").toUpperCase();
   const actionUrl = String(n?.actionUrl || "").toLowerCase();
+  const ticketId = getNotificationTicketId(n);
 
   if (type === "TICKET_STATUS_CHANGE" || actionUrl.includes("ticket")) {
-    return { pathname: MOBILE_ROUTES.applications, params: { tab: "tickets" } };
+    return {
+      pathname: MOBILE_ROUTES.tickets,
+      params: {
+        tab: "tickets",
+        ...(ticketId ? { ticketId, openTicket: "1" } : {}),
+      },
+    };
   }
 
   if (actionUrl.includes("/aggregator/applications")) {
@@ -209,7 +232,7 @@ export default function NotificationsScreen() {
   const visibleTotal = visibleNotifications.length;
   const hasNotifications = visibleNotifications.length > 0;
 
-  const invalidateForRoute = async (to: string) => {
+  const invalidateForRoute = useCallback(async (to: string) => {
     if (to === MOBILE_ROUTES.dashboard) {
       await Promise.allSettled([
         queryClient.invalidateQueries({ queryKey: ["application-count"] }),
@@ -231,7 +254,7 @@ export default function NotificationsScreen() {
       await queryClient.invalidateQueries({ queryKey: ["commissions"] });
       return;
     }
-  };
+  }, [queryClient]);
 
   const openNotification = useCallback(
     async (n: any) => {
@@ -247,7 +270,7 @@ export default function NotificationsScreen() {
         },
       } as any);
     },
-    [fallbackRoute, router, queryClient],
+    [fallbackRoute, invalidateForRoute, router],
   );
 
   if (loading && visibleNotifications.length === 0) {

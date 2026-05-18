@@ -45,6 +45,13 @@ const normalizeStoredValue = (value?: string | null) => {
   return value;
 };
 
+const normalizeTicketParam = (value?: string | string[] | null) => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return "";
+  const match = String(raw).match(/\d+/);
+  return match?.[0] ?? "";
+};
+
 type CompanyOption = {
   id: number;
   companyId: number | string;
@@ -61,7 +68,14 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
 
   const router = useRouter();
   const navigation = useNavigation();
-  const params = useLocalSearchParams<{ tab?: string; navId?: string }>();
+  const params = useLocalSearchParams<{
+    tab?: string;
+    navId?: string;
+    ticketId?: string;
+    ticketNo?: string;
+    ticketNumber?: string;
+    openTicket?: string;
+  }>();
 
   const pagerRef = useRef<PagerView>(null);
 
@@ -92,6 +106,15 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(
     null,
   );
+  const notificationTicketId = useMemo(
+    () =>
+      normalizeTicketParam(
+        params?.ticketId ?? params?.ticketNo ?? params?.ticketNumber,
+      ),
+    [params?.ticketId, params?.ticketNo, params?.ticketNumber],
+  );
+  const shouldOpenNotificationTicket =
+    String(params?.openTicket || "") === "1" && !!notificationTicketId;
 
   const setTab = useCallback(
     (tab: "applications" | "tickets") => {
@@ -118,6 +141,19 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       if (t === "applications") setTab("applications");
     }, [lockedTab, params?.tab, setTab]),
   );
+
+  useEffect(() => {
+    if (!notificationTicketId) return;
+
+    setActiveTab("tickets");
+    setSearch(notificationTicketId);
+    setDebouncedSearch(notificationTicketId);
+    setTicketsPage(1);
+
+    requestAnimationFrame(() => {
+      pagerRef.current?.setPage(1);
+    });
+  }, [notificationTicketId, params?.navId]);
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<
     string | undefined
@@ -535,6 +571,9 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
           isOmsSales={isOmsSales}
           lockedTab={viewLockedTab}
           hasSelectedCompany={!!selectedCompanyId}
+          notificationTicketId={
+            shouldOpenNotificationTicket ? notificationTicketId : undefined
+          }
         />
       </View>
     </KeyboardAvoidingView>
