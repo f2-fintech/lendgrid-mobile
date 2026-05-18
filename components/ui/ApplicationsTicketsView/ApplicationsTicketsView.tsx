@@ -4,6 +4,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  BackHandler,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -324,7 +326,7 @@ function AppTicketCard({
               ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.cardTopAccent}
+              style={[styles.cardTopAccent, { paddingTop: 1 }]}
             />
             <View style={styles.commissionHeader}>
               <View style={{ flex: 1, paddingRight: 8 }}>
@@ -816,7 +818,32 @@ export default function ApplicationsTicketsView(props: Props) {
   useEffect(() => {
     if (!searchOpen) return;
     const focusTimer = setTimeout(() => searchInputRef.current?.focus(), 120);
-    return () => clearTimeout(focusTimer);
+
+    // Instantly close the modal when the keyboard is dismissed (via back button)
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      () => {
+        setSearchOpen(false);
+      },
+    );
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (searchOpen) {
+          setSearchOpen(false);
+          return true;
+        }
+
+        return false;
+      },
+    );
+
+    return () => {
+      clearTimeout(focusTimer);
+      keyboardDidHideListener.remove();
+      backHandler.remove();
+    };
   }, [searchOpen]);
 
   const handleSearchChange = (value: string) => {
@@ -884,6 +911,54 @@ export default function ApplicationsTicketsView(props: Props) {
     animation.start();
     return () => animation.stop();
   }, [fabPulse]);
+
+  // Scroll handler for auto-hiding tabs
+  const lastScrollY = useRef(0);
+  const tabsVisibleRef = useRef(true);
+  const tabHeightAnim = useRef(new Animated.Value(54)).current;
+  const tabOpacityAnim = useRef(new Animated.Value(1)).current;
+
+  const handleScroll = (event: any) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    if (currentY < 0) return; // Ignore iOS bounce
+
+    const diff = currentY - lastScrollY.current;
+
+    if (diff > 8 && currentY > 50) {
+      if (tabsVisibleRef.current) {
+        tabsVisibleRef.current = false;
+        Animated.parallel([
+          Animated.timing(tabHeightAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: false,
+          }),
+          Animated.timing(tabOpacityAnim, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: false,
+          }),
+        ]).start();
+      }
+    } else if (diff < -12 || currentY <= 50) {
+      if (!tabsVisibleRef.current) {
+        tabsVisibleRef.current = true;
+        Animated.parallel([
+          Animated.timing(tabHeightAnim, {
+            toValue: 54,
+            duration: 200,
+            useNativeDriver: false,
+          }),
+          Animated.timing(tabOpacityAnim, {
+            toValue: 1,
+            duration: 250,
+            useNativeDriver: false,
+          }),
+        ]).start();
+      }
+    }
+    lastScrollY.current = currentY;
+  };
 
   const handleAppsPrev = () =>
     appsPage > 1 && !appsLoading && setAppsPage((p: number) => p - 1);
@@ -988,31 +1063,47 @@ export default function ApplicationsTicketsView(props: Props) {
     );
   };
 
-  const renderSearchFab = (withCreateButton: boolean) => (
-    <TouchableOpacity
-      onPress={() => setSearchOpen(true)}
-      activeOpacity={0.86}
-      accessibilityLabel="Open search"
-      style={[
-        styles.searchFab,
-        {
-          bottom: withCreateButton ? 82 : 22,
-          backgroundColor: theme.dark ? "#111827" : "#FFFFFF",
-          borderColor: surfacePalette.controlBorder,
-          shadowColor: theme.colors.primary,
-        },
-      ]}
-    >
-      <Feather name="search" size={21} color={theme.colors.primary} />
-      {!!search && <View style={styles.searchActiveDot} />}
-    </TouchableOpacity>
-  );
+  const renderSearchFab = (withCreateButton: boolean) => {
+    const hasSearch = !!search;
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          if (hasSearch) {
+            handleSearchChange("");
+          } else {
+            setSearchOpen(true);
+          }
+        }}
+        activeOpacity={0.86}
+        accessibilityLabel={hasSearch ? "Clear search" : "Open search"}
+        style={[
+          styles.searchFab,
+          {
+            bottom: withCreateButton ? 82 : 22,
+            backgroundColor: theme.dark ? "#111827" : "#FFFFFF",
+            borderColor: surfacePalette.controlBorder,
+            shadowColor: theme.colors.primary,
+          },
+        ]}
+      >
+        {hasSearch ? (
+          <Feather name="x" size={24} color="#EF4444" />
+        ) : (
+          <Feather name="search" size={21} color={theme.colors.primary} />
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   const renderSearchPanel = () => {
     const placeholder =
       activeTab === "applications"
         ? "Search by Name or App ID..."
         : "Search tickets...";
+
+    const suggestions =
+      activeTab === "applications" ? filteredApps : filteredTickets;
+    const showSuggestions = search.trim().length > 0 && suggestions.length > 0;
 
     return (
       <Modal
@@ -1030,6 +1121,116 @@ export default function ApplicationsTicketsView(props: Props) {
             style={styles.searchBackdrop}
             onPress={() => setSearchOpen(false)}
           />
+
+          {/* Search Suggestions Box (Samsung UI Style) */}
+          {showSuggestions && (
+            <View
+              style={{
+                marginHorizontal: 16,
+                marginBottom: 8,
+                backgroundColor: theme.dark ? "#1E293B" : "#FFFFFF",
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: surfacePalette.controlBorder,
+                maxHeight: 240,
+                shadowColor: theme.dark ? "#000000" : "#6366F1",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: theme.dark ? 0.28 : 0.12,
+                shadowRadius: 12,
+                elevation: 8,
+                overflow: "hidden",
+                zIndex: 20,
+              }}
+            >
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {suggestions.slice(0, 10).map((item: any, index: number) => {
+                  const id =
+                    activeTab === "applications"
+                      ? String(item.applicationNumber || item.applicationId)
+                      : String(item.ticketId);
+                  const name = item.customerName || "Unknown Customer";
+                  const isLast = index === Math.min(suggestions.length, 10) - 1;
+
+                  return (
+                    <TouchableOpacity
+                      key={`${id}-${index}`}
+                      activeOpacity={0.7}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        borderBottomWidth: isLast ? 0 : 1,
+                        borderBottomColor: surfacePalette.divider,
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
+                      onPress={() => {
+                        handleSearchChange(id);
+                        setSearchOpen(false);
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          backgroundColor: theme.dark
+                            ? "rgba(255,255,255,0.05)"
+                            : "#F1F5F9",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginRight: 12,
+                        }}
+                      >
+                        <Feather
+                          name={
+                            activeTab === "applications"
+                              ? "file-text"
+                              : "clipboard"
+                          }
+                          size={16}
+                          color={theme.colors.onSurfaceVariant}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "600",
+                            color: theme.colors.onSurface,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {name}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: theme.colors.onSurfaceVariant,
+                            marginTop: 2,
+                          }}
+                        >
+                          {activeTab === "applications"
+                            ? "App No:"
+                            : "Ticket ID:"}{" "}
+                          {id}
+                        </Text>
+                      </View>
+                      <Feather
+                        name="arrow-up-left"
+                        size={16}
+                        color={theme.colors.onSurfaceVariant}
+                        style={{ opacity: 0.5 }}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
           <View
             style={[
               styles.searchPanel,
@@ -1052,6 +1253,7 @@ export default function ApplicationsTicketsView(props: Props) {
               placeholder={placeholder}
               placeholderTextColor={theme.colors.onSurfaceVariant}
               returnKeyType="search"
+              onSubmitEditing={() => setSearchOpen(false)}
               style={styles.searchInput}
             />
             <TouchableOpacity
@@ -1169,10 +1371,11 @@ export default function ApplicationsTicketsView(props: Props) {
   );
 
   const renderApplicationsTab = () => (
-    <View style={{ paddingHorizontal: 16 }}>
+    <>
       <View
         style={{
           marginBottom: SECTION_GAP,
+          paddingTop: 14,
         }}
       >
         <View
@@ -1214,18 +1417,13 @@ export default function ApplicationsTicketsView(props: Props) {
       </View>
 
       <View
-        style={[
-          styles.contentCard,
-          {
-            marginTop: 0,
-            backgroundColor: "transparent",
-            borderWidth: 0,
-            padding: 0,
-          },
-        ]}
+        style={{
+          backgroundColor: theme.colors.background,
+          paddingVertical: 8,
+          zIndex: 10,
+        }}
       >
         <Text style={styles.cardTitle}>Fresh Applications</Text>
-
         {!!createWarning && (
           <View
             style={{
@@ -1251,9 +1449,20 @@ export default function ApplicationsTicketsView(props: Props) {
             </Text>
           </View>
         )}
-
         <Text style={styles.cardSubtitle}>Recent submissions</Text>
+      </View>
 
+      <View
+        style={[
+          styles.contentCard,
+          {
+            marginTop: 0,
+            backgroundColor: "transparent",
+            borderWidth: 0,
+            padding: 0,
+          },
+        ]}
+      >
         {appsLoading && renderLoading()}
         {appsError && !appsData && renderError(refetchApps)}
 
@@ -1348,12 +1557,12 @@ export default function ApplicationsTicketsView(props: Props) {
           nextDisabled: appsPage === appsTotalPages || appsLoading,
         })}
       </View>
-    </View>
+    </>
   );
 
   const renderTicketsTab = () => (
-    <View style={{ paddingHorizontal: 16 }}>
-      <View style={{ marginBottom: SECTION_GAP }}>
+    <>
+      <View style={{ marginBottom: SECTION_GAP, paddingTop: 14 }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1429,6 +1638,19 @@ export default function ApplicationsTicketsView(props: Props) {
       </View>
 
       <View
+        style={{
+          backgroundColor: theme.colors.background,
+          paddingVertical: 8,
+          zIndex: 10,
+        }}
+      >
+        <Text style={styles.cardTitle}>Tickets Overview</Text>
+        <Text style={styles.cardSubtitle}>
+          Track and manage all loan tickets
+        </Text>
+      </View>
+
+      <View
         style={[
           styles.contentCard,
           {
@@ -1439,11 +1661,6 @@ export default function ApplicationsTicketsView(props: Props) {
           },
         ]}
       >
-        <Text style={styles.cardTitle}>Tickets Overview</Text>
-        <Text style={styles.cardSubtitle}>
-          Track and manage all loan tickets
-        </Text>
-
         {ticketsLoading && renderLoading()}
         {ticketsError && !ticketsData && renderError(refetchTickets)}
 
@@ -1538,7 +1755,7 @@ export default function ApplicationsTicketsView(props: Props) {
           nextDisabled: ticketsPage === ticketsTotalPages || ticketsLoading,
         })}
       </View>
-    </View>
+    </>
   );
 
   if (lockedTab) {
@@ -1548,11 +1765,14 @@ export default function ApplicationsTicketsView(props: Props) {
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={{
-            paddingTop: 14,
-            paddingBottom: lockedTab === "applications" ? 112 : 24,
+            paddingBottom: lockedTab === "applications" ? 160 : 100,
+            paddingHorizontal: 16,
           }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          stickyHeaderIndices={[1]}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           {lockedTab === "applications"
             ? renderApplicationsTab()
@@ -1567,62 +1787,66 @@ export default function ApplicationsTicketsView(props: Props) {
 
   return (
     <View style={{ flex: 1 }}>
-      <View
-        style={[
-          styles.tabContainer,
-          {
-            marginBottom: SECTION_GAP,
-          },
-        ]}
+      <Animated.View
+        style={{
+          height: tabHeightAnim,
+          opacity: tabOpacityAnim,
+          overflow: "hidden",
+        }}
       >
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "applications" && styles.activeTab]}
-          onPress={() => setTab("applications")}
-        >
-          <Feather
-            name="file-text"
-            size={18}
-            color={
-              activeTab === "applications"
-                ? theme.colors.onPrimary
-                : theme.colors.onSurfaceVariant
-            }
-            style={{ marginRight: 8 }}
-          />
-          <Text
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
             style={[
-              styles.tabText,
-              activeTab === "applications" && styles.activeTabText,
+              styles.tab,
+              activeTab === "applications" && styles.activeTab,
             ]}
+            onPress={() => setTab("applications")}
           >
-            Applications
-          </Text>
-        </TouchableOpacity>
+            <Feather
+              name="file-text"
+              size={18}
+              color={
+                activeTab === "applications"
+                  ? theme.colors.primary
+                  : theme.colors.onSurfaceVariant
+              }
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "applications" && styles.activeTabText,
+              ]}
+            >
+              Applications
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "tickets" && styles.activeTab]}
-          onPress={() => setTab("tickets")}
-        >
-          <Feather
-            name="clipboard"
-            size={18}
-            color={
-              activeTab === "tickets"
-                ? theme.colors.onPrimary
-                : theme.colors.onSurfaceVariant
-            }
-            style={{ marginRight: 8 }}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "tickets" && styles.activeTabText,
-            ]}
+          <TouchableOpacity
+            style={[styles.tab, activeTab === "tickets" && styles.activeTab]}
+            onPress={() => setTab("tickets")}
           >
-            Tickets
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Feather
+              name="clipboard"
+              size={18}
+              color={
+                activeTab === "tickets"
+                  ? theme.colors.primary
+                  : theme.colors.onSurfaceVariant
+              }
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "tickets" && styles.activeTabText,
+              ]}
+            >
+              Tickets
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
 
       <PagerView
         ref={pagerRef}
@@ -1638,7 +1862,13 @@ export default function ApplicationsTicketsView(props: Props) {
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 112 }}
+            contentContainerStyle={{
+              paddingBottom: 160,
+              paddingHorizontal: 16,
+            }}
+            stickyHeaderIndices={[1]}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
           >
             {renderApplicationsTab()}
           </ScrollView>
@@ -1649,7 +1879,13 @@ export default function ApplicationsTicketsView(props: Props) {
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{
+              paddingBottom: 100,
+              paddingHorizontal: 16,
+            }}
+            stickyHeaderIndices={[1]}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
           >
             {renderTicketsTab()}
           </ScrollView>

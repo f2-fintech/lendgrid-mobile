@@ -9,10 +9,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { Platform, StatusBar, View, useColorScheme } from "react-native";
 
 import { updatePushTokenApi } from "@/apis/modules/auth.api";
+import { useAppDispatch } from "@/hooks/lightDark";
+import { setTheme } from "@/redux/features/themeSlice";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -23,6 +26,9 @@ Notifications.setNotificationHandler({
     shouldSetBadge: true,
   }),
 });
+
+// Prevent the splash screen from hiding while we load auth and assets
+SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
@@ -75,8 +81,47 @@ async function registerForPushNotificationsAsync() {
   }
 }
 
+function RootNavigation({
+  persistedTheme,
+  colorScheme,
+  onReady,
+}: {
+  persistedTheme: "light" | "dark" | null;
+  colorScheme: "light" | "dark" | null | undefined;
+  onReady: () => void;
+}) {
+  const dispatch = useAppDispatch();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const themeToSet = persistedTheme || colorScheme || "light";
+    dispatch(setTheme(themeToSet as "light" | "dark"));
+
+    // Wait exactly 1 frame to ensure Redux has distributed the dark theme
+    requestAnimationFrame(() => {
+      setReady(true);
+      onReady();
+    });
+  }, []);
+
+  if (!ready) return null;
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tab)" />
+      <Stack.Screen name="create-application" options={{ headerShown: true }} />
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   const [booted, setBooted] = useState(false);
+  const colorScheme = useColorScheme();
+  const [persistedTheme, setPersistedTheme] = useState<"light" | "dark" | null>(
+    null,
+  );
   const router = useRouter();
 
   const notificationListener = useRef<any>(null);
@@ -101,6 +146,11 @@ export default function RootLayout() {
 
     const initAuth = async () => {
       try {
+        const savedTheme = await AsyncStorage.getItem("themeMode");
+        if (savedTheme === "dark" || savedTheme === "light") {
+          if (alive) setPersistedTheme(savedTheme as "light" | "dark");
+        }
+
         const token = await AsyncStorage.getItem("token");
         if (token && alive) {
           setGraphqlAuthToken(token);
@@ -168,16 +218,18 @@ export default function RootLayout() {
   }, []);
 
   if (!booted) {
+    const activeTheme = persistedTheme || colorScheme || "light";
     return (
       <View
         style={{
           flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#0A1628",
+          backgroundColor: activeTheme === "dark" ? "#0A1628" : "#FFFFFF",
         }}
       >
-        <ActivityIndicator size="large" color="#3238F3" />
+        <StatusBar
+          barStyle={activeTheme === "dark" ? "light-content" : "dark-content"}
+          backgroundColor={activeTheme === "dark" ? "#0A1628" : "#FFFFFF"}
+        />
       </View>
     );
   }
@@ -186,15 +238,11 @@ export default function RootLayout() {
     <ApolloProvider client={apolloClient}>
       <QueryClientProvider client={queryClient}>
         <AppProviders>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tab)" />
-            <Stack.Screen
-              name="create-application"
-              options={{ headerShown: true }}
-            />
-          </Stack>
+          <RootNavigation
+            persistedTheme={persistedTheme}
+            colorScheme={colorScheme}
+            onReady={() => SplashScreen.hideAsync()}
+          />
         </AppProviders>
       </QueryClientProvider>
     </ApolloProvider>

@@ -1,33 +1,160 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
-
-import { step2Schema } from "../applicationSchemas";
 
 export type PickedFile = {
   uri: string;
   name: string;
   size?: number;
   mimeType?: string;
+  fieldKey?: string;
+  docType?: string;
+  uploaded?: boolean;
+};
+
+export type PersonDetail = {
+  aadhaar: string;
+  pan: string;
+  mobile: string;
+};
+
+export type Step2Value = {
+  files: PickedFile[];
+  bankingPassword: string;
+  personDetails: PersonDetail[];
 };
 
 type Props = {
-  value: PickedFile[];
-  onChange: (files: PickedFile[]) => void;
+  value: Step2Value;
+  onChange: (value: Step2Value) => void;
   onValidityChange?: (valid: boolean) => void;
   maxFiles?: number;
   customerId?: string | null;
-  onInstantUpload?: (file: PickedFile, docType: string) => Promise<void>; // ← NEW
+  loanType: string;
+  businessEntityType?: string;
+  onInstantUpload?: (file: PickedFile, docType: string) => Promise<void>;
 };
 
-const MAX_MB = 1;
+const MAX_MB = 10;
 const MAX_BYTES = MAX_MB * 1024 * 1024;
+
+const personalLoanFields = ["form16", "itr", "salarySlip", "banking"];
+const soleProprietorshipFields = [
+  "computationOfIncome",
+  "financials",
+  "udhyamCertificate",
+  "gst",
+  "itr",
+  "banking",
+];
+const privateLimitedFields = [
+  "banking",
+  "form26as",
+  "itr",
+  "financials",
+  "gst",
+  "listOfDirectors",
+  "listOfShareholders",
+  "aoa",
+  "moa",
+  "udhyam",
+  "companyPan",
+  "directorsKyc",
+];
+const partnershipFields = [
+  "partnershipDeed",
+  "banking",
+  "udhyam",
+  "gst",
+  "financials",
+  "computationOfIncome",
+];
+const professionalLoanFields = [
+  "ugCertificate",
+  "pgCertificate",
+  "registration",
+  "banking",
+  "itr",
+  "computationOfIncome",
+];
+
+const fieldLabels: Record<string, string> = {
+  form16: "Form 16",
+  itr: "ITR",
+  salarySlip: "3 Months Salary Slip",
+  banking: "Banking",
+  computationOfIncome: "2 Year Computation of Income",
+  financials: "2 Financials (P/L, B/S)",
+  udhyamCertificate: "Udhyam Certificate",
+  udhyam: "Udhyam",
+  gst: "GST",
+  form26as: "Form 26 AS",
+  listOfDirectors: "List of Directors",
+  listOfShareholders: "List of Shareholders",
+  aoa: "Article of Association (AOA)",
+  moa: "Memorandum of Association (MOA)",
+  companyPan: "Company PAN ID",
+  directorsKyc: "Directors KYC",
+  partnershipDeed: "Partnership Deed",
+  ugCertificate: "UG Certificate (MBBS, BDS, BAMS, BHMS)",
+  pgCertificate: "PG Certificate (MD, MS, MCH)",
+  registration: "Registration",
+};
+
+const docTypeMap: Record<string, string> = {
+  form16: "form 16",
+  itr: "itr",
+  salarySlip: "salary slip",
+  banking: "bank statement",
+  computationOfIncome: "computation of income",
+  financials: "financials",
+  udhyamCertificate: "udhyam certificate",
+  udhyam: "udhyam certificate",
+  gst: "gst",
+  form26as: "form 26 as",
+  listOfDirectors: "list of directors",
+  listOfShareholders: "list of shareholders",
+  aoa: "aoa",
+  moa: "moa",
+  companyPan: "company pan",
+  directorsKyc: "directors kyc",
+  partnershipDeed: "partnership deed",
+  ugCertificate: "ug certificate",
+  pgCertificate: "pg certificate",
+  registration: "registration",
+  bankStatement: "bank statement",
+};
+
+const emptyStep2Value: Step2Value = {
+  files: [],
+  bankingPassword: "",
+  personDetails: [],
+};
 
 const formatMB = (bytes?: number) => {
   if (!bytes && bytes !== 0) return "NA";
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+};
+
+const getFieldKeys = (loanType: string, entityType?: string) => {
+  if (loanType === "personal loan") return personalLoanFields;
+  if (loanType === "business loan") {
+    if (entityType === "sole_proprietorship") return soleProprietorshipFields;
+    if (entityType === "private_limited") return privateLimitedFields;
+    if (entityType === "partnership") return partnershipFields;
+    return [];
+  }
+  if (loanType === "professional loan") return professionalLoanFields;
+  return ["bankStatement"];
+};
+
+const titleFor = (loanType: string) => {
+  if (loanType === "personal loan") return "Personal Loan Documents";
+  if (loanType === "business loan") return "Business Loan Documents";
+  if (loanType === "professional loan") return "Professional Loan Documents";
+  return "Statement Upload";
 };
 
 export default function Step2Statement({
@@ -36,31 +163,40 @@ export default function Step2Statement({
   onValidityChange,
   maxFiles = 10,
   customerId,
+  loanType,
+  businessEntityType,
   onInstantUpload,
 }: Props) {
   const theme = useTheme();
-  const [localFiles, setLocalFiles] = useState<PickedFile[]>(value || []);
-  const [showStatementInfo, setShowStatementInfo] = useState(true);
-  const [fileError, setFileError] = useState<string>("");
+  const safeValue = value || emptyStep2Value;
+  const fieldKeys = useMemo(
+    () => getFieldKeys(loanType, businessEntityType),
+    [loanType, businessEntityType],
+  );
+  const [fileError, setFileError] = useState("");
+  const [personCountOpen, setPersonCountOpen] = useState(false);
 
-  useEffect(() => setLocalFiles(value || []), [value]);
-
-  const isValid = useMemo(() => {
-    const parsed = step2Schema.safeParse({ files: localFiles });
-    return parsed.success;
-  }, [localFiles]);
+  const isValid = safeValue.files.length > 0;
 
   useEffect(() => {
     onValidityChange?.(isValid);
   }, [isValid, onValidityChange]);
 
-  const pickDocs = useCallback(async () => {
-    if (localFiles.length >= maxFiles) return;
+  const update = (patch: Partial<Step2Value>) => {
+    onChange({
+      files: safeValue.files || [],
+      bankingPassword: safeValue.bankingPassword || "",
+      personDetails: safeValue.personDetails || [],
+      ...patch,
+    });
+  };
 
+  const pickDoc = async (fieldKey: string, label?: string) => {
     setFileError("");
+    if (safeValue.files.length >= maxFiles) return;
 
     const res = await DocumentPicker.getDocumentAsync({
-      multiple: true,
+      multiple: false,
       copyToCacheDirectory: true,
       type: [
         "application/pdf",
@@ -73,286 +209,313 @@ export default function Step2Statement({
 
     if (res.canceled) return;
 
-    const incoming: PickedFile[] = (res.assets || []).map((a) => ({
-      uri: a.uri,
-      name: a.name || "file",
-      size: a.size,
-      mimeType: a.mimeType,
-    }));
+    const asset = res.assets?.[0];
+    if (!asset) return;
 
-    const merged = [...localFiles, ...incoming].slice(0, maxFiles);
-
-    const rejected: PickedFile[] = [];
-    const valid = merged.filter((f) => {
-      if (typeof f.size === "number" && f.size > MAX_BYTES) {
-        rejected.push(f);
-        return false;
-      }
-      return true;
-    });
-
-    if (rejected.length) {
-      const first = rejected[0];
+    if (typeof asset.size === "number" && asset.size > MAX_BYTES) {
       setFileError(
-        `File too large: ${first.name} (${formatMB(first.size)}). Max ${MAX_MB}MB allowed.`,
+        `File too large: ${asset.name || "file"} (${formatMB(asset.size)}). Max ${MAX_MB}MB allowed.`,
       );
+      return;
     }
 
-    setLocalFiles(valid);
-    onChange(valid);
+    let docType = docTypeMap[fieldKey] || fieldKey;
+    if (fieldKey.includes("_aadhaar")) docType = "aadhaar front";
+    if (fieldKey.includes("_pan")) docType = "pancard";
 
-    // ===================== INSTANT UPLOAD =====================
+    const nextFile: PickedFile = {
+      uri: asset.uri,
+      name: asset.name || label || "file",
+      size: asset.size,
+      mimeType: asset.mimeType,
+      fieldKey,
+      docType,
+    };
+
+    const nextFiles = [
+      ...safeValue.files.filter((file) => file.fieldKey !== fieldKey),
+      nextFile,
+    ];
+    update({ files: nextFiles });
+
     if (customerId && onInstantUpload) {
-      for (const file of valid) {
-        // Only upload newly added local files (not already uploaded ones)
-        if (file.uri && !file.uri.startsWith("http")) {
-          onInstantUpload(file, "bank statement");
-        }
-      }
+      onInstantUpload(nextFile, docType);
     }
-  }, [localFiles, maxFiles, onChange, customerId, onInstantUpload]);
-
-  const removeFile = (idx: number) => {
-    const next = localFiles.filter((_, i) => i !== idx);
-    setLocalFiles(next);
-    onChange(next);
   };
+
+  const removeFile = (fieldKey: string) => {
+    update({ files: safeValue.files.filter((file) => file.fieldKey !== fieldKey) });
+  };
+
+  const selectedFor = (fieldKey: string) =>
+    safeValue.files.find((file) => file.fieldKey === fieldKey);
+
+  const setPersonCount = (count: number) => {
+    const current = safeValue.personDetails || [];
+    const personDetails = Array.from(
+      { length: count },
+      (_, index) => current[index] || { aadhaar: "", pan: "", mobile: "" },
+    );
+    update({ personDetails });
+    setPersonCountOpen(false);
+  };
+
+  const updatePerson = (index: number, key: keyof PersonDetail, text: string) => {
+    const personDetails = safeValue.personDetails.map((person, idx) =>
+      idx === index
+        ? { ...person, [key]: key === "pan" ? text.toUpperCase() : text }
+        : person,
+    );
+    update({ personDetails });
+  };
+
+  const FileBox = ({ fieldKey, label }: { fieldKey: string; label: string }) => {
+    const file = selectedFor(fieldKey);
+    const isImg = (file?.mimeType || "").startsWith("image/");
+    return (
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: theme.colors.outlineVariant,
+          borderRadius: 14,
+          padding: 12,
+          backgroundColor: theme.colors.surface,
+          marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: theme.colors.onSurface, fontWeight: "800", marginBottom: 8 }}>
+          {label}
+        </Text>
+        {file ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                backgroundColor: theme.colors.surfaceVariant,
+                overflow: "hidden",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {isImg ? (
+                <Image source={{ uri: file.uri }} style={{ width: 44, height: 44 }} resizeMode="cover" />
+              ) : (
+                <Feather name="file-text" size={18} color={theme.colors.onSurfaceVariant} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text numberOfLines={1} style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
+                {file.name}
+              </Text>
+              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
+                {formatMB(file.size)}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => removeFile(fieldKey)}
+              style={{ padding: 8, borderRadius: 10, backgroundColor: theme.colors.errorContainer }}
+            >
+              <Feather name="x" size={18} color={theme.colors.onErrorContainer} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => pickDoc(fieldKey, label)}
+            activeOpacity={0.85}
+            style={{
+              borderWidth: 1.5,
+              borderStyle: "dashed",
+              borderColor: theme.colors.outline,
+              borderRadius: 12,
+              padding: 16,
+              alignItems: "center",
+              backgroundColor: theme.colors.surfaceVariant,
+            }}
+          >
+            <Feather name="upload-cloud" size={22} color={theme.colors.onSurfaceVariant} />
+            <Text style={{ color: theme.colors.onSurface, fontWeight: "800", marginTop: 6 }}>
+              Upload
+            </Text>
+            <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 11, marginTop: 2 }}>
+              PDF / DOC / Images, max {MAX_MB}MB
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const PersonRows = ({ label }: { label: "Director" | "Partner" }) => (
+    <View style={{ marginTop: 8 }}>
+      <Text style={{ color: theme.colors.primary, fontWeight: "900", marginBottom: 8 }}>
+        {label} Details
+      </Text>
+      <TouchableOpacity
+        onPress={() => setPersonCountOpen(true)}
+        style={{
+          padding: 14,
+          borderWidth: 1.5,
+          borderColor: theme.colors.outline,
+          borderRadius: 12,
+          backgroundColor: theme.colors.surface,
+          marginBottom: 12,
+          flexDirection: "row",
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: theme.colors.onSurface, flex: 1 }}>
+          {safeValue.personDetails.length
+            ? `${safeValue.personDetails.length} ${label}${safeValue.personDetails.length > 1 ? "s" : ""}`
+            : `Select number of ${label.toLowerCase()}s`}
+        </Text>
+        <Feather name="chevron-down" size={18} color={theme.colors.onSurfaceVariant} />
+      </TouchableOpacity>
+
+      {safeValue.personDetails.map((person, index) => (
+        <View
+          key={`${label}-${index}`}
+          style={{
+            borderWidth: 1,
+            borderColor: theme.colors.primary,
+            borderRadius: 14,
+            padding: 12,
+            marginBottom: 12,
+            backgroundColor: theme.colors.surface,
+          }}
+        >
+          <Text style={{ color: theme.colors.primary, fontWeight: "900", marginBottom: 10 }}>
+            {label} #{index + 1}
+          </Text>
+          {(["aadhaar", "pan", "mobile"] as const).map((key) => (
+            <TextInput
+              key={key}
+              value={person[key]}
+              onChangeText={(text) => updatePerson(index, key, text)}
+              placeholder={
+                key === "aadhaar"
+                  ? "Aadhaar Number"
+                  : key === "pan"
+                    ? "PAN Number"
+                    : "Mobile Number"
+              }
+              placeholderTextColor={theme.colors.onSurfaceVariant}
+              keyboardType={key === "pan" ? "default" : "numeric"}
+              maxLength={key === "aadhaar" ? 12 : key === "pan" ? 10 : 10}
+              style={{
+                borderWidth: 1,
+                borderColor: theme.colors.outline,
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                color: theme.colors.onSurface,
+                marginBottom: 10,
+              }}
+            />
+          ))}
+          <FileBox fieldKey={`person_${index}_aadhaar`} label="Aadhaar Document" />
+          <FileBox fieldKey={`person_${index}_pan`} label="PAN Document" />
+        </View>
+      ))}
+    </View>
+  );
 
   return (
     <View>
-      {showStatementInfo && (
-        <View
-          style={{
-            backgroundColor: theme.colors.tertiaryContainer,
-            padding: 14,
-            borderRadius: 16,
-            marginBottom: 16,
-            flexDirection: "row",
-            alignItems: "flex-start",
-            gap: 10,
-          }}
-        >
-          <Feather
-            name="file-text"
-            size={18}
-            color={theme.colors.onTertiaryContainer}
-            style={{ marginTop: 2 }}
-          />
-          <Text
-            style={{
-              flex: 1,
-              fontSize: 13,
-              color: theme.colors.onTertiaryContainer,
-              lineHeight: 20,
-            }}
-          >
-            Upload your recent 6 months bank statements. Max {maxFiles} files,{" "}
-            {MAX_MB}MB each.
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => setShowStatementInfo(false)}
-            activeOpacity={0.7}
-            style={{ padding: 4, borderRadius: 999, marginTop: -2 }}
-          >
-            <Feather
-              name="x"
-              size={18}
-              color={theme.colors.onTertiaryContainer}
-            />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {!!fileError && (
-        <View
-          style={{
-            backgroundColor: theme.colors.errorContainer,
-            borderRadius: 12,
-            padding: 12,
-            marginBottom: 12,
-          }}
-        >
-          <Text
-            style={{ color: theme.colors.onErrorContainer, fontWeight: "800" }}
-          >
-            {fileError}
-          </Text>
-        </View>
-      )}
-
-      {/* Upload box */}
-      {localFiles.length < maxFiles && (
-        <TouchableOpacity
-          onPress={pickDocs}
-          activeOpacity={0.8}
-          style={{
-            borderWidth: 2,
-            borderStyle: "dashed",
-            borderColor: theme.colors.outline,
-            borderRadius: 16,
-            padding: 24,
-            alignItems: "center",
-            backgroundColor: theme.colors.surfaceVariant,
-            marginBottom: 16,
-          }}
-        >
-          <View
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 32,
-              backgroundColor: theme.colors.primaryContainer,
-              justifyContent: "center",
-              alignItems: "center",
-              marginBottom: 12,
-            }}
-          >
-            <Feather
-              name="upload-cloud"
-              size={28}
-              color={theme.colors.onPrimaryContainer}
-            />
-          </View>
-
-          <Text
-            style={{
-              fontSize: 15,
-              fontWeight: "800",
-              color: theme.colors.onSurface,
-              marginBottom: 6,
-            }}
-          >
-            Upload Statements
-          </Text>
-
-          <Text
-            style={{
-              fontSize: 12,
-              color: theme.colors.onSurfaceVariant,
-              textAlign: "center",
-              lineHeight: 18,
-            }}
-          >
-            PDF / DOC / Images accepted{"\n"}Max {maxFiles} files • {MAX_MB}MB
-            each
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Selected files */}
-      {localFiles.length > 0 && (
-        <View
-          style={{
-            backgroundColor: theme.colors.surface,
-            borderRadius: 16,
-            padding: 14,
-            borderWidth: 1,
-            borderColor: theme.colors.outlineVariant,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "700",
-              color: theme.colors.onSurface,
-              marginBottom: 10,
-            }}
-          >
-            Selected Files ({localFiles.length}/{maxFiles})
-          </Text>
-
-          {localFiles.map((f, idx) => {
-            const isImg = (f.mimeType || "").startsWith("image/");
-            return (
-              <View
-                key={`${f.uri}-${idx}`}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingVertical: 10,
-                  borderBottomWidth: idx === localFiles.length - 1 ? 0 : 1,
-                  borderBottomColor: theme.colors.outlineVariant,
-                }}
-              >
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    backgroundColor: theme.colors.surfaceVariant,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginRight: 12,
-                    overflow: "hidden",
-                  }}
-                >
-                  {isImg ? (
-                    <Image
-                      source={{ uri: f.uri }}
-                      style={{ width: 44, height: 44 }}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <Feather
-                      name="file-text"
-                      size={18}
-                      color={theme.colors.onSurfaceVariant}
-                    />
-                  )}
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "700",
-                      color: theme.colors.onSurface,
-                    }}
-                  >
-                    {f.name}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: theme.colors.onSurfaceVariant,
-                      marginTop: 2,
-                    }}
-                  >
-                    {formatMB(f.size)}
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  onPress={() => removeFile(idx)}
-                  style={{
-                    padding: 8,
-                    borderRadius: 10,
-                    backgroundColor: theme.colors.errorContainer,
-                  }}
-                >
-                  <Feather
-                    name="x"
-                    size={18}
-                    color={theme.colors.onErrorContainer}
-                  />
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-      )}
-
-      <Text
+      <View
         style={{
-          marginTop: 10,
-          fontSize: 12,
-          color: theme.colors.onSurfaceVariant,
+          backgroundColor: theme.colors.tertiaryContainer,
+          padding: 14,
+          borderRadius: 16,
+          marginBottom: 16,
+          flexDirection: "row",
+          gap: 10,
         }}
       >
-        Tip: You can skip this step if not available.
+        <Feather name="file-text" size={18} color={theme.colors.onTertiaryContainer} />
+        <Text style={{ flex: 1, color: theme.colors.onTertiaryContainer, lineHeight: 20 }}>
+          {titleFor(loanType)}
+          {loanType === "business loan" && businessEntityType
+            ? ` for ${businessEntityType.replace(/_/g, " ")}`
+            : ""}
+        </Text>
+      </View>
+
+      {!!fileError && (
+        <View style={{ backgroundColor: theme.colors.errorContainer, borderRadius: 12, padding: 12, marginBottom: 12 }}>
+          <Text style={{ color: theme.colors.onErrorContainer, fontWeight: "800" }}>{fileError}</Text>
+        </View>
+      )}
+
+      {loanType === "business loan" && businessEntityType === "private_limited" && (
+        <PersonRows label="Director" />
+      )}
+
+      {loanType === "business loan" && businessEntityType === "partnership" && (
+        <PersonRows label="Partner" />
+      )}
+
+      {fieldKeys.map((fieldKey) => (
+        <FileBox key={fieldKey} fieldKey={fieldKey} label={fieldLabels[fieldKey] || "Bank Statement"} />
+      ))}
+
+      {(fieldKeys.includes("banking") || fieldKeys.includes("bankStatement")) && (
+        <View style={{ marginTop: 4, marginBottom: 12 }}>
+          <Text style={{ color: theme.colors.onSurface, fontWeight: "800", marginBottom: 8 }}>
+            Bank Statement Password
+          </Text>
+          <TextInput
+            value={safeValue.bankingPassword}
+            onChangeText={(text) => update({ bankingPassword: text })}
+            placeholder="Enter PDF password if protected"
+            placeholderTextColor={theme.colors.onSurfaceVariant}
+            style={{
+              borderWidth: 1.5,
+              borderColor: theme.colors.outline,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 12,
+              color: theme.colors.onSurface,
+              backgroundColor: theme.colors.surface,
+            }}
+          />
+        </View>
+      )}
+
+      <Text style={{ marginTop: 4, fontSize: 12, color: theme.colors.onSurfaceVariant }}>
+        Tip: You can skip this step if documents are not available.
       </Text>
+
+      <Modal visible={personCountOpen} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: "55%" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <Text style={{ color: theme.colors.onSurface, fontWeight: "900", fontSize: 16 }}>
+                Select Number
+              </Text>
+              <TouchableOpacity onPress={() => setPersonCountOpen(false)} style={{ padding: 6 }}>
+                <Feather name="x" size={20} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {Array.from({ length: 10 }, (_, index) => index + 1).map((count) => (
+                <TouchableOpacity
+                  key={count}
+                  onPress={() => setPersonCount(count)}
+                  style={{
+                    paddingVertical: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.outlineVariant,
+                  }}
+                >
+                  <Text style={{ color: theme.colors.onSurface }}>{count}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
