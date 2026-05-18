@@ -9,8 +9,10 @@ import {
 } from "@/apis/config/graphql_Notification_Client";
 import { restRequest } from "@/apis/config/restClient";
 
+import { updatePushTokenApi } from "@/apis/modules/auth.api";
 import { omsAuthApi, OmsLoginPayload } from "@/apis/modules/OmsAuth.api";
 import { ROUTES } from "@/assets/constants/routes";
+import { registerForPushNotificationsAsync } from "@/lib/utils/notifications";
 
 const decodeJwt = (token: string) => {
   try {
@@ -219,6 +221,15 @@ export function useOmsLogin() {
 
       // 🔥 STEP 5: SET NEW TOKEN
       setGraphqlAuthToken(result.access_token);
+
+      try {
+        const expoToken = await registerForPushNotificationsAsync();
+        if (expoToken) {
+          await updatePushTokenApi(expoToken);
+        }
+      } catch (error) {
+        console.error("[OMS AUTH] Push token error:", error);
+      }
 
       // 🔥 STEP 6: FORCE SMALL DELAY (WS RECONNECT FIX)
       await new Promise((res) => setTimeout(res, 300));

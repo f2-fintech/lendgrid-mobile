@@ -63,6 +63,7 @@ type Props = {
   isOmsSales?: boolean;
   lockedTab?: "applications" | "tickets";
   hasSelectedCompany?: boolean;
+  notificationTicketId?: string;
 };
 
 // -------------------- Helpers --------------------
@@ -207,8 +208,9 @@ function AppTicketCard({
   dateLabel,
   showHistoryIcon,
   ticketId,
+  initiallyOpenHistory = false,
 }: any) {
-  const [openHistory, setOpenHistory] = useState(false);
+  const [openHistory, setOpenHistory] = useState(!!initiallyOpenHistory);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -219,6 +221,12 @@ function AppTicketCard({
     isError: historyError,
     refetch: refetchHistory,
   } = useTicketHistory(ticketId ?? null, openHistory);
+
+  useEffect(() => {
+    if (initiallyOpenHistory && showHistoryIcon && ticketId) {
+      setOpenHistory(true);
+    }
+  }, [initiallyOpenHistory, showHistoryIcon, ticketId]);
 
   const handleToggleHistory = () => {
     if (!showHistoryIcon || !ticketId) return;
@@ -647,11 +655,11 @@ function AppTicketCard({
                             <Text
                               style={{
                                 fontSize: 14,
+                                lineHeight: 20,
                                 fontWeight: "900",
                                 color: p.titleText,
-                                marginBottom: 4,
+                                marginBottom: 6,
                               }}
-                              numberOfLines={2}
                             >
                               {action}
                             </Text>
@@ -659,10 +667,10 @@ function AppTicketCard({
                             <Text
                               style={{
                                 fontSize: 12,
+                                lineHeight: 17,
                                 color: p.mutedText,
                                 fontWeight: "600",
                               }}
-                              numberOfLines={1}
                             >
                               {formatDateTime(h.created_at)}
                             </Text>
@@ -715,6 +723,7 @@ export default function ApplicationsTicketsView(props: Props) {
     isOmsSales = false,
     lockedTab,
     hasSelectedCompany = false,
+    notificationTicketId,
   } = props;
   const [createWarning, setCreateWarning] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1532,7 +1541,7 @@ export default function ApplicationsTicketsView(props: Props) {
                 lineHeight: 22,
               }}
             >
-              You don't have any applications yet. Click the create button below
+              You do not have any applications yet. Click the create button below
               to get started.
             </Text>
           </View>
@@ -1667,6 +1676,9 @@ export default function ApplicationsTicketsView(props: Props) {
         {filteredTickets.map((ticket: any) => {
           const status = ticket.ticketStatus || "No status";
           const statusColor = getStatusColor(status);
+          const shouldOpenHistory =
+            !!notificationTicketId &&
+            String(ticket.ticketId) === String(notificationTicketId);
 
           return (
             <AppTicketCard
@@ -1682,6 +1694,7 @@ export default function ApplicationsTicketsView(props: Props) {
               dateLabel={`Created: ${formatDate(ticket.created_at || ticket.createdAt)}`}
               showHistoryIcon
               ticketId={ticket.ticketId}
+              initiallyOpenHistory={shouldOpenHistory}
             />
           );
         })}
@@ -1730,7 +1743,7 @@ export default function ApplicationsTicketsView(props: Props) {
                 lineHeight: 22,
               }}
             >
-              You don't have any tickets yet. Click the create button below to
+              You do not have any tickets yet. Click the create button below to
               get started.
             </Text>
           </View>
