@@ -16,6 +16,10 @@ export interface OmsLoginResponse {
   message?: string;
 }
 
+export interface OmsPasswordResponse {
+  message?: string;
+}
+
 // OMS backend uses ResponseFormatter.success → { statusCode, message, data: { access_token } }
 // restRequest<T> already unwraps resp.data (the axios response body),
 // so the full shape coming back is the envelope itself.
@@ -32,5 +36,34 @@ export const omsAuthApi = {
 
     // Unwrap the ResponseFormatter envelope → { access_token }
     return envelope.data;
+  },
+
+  forgotPassword: async (email: string): Promise<OmsPasswordResponse> => {
+    const envelope = await restRequest<{
+      statusCode: number;
+      message: string;
+      data: null;
+    }>("/forgot-password", {
+      method: "POST",
+      data: { email },
+    });
+
+    return { message: envelope.message };
+  },
+
+  resetPassword: async (
+    token: string,
+    newPassword: string,
+  ): Promise<OmsPasswordResponse> => {
+    const envelope = await restRequest<{
+      statusCode: number;
+      message: string;
+      data: null;
+    }>("/reset-password", {
+      method: "POST",
+      data: { token, newPassword },
+    });
+
+    return { message: envelope.message };
   },
 };

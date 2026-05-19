@@ -602,7 +602,7 @@ function UserLoginForm({
         <Text
           style={[signInStyles.footerText, !isDark && { color: "#5A6A8A" }]}
         >
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Text
             style={[
               signInStyles.signUpText,
@@ -627,6 +627,7 @@ function OmsStaffLoginForm({
   showError: (msg: string) => void;
   isDark: boolean;
 }) {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const { loginOmsStaff, isPending } = useOmsLogin();
 
@@ -744,6 +745,21 @@ function OmsStaffLoginForm({
       )}
 
       {/* ── Sign In Button ── */}
+      <TouchableOpacity
+        onPress={() => router.push("/oms-forgot-password")}
+        style={{ alignSelf: "flex-end", marginTop: 6, marginBottom: 15 }}
+      >
+        <Text
+          style={{
+            color: isDark ? "#FFD600" : BRAND,
+            fontSize: 13,
+            fontWeight: "600",
+          }}
+        >
+          Forgot Password?
+        </Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={[
           signInStyles.signInButton,

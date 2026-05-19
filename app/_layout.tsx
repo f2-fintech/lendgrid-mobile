@@ -126,6 +126,7 @@ function RootNavigation({
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tab)" />
+      <Stack.Screen name="reset-password" />
       <Stack.Screen name="create-application" options={{ headerShown: true }} />
     </Stack>
   );
