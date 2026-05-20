@@ -24,7 +24,14 @@ import { useAppDispatch } from "@/hooks/lightDark";
 import { updateField } from "@/redux/features/profileSlice";
 
 // GraphQL auth
-import { setGraphqlAuthToken } from "@/apis/config/graphql_Notification_Client";
+import {
+  apolloClient,
+  setGraphqlAuthToken,
+} from "@/apis/config/graphql_Notification_Client";
+import {
+  clearLocalNotifications,
+  unregisterPushTokenForCurrentUser,
+} from "@/lib/utils/pushSession";
 
 // shared header
 import {
@@ -45,10 +52,28 @@ export default function Layout() {
     undefined,
   );
 
+  // --- AUTO SELECT COMPANY LOGIC ---
+  const autoSelectCompany = useCallback(async () => {
+    try {
+      const currentCompanyId = await AsyncStorage.getItem("companyId");
+      // If companyId isn't set, explicitly set it to 157 for "f2 fintech (lendgrid)"
+      if (!currentCompanyId) {
+        await AsyncStorage.multiSet([
+          ["companyId", "157"],
+          ["selectedCompanyId", "157"],
+        ]);
+      }
+    } catch (error) {
+      console.error("Failed to auto-select company:", error);
+    }
+  }, []);
+
   const loadUserType = useCallback(async () => {
+    // Ensure company is auto-selected before or while loading user type
+    await autoSelectCompany();
     const type = await AsyncStorage.getItem("userType");
     setUserType(type);
-  }, []);
+  }, [autoSelectCompany]);
 
   useEffect(() => {
     loadUserType();
@@ -107,6 +132,8 @@ export default function Layout() {
   const handleLogout = async () => {
     setLogoutVisible(false);
     try {
+      await unregisterPushTokenForCurrentUser();
+      await clearLocalNotifications();
       await AsyncStorage.multiRemove([
         "token",
         "user",
@@ -118,6 +145,7 @@ export default function Layout() {
         "selectedAggregatorId",
       ]);
       setGraphqlAuthToken(null);
+      await apolloClient.clearStore();
       dispatch(updateField({ key: "username", value: "" }));
       dispatch(updateField({ key: "email", value: "" }));
       router.replace("/(auth)/signin");
@@ -173,7 +201,6 @@ export default function Layout() {
     </TouchableOpacity>
   );
 
-  // ✅ THE FIX: Renamed, removed capsule styles, added Data menu item
   const GlobalMenu = () => (
     <Menu
       visible={sidebarVisible}
@@ -183,7 +210,7 @@ export default function Layout() {
           onPress={() => setSidebarVisible(true)}
           style={{
             marginLeft: 14,
-            padding: 8, // Clean padding instead of a capsule
+            padding: 8,
           }}
           activeOpacity={0.8}
         >
@@ -196,7 +223,7 @@ export default function Layout() {
         title="Data"
         onPress={() => {
           setSidebarVisible(false);
-          router.push("/data"); // Push to the new data screen
+          router.push("/data");
         }}
       />
       <Menu.Item
@@ -259,7 +286,7 @@ export default function Layout() {
           headerStyle: { backgroundColor: theme.colors.background },
           headerTintColor: theme.colors.onSurface,
           tabBarStyle: { backgroundColor: theme.colors.surface },
-          headerLeft: () => <GlobalMenu />, // ✅ Applies the menu globally to ALL tabs
+          headerLeft: () => <GlobalMenu />,
         }}
       >
         <Tabs.Screen
@@ -318,12 +345,11 @@ export default function Layout() {
           }}
         />
 
-        {/* ✅ NEW SCREEN ROUTE FOR DATA */}
         <Tabs.Screen
           name="data"
           options={{
             title: "Data",
-            href: null, // href: null hides it from the bottom tab bar while keeping it accessible
+            href: null,
             headerRight: () => <ThemeToggleBtn />,
           }}
         />
@@ -333,7 +359,7 @@ export default function Layout() {
           options={{
             title: "Notifications",
             href: null,
-            headerLeft: () => <NotificationsHeaderLeft />, // Overrides the GlobalMenu for this screen only
+            headerLeft: () => <NotificationsHeaderLeft />,
             headerRight: () => <NotificationsHeaderRight />,
             tabBarIcon: ({ color, size }) => (
               <Ionicons

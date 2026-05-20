@@ -19,11 +19,10 @@ type Props = {
   onChange: (v: Step4Values) => void;
   onValidityChange?: (valid: boolean) => void;
   customerId?: string | null; // ← NEW
-  onInstantUpload?: (file: PickedFile, docType: string) => Promise<void>; // ← NEW
 };
 
 const MAX_CERT_FILES = 4;
-const MAX_CERT_MB = 1;
+const MAX_CERT_MB = 5;
 const MAX_CERT_BYTES = MAX_CERT_MB * 1024 * 1024;
 
 const toFieldErrors = (issues: any[]) => {
@@ -40,8 +39,6 @@ export default function Step4AdditionalDetails({
   value,
   onChange,
   onValidityChange,
-  customerId,
-  onInstantUpload,
 }: Props) {
   const theme = useTheme();
   const [local, setLocal] = useState<Step4Values>(value);
@@ -132,15 +129,6 @@ export default function Step4AdditionalDetails({
     }
 
     setField("certificates", validFiles);
-
-    // ===================== INSTANT UPLOAD =====================
-    if (customerId && onInstantUpload) {
-      for (const file of validFiles) {
-        if (file.uri && !file.uri.startsWith("http")) {
-          onInstantUpload(file, "certificate");
-        }
-      }
-    }
   };
 
   const removeCert = (idx: number) => {

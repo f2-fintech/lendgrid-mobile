@@ -34,10 +34,9 @@ type Props = {
   customerId?: string | null;
   loanType: string;
   businessEntityType?: string;
-  onInstantUpload?: (file: PickedFile, docType: string) => Promise<void>;
 };
 
-const MAX_MB = 10;
+const MAX_MB = 5;
 const MAX_BYTES = MAX_MB * 1024 * 1024;
 
 const personalLoanFields = ["form16", "itr", "salarySlip", "banking"];
@@ -162,10 +161,8 @@ export default function Step2Statement({
   onChange,
   onValidityChange,
   maxFiles = 10,
-  customerId,
   loanType,
   businessEntityType,
-  onInstantUpload,
 }: Props) {
   const theme = useTheme();
   const safeValue = value || emptyStep2Value;
@@ -175,12 +172,19 @@ export default function Step2Statement({
   );
   const [fileError, setFileError] = useState("");
   const [personCountOpen, setPersonCountOpen] = useState(false);
+  const [bankingPasswordDraft, setBankingPasswordDraft] = useState(
+    safeValue.bankingPassword || "",
+  );
 
   const isValid = safeValue.files.length > 0;
 
   useEffect(() => {
     onValidityChange?.(isValid);
   }, [isValid, onValidityChange]);
+
+  useEffect(() => {
+    setBankingPasswordDraft(safeValue.bankingPassword || "");
+  }, [safeValue.bankingPassword]);
 
   const update = (patch: Partial<Step2Value>) => {
     onChange({
@@ -220,7 +224,8 @@ export default function Step2Statement({
     }
 
     let docType = docTypeMap[fieldKey] || fieldKey;
-    if (fieldKey.includes("_aadhaar")) docType = "aadhaar front";
+    if (fieldKey.includes("_aadhaar_back")) docType = "aadhaar back";
+    else if (fieldKey.includes("_aadhaar")) docType = "aadhaar front";
     if (fieldKey.includes("_pan")) docType = "pancard";
 
     const nextFile: PickedFile = {
@@ -237,10 +242,6 @@ export default function Step2Statement({
       nextFile,
     ];
     update({ files: nextFiles });
-
-    if (customerId && onInstantUpload) {
-      onInstantUpload(nextFile, docType);
-    }
   };
 
   const removeFile = (fieldKey: string) => {
@@ -269,7 +270,7 @@ export default function Step2Statement({
     update({ personDetails });
   };
 
-  const FileBox = ({ fieldKey, label }: { fieldKey: string; label: string }) => {
+  const renderFileBox = (fieldKey: string, label: string) => {
     const file = selectedFor(fieldKey);
     const isImg = (file?.mimeType || "").startsWith("image/");
     return (
@@ -347,7 +348,7 @@ export default function Step2Statement({
     );
   };
 
-  const PersonRows = ({ label }: { label: "Director" | "Partner" }) => (
+  const renderPersonRows = (label: "Director" | "Partner") => (
     <View style={{ marginTop: 8 }}>
       <Text style={{ color: theme.colors.primary, fontWeight: "900", marginBottom: 8 }}>
         {label} Details
@@ -414,8 +415,12 @@ export default function Step2Statement({
               }}
             />
           ))}
-          <FileBox fieldKey={`person_${index}_aadhaar`} label="Aadhaar Document" />
-          <FileBox fieldKey={`person_${index}_pan`} label="PAN Document" />
+          {renderFileBox(`person_${index}_aadhaar`, "Aadhaar Front Document")}
+          {renderFileBox(
+            `person_${index}_aadhaar_back`,
+            "Aadhaar Back Document",
+          )}
+          {renderFileBox(`person_${index}_pan`, "PAN Document")}
         </View>
       ))}
     </View>
@@ -449,15 +454,17 @@ export default function Step2Statement({
       )}
 
       {loanType === "business loan" && businessEntityType === "private_limited" && (
-        <PersonRows label="Director" />
+        renderPersonRows("Director")
       )}
 
       {loanType === "business loan" && businessEntityType === "partnership" && (
-        <PersonRows label="Partner" />
+        renderPersonRows("Partner")
       )}
 
       {fieldKeys.map((fieldKey) => (
-        <FileBox key={fieldKey} fieldKey={fieldKey} label={fieldLabels[fieldKey] || "Bank Statement"} />
+        <View key={fieldKey}>
+          {renderFileBox(fieldKey, fieldLabels[fieldKey] || "Bank Statement")}
+        </View>
       ))}
 
       {(fieldKeys.includes("banking") || fieldKeys.includes("bankStatement")) && (
@@ -466,8 +473,11 @@ export default function Step2Statement({
             Bank Statement Password
           </Text>
           <TextInput
-            value={safeValue.bankingPassword}
-            onChangeText={(text) => update({ bankingPassword: text })}
+            value={bankingPasswordDraft}
+            onChangeText={setBankingPasswordDraft}
+            onEndEditing={() =>
+              update({ bankingPassword: bankingPasswordDraft })
+            }
             placeholder="Enter PDF password if protected"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             style={{

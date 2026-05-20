@@ -19,47 +19,30 @@ type Props = {
   onChange: (v: Step3Values) => void;
   onValidityChange?: (valid: boolean) => void;
   customerId?: string | null;
-  onInstantUpload?: (file: PickedFile, docType: string) => Promise<void>;
 };
 
-const MAX_MB = 1;
+const MAX_MB = 5;
 const MAX_BYTES = MAX_MB * 1024 * 1024;
 
 export default function Step3IdProof({
   value,
   onChange,
   onValidityChange,
-  customerId,
-  onInstantUpload,
 }: Props) {
   const theme = useTheme();
-  const [showIdProofInfo, setShowIdProofInfo] = useState(true);
-  const [touched, setTouched] = useState(false);
   const [fileError, setFileError] = useState<string>("");
 
   // Logic to handle setting the field and auto-upload
   const setField = useCallback(
     (k: keyof Step3Values, v: PickedFile | null) => {
       onChange({ ...value, [k]: v });
-
-      // Auto Upload if file exists
-      if (v && customerId && onInstantUpload) {
-        const docMapping: Record<keyof Step3Values, string> = {
-          aadharFront: "aadhaar front",
-          aadharBack: "aadhaar back",
-          pancard: "pancard",
-          passportPhoto: "photo",
-        };
-        onInstantUpload(v, docMapping[k]);
-      }
     },
-    [value, onChange, customerId, onInstantUpload],
+    [value, onChange],
   );
 
   // 1. Pick from Files/Gallery
   const handlePickFile = useCallback(
     async (field: keyof Step3Values) => {
-      setTouched(true);
       setFileError("");
       const res = await DocumentPicker.getDocumentAsync({
         multiple: false,
@@ -89,7 +72,6 @@ export default function Step3IdProof({
   // 2. Capture from Camera
   const handleTakePhoto = useCallback(
     async (field: keyof Step3Values) => {
-      setTouched(true);
       setFileError("");
 
       const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -123,11 +105,9 @@ export default function Step3IdProof({
   const renderFilePreview = (
     field: keyof Step3Values,
     label: string,
-    isRequired: boolean = false,
     allowCamera: boolean = false,
   ) => {
     const file = value[field];
-    const hasError = isRequired && touched && !file;
 
     if (!file) {
       return (
@@ -140,9 +120,7 @@ export default function Step3IdProof({
               height: 120,
               borderWidth: 2,
               borderStyle: "dashed",
-              borderColor: hasError
-                ? theme.colors.error
-                : theme.colors.outlineVariant,
+              borderColor: theme.colors.outlineVariant,
               borderRadius: 16,
               justifyContent: "center",
               alignItems: "center",
@@ -248,12 +226,11 @@ export default function Step3IdProof({
             color: theme.colors.onSurface,
           }}
         >
-          Aadhaar Card (Front & Back){" "}
-          <Text style={{ color: theme.colors.error }}>*</Text>
+          Aadhaar Card (Front & Back)
         </Text>
         <View style={{ flexDirection: "row", gap: 12 }}>
-          {renderFilePreview("aadharFront", "Front Side", true)}
-          {renderFilePreview("aadharBack", "Back Side", false)}
+          {renderFilePreview("aadharFront", "Front Side")}
+          {renderFilePreview("aadharBack", "Back Side")}
         </View>
       </View>
 
@@ -267,9 +244,9 @@ export default function Step3IdProof({
             color: theme.colors.onSurface,
           }}
         >
-          PAN Card <Text style={{ color: theme.colors.error }}>*</Text>
+          PAN Card
         </Text>
-        {renderFilePreview("pancard", "Upload PAN", true)}
+        {renderFilePreview("pancard", "Upload PAN")}
       </View>
 
       {/* Passport Photo Section with Camera */}
@@ -284,7 +261,7 @@ export default function Step3IdProof({
         >
           Passport Size Photo
         </Text>
-        {renderFilePreview("passportPhoto", "Upload File", false, true)}
+        {renderFilePreview("passportPhoto", "Upload File", true)}
       </View>
 
       {/* Error Banner */}

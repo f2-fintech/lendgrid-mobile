@@ -23,15 +23,18 @@ import {
   apolloClient,
   setGraphqlAuthToken,
 } from "@/apis/config/graphql_Notification_Client";
-import { updatePushTokenApi } from "@/apis/modules/auth.api";
 import { ROUTES } from "@/assets/constants/routes";
 import TurnstileCaptcha from "@/components/login_Signup/TurnstileCaptcha";
 import { useLogin } from "@/hooks/useAuth";
 import { useOmsLogin } from "@/hooks/useOMSauth";
+import {
+  clearLocalNotifications,
+  syncPushTokenForCurrentUser,
+  unregisterPushTokenForCurrentUser,
+} from "@/lib/utils/pushSession";
 import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
 import { signInStyles } from "@/styles/auth/signin.styles";
 import { COLORS } from "@/styles/theme/tokens";
-import * as Notifications from "expo-notifications";
 import * as WebBrowser from "expo-web-browser";
 
 // ─── Brand color (matches logo blue exactly) ──────────────────────────────────
@@ -358,6 +361,13 @@ function UserLoginForm({
 
       if (response?.success && response?.access_token) {
         const token = response.access_token;
+        const previousToken = await AsyncStorage.getItem("token");
+
+        if (previousToken) {
+          setGraphqlAuthToken(previousToken);
+          await unregisterPushTokenForCurrentUser();
+          await clearLocalNotifications();
+        }
 
         await AsyncStorage.clear();
         await AsyncStorage.setItem("token", token);
@@ -411,21 +421,7 @@ function UserLoginForm({
         await apolloClient.clearStore();
 
         try {
-          const { status: existingStatus } =
-            await Notifications.getPermissionsAsync();
-          let finalStatus = existingStatus;
-          if (existingStatus !== "granted") {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-          }
-          if (finalStatus === "granted") {
-            const expoToken = (
-              await Notifications.getExpoPushTokenAsync({
-                projectId: "16608c42-65bc-47d0-9cca-f5158e848475",
-              })
-            ).data;
-            await updatePushTokenApi(expoToken);
-          }
+          await syncPushTokenForCurrentUser();
         } catch (err) {
           console.error("Push token error:", err);
         }
