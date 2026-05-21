@@ -9,10 +9,13 @@ import {
 } from "@/apis/config/graphql_Notification_Client";
 import { restRequest } from "@/apis/config/restClient";
 
-import { updatePushTokenApi } from "@/apis/modules/auth.api";
 import { omsAuthApi, OmsLoginPayload } from "@/apis/modules/OmsAuth.api";
 import { ROUTES } from "@/assets/constants/routes";
-import { registerForPushNotificationsAsync } from "@/lib/utils/notifications";
+import {
+  clearLocalNotifications,
+  syncPushTokenForCurrentUser,
+  unregisterPushTokenForCurrentUser,
+} from "@/lib/utils/pushSession";
 
 const decodeJwt = (token: string) => {
   try {
@@ -146,6 +149,13 @@ export function useOmsLogin() {
         return;
       }
 
+      const previousToken = await AsyncStorage.getItem("token");
+      if (previousToken) {
+        setGraphqlAuthToken(previousToken);
+        await unregisterPushTokenForCurrentUser();
+        await clearLocalNotifications();
+      }
+
       // 🔥 STEP 1: CLEAR AUTH STORAGE
       await AsyncStorage.multiRemove([
         "token",
@@ -223,10 +233,7 @@ export function useOmsLogin() {
       setGraphqlAuthToken(result.access_token);
 
       try {
-        const expoToken = await registerForPushNotificationsAsync();
-        if (expoToken) {
-          await updatePushTokenApi(expoToken);
-        }
+        await syncPushTokenForCurrentUser();
       } catch (error) {
         console.error("[OMS AUTH] Push token error:", error);
       }

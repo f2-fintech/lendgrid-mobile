@@ -209,6 +209,7 @@ export default function MultiStepApplicationForm({
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingFileKey, setUploadingFileKey] = useState<string | null>(null);
 
   const [submitStatus, setSubmitStatus] = useState<{
     applicationCreated: boolean;
@@ -534,10 +535,36 @@ export default function MultiStepApplicationForm({
     );
   }, [step1]);
 
-  const step2HasAtLeastOneDoc = step2.files.length >= 1;
+  const isLocalPendingFile = (file?: PickedFile | null) =>
+    !!file?.uri && !file.uri.startsWith("http") && !file.uploaded;
 
-  const step2EffectiveValid = isStep2Skipped || step2HasAtLeastOneDoc;
-  const step3EffectiveValid = !!step3.aadharFront && !!step3.pancard;
+  const step2HasAtLeastOneDoc = step2.files.length >= 1;
+  const step2HasPendingDocs = step2.files.some(isLocalPendingFile);
+
+  const step3Files = [
+    step3.aadharFront,
+    step3.aadharBack,
+    step3.pancard,
+    step3.passportPhoto,
+  ].filter(Boolean) as PickedFile[];
+  const step3HasAnyDoc = step3Files.length > 0;
+  const step3HasPendingDocs = step3Files.some(isLocalPendingFile);
+
+  const step4HasAnyDoc = step4.certificates.length > 0;
+  const step4HasPendingDocs = step4.certificates.some(isLocalPendingFile);
+
+  const currentStepHasDocs =
+    (step === 2 && step2HasAtLeastOneDoc) ||
+    (step === 3 && step3HasAnyDoc) ||
+    (step === 4 && step4HasAnyDoc);
+  const currentStepHasPendingDocs =
+    (step === 2 && step2HasPendingDocs) ||
+    (step === 3 && step3HasPendingDocs) ||
+    (step === 4 && step4HasPendingDocs);
+
+  const step2EffectiveValid =
+    isStep2Skipped || (step2HasAtLeastOneDoc && !step2HasPendingDocs);
+  const step3EffectiveValid = !step3HasPendingDocs;
 
   useEffect(() => {
     if (skipped[2] && step2.files.length > 0) {
@@ -592,8 +619,13 @@ export default function MultiStepApplicationForm({
   }, [step, step0Valid, step1Valid, step2EffectiveValid, step3EffectiveValid]);
 
   const canSubmit = useMemo(
-    () => step === 4 && step4Valid && !isSubmitting && !isUploading,
-    [step, step4Valid, isSubmitting, isUploading],
+    () =>
+      step === 4 &&
+      step4Valid &&
+      !step4HasPendingDocs &&
+      !isSubmitting &&
+      !isUploading,
+    [step, step4Valid, step4HasPendingDocs, isSubmitting, isUploading],
   );
 
   // -----------------------------
@@ -645,7 +677,7 @@ export default function MultiStepApplicationForm({
 
   const createCustomerEarly = useCallback(async () => {
     try {
-      if (customerId) return;
+      if (customerId) return customerId;
 
       console.log("🚀 Creating customer early...");
 
@@ -655,7 +687,7 @@ export default function MultiStepApplicationForm({
         : selectedCompany?.companyId ?? storedCompanyId;
       const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
 
-      if (isOmsStaff && !useCompanyIdString) return;
+      if (isOmsStaff && !useCompanyIdString) return null;
 
       const requestConfig = {
         headers: {
@@ -691,6 +723,7 @@ export default function MultiStepApplicationForm({
       setCustomerId(String(newCustomerId));
 
       console.log("✅ Early customer created:", newCustomerId);
+      return String(newCustomerId);
     } catch (err) {
       console.error("❌ Early customer creation failed:", err);
     }
@@ -748,6 +781,296 @@ export default function MultiStepApplicationForm({
       }
     },
     [customerId, step2.bankingPassword],
+  );
+
+  const buildRequestConfig = useCallback(async () => {
+    const storedCompanyId = await getCompanyId();
+    const useCompanyId = isOmsStaff
+      ? selectedCompany?.companyId ?? selectedCompanyId
+      : selectedCompany?.companyId ?? storedCompanyId;
+    const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
+
+    return {
+      headers: {
+        ...(useCompanyIdString ? { companyid: useCompanyIdString } : {}),
+      },
+    };
+  }, [isOmsStaff, selectedCompany, selectedCompanyId]);
+
+  const uploadDocumentFile = useCallback(
+    async (
+      file: PickedFile,
+      docType: string,
+      activeCustomerId: string,
+      requestConfig: any,
+    ) => {
+      const url = await uploadToS3(file, `document/${file.name || docType}`);
+      const finalUrl =
+        docType === "bank statement" && step2.bankingPassword
+          ? `${url}#pwd=${encodeURIComponent(step2.bankingPassword)}`
+          : url;
+
+      await createDocument(
+        {
+          customer_id: activeCustomerId,
+          document_url: finalUrl,
+          type: docType,
+          document_name: docType,
+          name: docType,
+        },
+        requestConfig,
+      );
+    },
+    [step2.bankingPassword],
+  );
+
+  const getStep2DocumentType = (file: PickedFile) => {
+    const fieldKey = String(file.fieldKey || "").toLowerCase();
+    if (file.docType) return file.docType;
+    if (fieldKey.includes("aadhaar_back")) return "aadhaar back";
+    if (fieldKey.includes("aadhaar")) return "aadhaar front";
+    if (fieldKey.includes("pan")) return "pancard";
+    return "bank statement";
+  };
+
+  const uploadCurrentStepDocuments = useCallback(async () => {
+    if (!currentStepHasDocs || !currentStepHasPendingDocs || isUploading) {
+      return;
+    }
+
+    setIsUploading(true);
+    setStage("Uploading selected documents");
+
+    try {
+      const activeCustomerId = customerId || (await createCustomerEarly());
+      if (!activeCustomerId) {
+        throw new Error(
+          "Customer is not ready. Please complete customer details first.",
+        );
+      }
+
+      const requestConfig = await buildRequestConfig();
+
+      if (step === 2) {
+        const pendingFiles = step2.files.filter(isLocalPendingFile);
+        for (const file of pendingFiles) {
+          await uploadDocumentFile(
+            file,
+            getStep2DocumentType(file),
+            activeCustomerId,
+            requestConfig,
+          );
+        }
+
+        setStep2((prev) => ({
+          ...prev,
+          files: prev.files.map((file) =>
+            isLocalPendingFile(file) ? { ...file, uploaded: true } : file,
+          ),
+        }));
+      }
+
+      if (step === 3) {
+        const step3Entries: Array<[keyof Step3Values, string]> = [
+          ["aadharFront", "aadhaar front"],
+          ["aadharBack", "aadhaar back"],
+          ["pancard", "pancard"],
+          ["passportPhoto", "photo"],
+        ];
+
+        for (const [key, docType] of step3Entries) {
+          const file = step3[key];
+          if (isLocalPendingFile(file)) {
+            await uploadDocumentFile(
+              file as PickedFile,
+              docType,
+              activeCustomerId,
+              requestConfig,
+            );
+          }
+        }
+
+        setStep3((prev) => ({
+          aadharFront: isLocalPendingFile(prev.aadharFront)
+            ? { ...prev.aadharFront!, uploaded: true }
+            : prev.aadharFront,
+          aadharBack: isLocalPendingFile(prev.aadharBack)
+            ? { ...prev.aadharBack!, uploaded: true }
+            : prev.aadharBack,
+          pancard: isLocalPendingFile(prev.pancard)
+            ? { ...prev.pancard!, uploaded: true }
+            : prev.pancard,
+          passportPhoto: isLocalPendingFile(prev.passportPhoto)
+            ? { ...prev.passportPhoto!, uploaded: true }
+            : prev.passportPhoto,
+        }));
+      }
+
+      if (step === 4) {
+        const pendingFiles = step4.certificates.filter(isLocalPendingFile);
+        for (const file of pendingFiles) {
+          await uploadDocumentFile(
+            file,
+            "certificate",
+            activeCustomerId,
+            requestConfig,
+          );
+        }
+
+        setStep4((prev) => ({
+          ...prev,
+          certificates: prev.certificates.map((file) =>
+            isLocalPendingFile(file) ? { ...file, uploaded: true } : file,
+          ),
+        }));
+      }
+
+      setSubmitStatus((prev) => ({
+        ...prev,
+        docsUploaded: false,
+        docUploadFailed: false,
+        docUploadError: "",
+        lastStage: "",
+      }));
+    } catch (err: any) {
+      const msg = getPrettyError(err);
+      setSubmitStatus((prev) => ({
+        ...prev,
+        docUploadFailed: true,
+        docUploadError: msg,
+        lastStage: "Document upload failed.",
+      }));
+      console.error(
+        "Document upload failed:",
+        err?.response?.data || err?.message || err,
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  }, [
+    buildRequestConfig,
+    createCustomerEarly,
+    currentStepHasDocs,
+    currentStepHasPendingDocs,
+    customerId,
+    isUploading,
+    step,
+    step2.files,
+    step3,
+    step4.certificates,
+    uploadDocumentFile,
+  ]);
+
+  const uploadSingleDocument = useCallback(
+    async (
+      file: PickedFile | null | undefined,
+      docType: string,
+      fileKey: string,
+      markUploaded: () => void,
+    ) => {
+      if (!isLocalPendingFile(file) || isUploading) {
+        return;
+      }
+
+      setIsUploading(true);
+      setUploadingFileKey(fileKey);
+      setStage("Uploading selected document");
+
+      try {
+        const activeCustomerId = customerId || (await createCustomerEarly());
+        if (!activeCustomerId) {
+          throw new Error(
+            "Customer is not ready. Please complete customer details first.",
+          );
+        }
+
+        const requestConfig = await buildRequestConfig();
+        await uploadDocumentFile(file as PickedFile, docType, activeCustomerId, requestConfig);
+        markUploaded();
+
+        setSubmitStatus((prev) => ({
+          ...prev,
+          docsUploaded: false,
+          docUploadFailed: false,
+          docUploadError: "",
+          lastStage: "",
+        }));
+      } catch (err: any) {
+        const msg = getPrettyError(err);
+        setSubmitStatus((prev) => ({
+          ...prev,
+          docUploadFailed: true,
+          docUploadError: msg,
+          lastStage: "Document upload failed.",
+        }));
+        console.error(
+          "Document upload failed:",
+          err?.response?.data || err?.message || err,
+        );
+      } finally {
+        setUploadingFileKey(null);
+        setIsUploading(false);
+      }
+    },
+    [
+      buildRequestConfig,
+      createCustomerEarly,
+      customerId,
+      isUploading,
+      uploadDocumentFile,
+    ],
+  );
+
+  const uploadStep2File = useCallback(
+    (file: PickedFile) => {
+      const fileKey = file.fieldKey || file.uri;
+      uploadSingleDocument(file, getStep2DocumentType(file), fileKey, () => {
+        setStep2((prev) => ({
+          ...prev,
+          files: prev.files.map((item) =>
+            item.fieldKey === file.fieldKey || item.uri === file.uri
+              ? { ...item, uploaded: true }
+              : item,
+          ),
+        }));
+      });
+    },
+    [uploadSingleDocument],
+  );
+
+  const uploadStep3File = useCallback(
+    (field: keyof Step3Values) => {
+      const file = step3[field];
+      const docTypeMap: Record<keyof Step3Values, string> = {
+        aadharFront: "aadhaar front",
+        aadharBack: "aadhaar back",
+        pancard: "pancard",
+        passportPhoto: "photo",
+      };
+
+      uploadSingleDocument(file, docTypeMap[field], field, () => {
+        setStep3((prev) => ({
+          ...prev,
+          [field]: prev[field] ? { ...prev[field]!, uploaded: true } : prev[field],
+        }));
+      });
+    },
+    [step3, uploadSingleDocument],
+  );
+
+  const uploadStep4File = useCallback(
+    (index: number) => {
+      const file = step4.certificates[index];
+      uploadSingleDocument(file, "certificate", `certificate-${index}`, () => {
+        setStep4((prev) => ({
+          ...prev,
+          certificates: prev.certificates.map((item, itemIndex) =>
+            itemIndex === index ? { ...item, uploaded: true } : item,
+          ),
+        }));
+      });
+    },
+    [step4.certificates, uploadSingleDocument],
   );
 
   // 1. Add this state at the top of your component with your other useState hooks:
@@ -879,7 +1202,7 @@ export default function MultiStepApplicationForm({
         setIsUploading(true);
 
         for (const file of pendingStep2Files) {
-          const docType = file.docType || "bank statement";
+          const docType = getStep2DocumentType(file);
           const url = await uploadToS3(file, `document/${file.name || docType}`);
           const finalUrl =
             docType === "bank statement" && step2.bankingPassword
@@ -891,6 +1214,8 @@ export default function MultiStepApplicationForm({
               customer_id: newCustomerId,
               document_url: finalUrl,
               type: docType,
+              document_name: docType,
+              name: docType,
             },
             requestConfig,
           );
@@ -1183,11 +1508,12 @@ export default function MultiStepApplicationForm({
           <Step2Statement
             value={step2}
             onChange={setStep2}
-            maxFiles={10}
+            maxFiles={60}
             customerId={customerId}
             loanType={step0.loanType}
             businessEntityType={step0.businessEntityType}
-            onInstantUpload={uploadFileInstantly}
+            onUploadFile={uploadStep2File}
+            uploadingFileKey={uploadingFileKey}
           />
         )}
 
@@ -1196,7 +1522,8 @@ export default function MultiStepApplicationForm({
             value={step3}
             onChange={setStep3}
             customerId={customerId}
-            onInstantUpload={uploadFileInstantly}
+            onUploadFile={uploadStep3File}
+            uploadingFileKey={uploadingFileKey}
           />
         )}
 
@@ -1206,8 +1533,41 @@ export default function MultiStepApplicationForm({
             onChange={setStep4}
             onValidityChange={setStep4Valid}
             customerId={customerId}
-            onInstantUpload={uploadFileInstantly}
+            onUploadFile={uploadStep4File}
+            uploadingFileKey={uploadingFileKey}
           />
+        )}
+
+        {currentStepHasDocs && (
+          <TouchableOpacity
+            onPress={uploadCurrentStepDocuments}
+            disabled={!currentStepHasPendingDocs || isUploading}
+            activeOpacity={0.85}
+            style={{
+              marginTop: 16,
+              paddingVertical: 14,
+              borderRadius: 12,
+              backgroundColor:
+                currentStepHasPendingDocs && !isUploading
+                  ? theme.colors.secondary
+                  : theme.colors.surfaceVariant,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                color:
+                  currentStepHasPendingDocs && !isUploading
+                    ? "#FFFFFF"
+                    : theme.colors.onSurfaceVariant,
+                fontWeight: "900",
+                fontSize: 14,
+              }}
+            >
+              {isUploading ? "Uploading..." : "Upload All Document"}
+            </Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
 
@@ -1421,7 +1781,7 @@ export default function MultiStepApplicationForm({
           </TouchableOpacity>
         ) : (
           <>
-            {step === 2 && (
+            {(step === 2 || step === 3) && (
               <TouchableOpacity
                 onPress={skipThisStep}
                 activeOpacity={0.85}

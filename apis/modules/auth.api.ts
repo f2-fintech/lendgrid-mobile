@@ -214,3 +214,78 @@ export const updatePushTokenApi = async (token: string) => {
     { token },
   ).then((d) => d.updatePushToken);
 };
+
+/**
+ * CLEAR PUSH TOKEN
+ * Removes this device from the currently authenticated user so Expo push
+ * notifications stop after logout or account switching.
+ */
+export const clearPushTokenApi = async () => {
+  const mutationAttempts = [
+    {
+      query: `
+        mutation ClearPushTokenByEmptyValue($token: String!) {
+          updatePushToken(token: $token) {
+            success
+            message
+          }
+        }
+      `,
+      variables: { token: "" },
+      pick: (data: any) => data.updatePushToken,
+    },
+    {
+      query: `
+        mutation ClearPushToken {
+          clearPushToken {
+            success
+            message
+          }
+        }
+      `,
+      variables: {},
+      pick: (data: any) => data.clearPushToken,
+    },
+    {
+      query: `
+        mutation RemovePushToken {
+          removePushToken {
+            success
+            message
+          }
+        }
+      `,
+      variables: {},
+      pick: (data: any) => data.removePushToken,
+    },
+    {
+      query: `
+        mutation DeletePushToken {
+          deletePushToken {
+            success
+            message
+          }
+        }
+      `,
+      variables: {},
+      pick: (data: any) => data.deletePushToken,
+    },
+  ];
+
+  let lastError: unknown;
+
+  for (const attempt of mutationAttempts) {
+    try {
+      const data = await gqlRequest<any>(attempt.query, attempt.variables);
+      const result = attempt.pick(data);
+      if (result?.success === false) {
+        throw new Error(result?.message || "Push token clear failed");
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+};
