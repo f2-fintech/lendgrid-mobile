@@ -159,17 +159,9 @@ export default function RootLayout() {
         const data = response.notification.request.content.data;
         console.log("Notification Tapped. Data received:", data);
 
-        const [token, userType] = await Promise.all([
-          AsyncStorage.getItem("token"),
-          AsyncStorage.getItem("userType"),
-        ]);
+        const token = await AsyncStorage.getItem("token");
 
         if (!token) return;
-
-        if (userType === "aggregator") {
-          router.push("/notifications");
-          return;
-        }
 
         const webPath =
           typeof data?.actionUrl === "string" ? data.actionUrl : "";

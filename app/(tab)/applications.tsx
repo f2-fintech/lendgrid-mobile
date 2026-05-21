@@ -454,30 +454,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     enabled: activeTab === "applications" && authLoaded,
   });
 
-  const visibleAppsData = useMemo(() => {
-    if (!appsQuery.data || isOmsSales) return appsQuery.data;
-
-    const results = appsQuery.data.results.filter((application: any) => {
-      const source = String(application?.source || "").toLowerCase();
-      if (source !== "oms") return true;
-
-      const picked =
-        application?.is_picked ??
-        application?.isPicked ??
-        application?.picked ??
-        application?.isPickedByAggregator;
-
-      return (
-        picked === true || picked === 1 || picked === "1" || picked === "true"
-      );
-    });
-
-    return {
-      ...appsQuery.data,
-      results,
-      count: Math.min(appsQuery.data.count, results.length),
-    };
-  }, [appsQuery.data, isOmsSales]);
+  const visibleAppsData = appsQuery.data;
 
   const ticketsQuery = useTickets({
     page: ticketsPage,
@@ -485,6 +462,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     search: debouncedSearch || undefined,
     userId: isOmsSales ? normalizedSalesUserId : undefined,
     appliedBy: isOmsSales ? "sales" : undefined,
+    companyId: isOmsSales ? undefined : applicationsCompanyId,
     enabled:
       activeTab === "tickets" &&
       authLoaded &&

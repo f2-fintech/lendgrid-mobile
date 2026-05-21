@@ -209,6 +209,7 @@ export default function MultiStepApplicationForm({
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingFileKey, setUploadingFileKey] = useState<string | null>(null);
 
   const [submitStatus, setSubmitStatus] = useState<{
     applicationCreated: boolean;
@@ -960,6 +961,118 @@ export default function MultiStepApplicationForm({
     uploadDocumentFile,
   ]);
 
+  const uploadSingleDocument = useCallback(
+    async (
+      file: PickedFile | null | undefined,
+      docType: string,
+      fileKey: string,
+      markUploaded: () => void,
+    ) => {
+      if (!isLocalPendingFile(file) || isUploading) {
+        return;
+      }
+
+      setIsUploading(true);
+      setUploadingFileKey(fileKey);
+      setStage("Uploading selected document");
+
+      try {
+        const activeCustomerId = customerId || (await createCustomerEarly());
+        if (!activeCustomerId) {
+          throw new Error(
+            "Customer is not ready. Please complete customer details first.",
+          );
+        }
+
+        const requestConfig = await buildRequestConfig();
+        await uploadDocumentFile(file as PickedFile, docType, activeCustomerId, requestConfig);
+        markUploaded();
+
+        setSubmitStatus((prev) => ({
+          ...prev,
+          docsUploaded: false,
+          docUploadFailed: false,
+          docUploadError: "",
+          lastStage: "",
+        }));
+      } catch (err: any) {
+        const msg = getPrettyError(err);
+        setSubmitStatus((prev) => ({
+          ...prev,
+          docUploadFailed: true,
+          docUploadError: msg,
+          lastStage: "Document upload failed.",
+        }));
+        console.error(
+          "Document upload failed:",
+          err?.response?.data || err?.message || err,
+        );
+      } finally {
+        setUploadingFileKey(null);
+        setIsUploading(false);
+      }
+    },
+    [
+      buildRequestConfig,
+      createCustomerEarly,
+      customerId,
+      isUploading,
+      uploadDocumentFile,
+    ],
+  );
+
+  const uploadStep2File = useCallback(
+    (file: PickedFile) => {
+      const fileKey = file.fieldKey || file.uri;
+      uploadSingleDocument(file, getStep2DocumentType(file), fileKey, () => {
+        setStep2((prev) => ({
+          ...prev,
+          files: prev.files.map((item) =>
+            item.fieldKey === file.fieldKey || item.uri === file.uri
+              ? { ...item, uploaded: true }
+              : item,
+          ),
+        }));
+      });
+    },
+    [uploadSingleDocument],
+  );
+
+  const uploadStep3File = useCallback(
+    (field: keyof Step3Values) => {
+      const file = step3[field];
+      const docTypeMap: Record<keyof Step3Values, string> = {
+        aadharFront: "aadhaar front",
+        aadharBack: "aadhaar back",
+        pancard: "pancard",
+        passportPhoto: "photo",
+      };
+
+      uploadSingleDocument(file, docTypeMap[field], field, () => {
+        setStep3((prev) => ({
+          ...prev,
+          [field]: prev[field] ? { ...prev[field]!, uploaded: true } : prev[field],
+        }));
+      });
+    },
+    [step3, uploadSingleDocument],
+  );
+
+  const uploadStep4File = useCallback(
+    (index: number) => {
+      const file = step4.certificates[index];
+      uploadSingleDocument(file, "certificate", `certificate-${index}`, () => {
+        setStep4((prev) => ({
+          ...prev,
+          certificates: prev.certificates.map((item, itemIndex) =>
+            itemIndex === index ? { ...item, uploaded: true } : item,
+          ),
+        }));
+      });
+    },
+    [step4.certificates, uploadSingleDocument],
+  );
+
   // 1. Add this state at the top of your component with your other useState hooks:
   // const [applicationNo, setApplicationNo] = useState<string | null>(null);
 
@@ -1399,6 +1512,8 @@ export default function MultiStepApplicationForm({
             customerId={customerId}
             loanType={step0.loanType}
             businessEntityType={step0.businessEntityType}
+            onUploadFile={uploadStep2File}
+            uploadingFileKey={uploadingFileKey}
           />
         )}
 
@@ -1407,6 +1522,8 @@ export default function MultiStepApplicationForm({
             value={step3}
             onChange={setStep3}
             customerId={customerId}
+            onUploadFile={uploadStep3File}
+            uploadingFileKey={uploadingFileKey}
           />
         )}
 
@@ -1416,6 +1533,8 @@ export default function MultiStepApplicationForm({
             onChange={setStep4}
             onValidityChange={setStep4Valid}
             customerId={customerId}
+            onUploadFile={uploadStep4File}
+            uploadingFileKey={uploadingFileKey}
           />
         )}
 

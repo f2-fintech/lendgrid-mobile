@@ -30,6 +30,8 @@ type Props = {
   value: Step2Value;
   onChange: (value: Step2Value) => void;
   onValidityChange?: (valid: boolean) => void;
+  onUploadFile?: (file: PickedFile) => void;
+  uploadingFileKey?: string | null;
   maxFiles?: number;
   customerId?: string | null;
   loanType: string;
@@ -160,6 +162,8 @@ export default function Step2Statement({
   value,
   onChange,
   onValidityChange,
+  onUploadFile,
+  uploadingFileKey,
   maxFiles = 10,
   loanType,
   businessEntityType,
@@ -273,6 +277,8 @@ export default function Step2Statement({
   const renderFileBox = (fieldKey: string, label: string) => {
     const file = selectedFor(fieldKey);
     const isImg = (file?.mimeType || "").startsWith("image/");
+    const isPending = !!file?.uri && !file.uri.startsWith("http") && !file.uploaded;
+    const isUploadingThis = uploadingFileKey === fieldKey;
     return (
       <View
         style={{
@@ -316,10 +322,44 @@ export default function Step2Statement({
             </View>
             <TouchableOpacity
               onPress={() => removeFile(fieldKey)}
+              disabled={isUploadingThis}
               style={{ padding: 8, borderRadius: 10, backgroundColor: theme.colors.errorContainer }}
             >
               <Feather name="x" size={18} color={theme.colors.onErrorContainer} />
             </TouchableOpacity>
+            {isPending && onUploadFile && (
+              <TouchableOpacity
+                onPress={() => onUploadFile(file)}
+                disabled={isUploadingThis}
+                activeOpacity={0.85}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: isUploadingThis
+                    ? theme.colors.surfaceVariant
+                    : theme.colors.secondary,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Feather
+                  name="upload"
+                  size={14}
+                  color={isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF"}
+                />
+                <Text
+                  style={{
+                    color: isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF",
+                    fontSize: 12,
+                    fontWeight: "900",
+                  }}
+                >
+                  {isUploadingThis ? "Uploading" : "Upload"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <TouchableOpacity

@@ -18,6 +18,8 @@ type Props = {
   value: Step4Values;
   onChange: (v: Step4Values) => void;
   onValidityChange?: (valid: boolean) => void;
+  onUploadFile?: (index: number) => void;
+  uploadingFileKey?: string | null;
   customerId?: string | null; // ← NEW
 };
 
@@ -39,6 +41,8 @@ export default function Step4AdditionalDetails({
   value,
   onChange,
   onValidityChange,
+  onUploadFile,
+  uploadingFileKey,
 }: Props) {
   const theme = useTheme();
   const [local, setLocal] = useState<Step4Values>(value);
@@ -346,7 +350,12 @@ export default function Step4AdditionalDetails({
           </View>
         )}
 
-        {local.certificates.map((f, idx) => (
+        {local.certificates.map((f, idx) => {
+          const fileKey = `certificate-${idx}`;
+          const isPending = !!f.uri && !f.uri.startsWith("http") && !f.uploaded;
+          const isUploadingThis = uploadingFileKey === fileKey;
+
+          return (
           <View
             key={`${f.uri}-${idx}`}
             style={{
@@ -378,6 +387,7 @@ export default function Step4AdditionalDetails({
             </View>
             <TouchableOpacity
               onPress={() => removeCert(idx)}
+              disabled={isUploadingThis}
               style={{
                 padding: 8,
                 borderRadius: 10,
@@ -390,8 +400,43 @@ export default function Step4AdditionalDetails({
                 color={theme.colors.onErrorContainer}
               />
             </TouchableOpacity>
+            {isPending && onUploadFile && (
+              <TouchableOpacity
+                onPress={() => onUploadFile(idx)}
+                disabled={isUploadingThis}
+                activeOpacity={0.85}
+                style={{
+                  marginLeft: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: isUploadingThis
+                    ? theme.colors.surfaceVariant
+                    : theme.colors.secondary,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Feather
+                  name="upload"
+                  size={14}
+                  color={isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF"}
+                />
+                <Text
+                  style={{
+                    color: isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF",
+                    fontSize: 12,
+                    fontWeight: "900",
+                  }}
+                >
+                  {isUploadingThis ? "Uploading" : "Upload"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-        ))}
+          );
+        })}
 
         <Text
           style={{

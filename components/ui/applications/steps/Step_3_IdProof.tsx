@@ -18,6 +18,8 @@ type Props = {
   value: Step3Values;
   onChange: (v: Step3Values) => void;
   onValidityChange?: (valid: boolean) => void;
+  onUploadFile?: (field: keyof Step3Values) => void;
+  uploadingFileKey?: string | null;
   customerId?: string | null;
 };
 
@@ -28,6 +30,8 @@ export default function Step3IdProof({
   value,
   onChange,
   onValidityChange,
+  onUploadFile,
+  uploadingFileKey,
 }: Props) {
   const theme = useTheme();
   const [fileError, setFileError] = useState<string>("");
@@ -108,6 +112,8 @@ export default function Step3IdProof({
     allowCamera: boolean = false,
   ) => {
     const file = value[field];
+    const isPending = !!file?.uri && !file.uri.startsWith("http") && !file.uploaded;
+    const isUploadingThis = uploadingFileKey === field;
 
     if (!file) {
       return (
@@ -199,6 +205,7 @@ export default function Step3IdProof({
         />
         <TouchableOpacity
           onPress={() => setField(field, null)}
+          disabled={isUploadingThis}
           style={{
             position: "absolute",
             top: 8,
@@ -210,6 +217,42 @@ export default function Step3IdProof({
         >
           <Feather name="trash-2" size={16} color={theme.colors.onError} />
         </TouchableOpacity>
+        {isPending && onUploadFile && (
+          <TouchableOpacity
+            onPress={() => onUploadFile(field)}
+            disabled={isUploadingThis}
+            activeOpacity={0.85}
+            style={{
+              position: "absolute",
+              left: 8,
+              bottom: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 7,
+              borderRadius: 10,
+              backgroundColor: isUploadingThis
+                ? theme.colors.surfaceVariant
+                : theme.colors.secondary,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <Feather
+              name="upload"
+              size={14}
+              color={isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF"}
+            />
+            <Text
+              style={{
+                color: isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF",
+                fontSize: 12,
+                fontWeight: "900",
+              }}
+            >
+              {isUploadingThis ? "Uploading" : "Upload"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
