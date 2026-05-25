@@ -1,13 +1,18 @@
 import { AppsHeaderRight } from "@/components/common/AppHeader";
 import MultiStepApplicationForm from "@/components/ui/applications/MultiStepApplicationForm";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useLayoutEffect } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
 export default function CreateApplicationScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    loanType?: string;
+    loanCategory?: "secured" | "unsecured";
+    productId?: string;
+  }>();
   const navigation = useNavigation();
   const theme = useTheme();
 
@@ -42,6 +47,8 @@ export default function CreateApplicationScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <MultiStepApplicationForm
         showHeader={false as any}
+        initialLoanType={params.loanType}
+        initialLoanCategory={params.loanCategory}
         onClose={() => router.back()}
         onSuccess={() => router.replace("/applications")}
       />

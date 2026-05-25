@@ -38,6 +38,9 @@ import Step4AdditionalDetails, {
 type Props = {
   onClose: () => void;
   onSuccess?: () => void;
+  initialLoanType?: string | string[];
+  initialLoanCategory?: "secured" | "unsecured" | string | string[];
+  showHeader?: boolean;
 };
 
 type CompanyOption = {
@@ -196,6 +199,8 @@ const ConfettiParticle = ({ delay, theme }: any) => {
 export default function MultiStepApplicationForm({
   onClose,
   onSuccess,
+  initialLoanType,
+  initialLoanCategory,
 }: Props) {
   const theme = useTheme();
 
@@ -328,8 +333,11 @@ export default function MultiStepApplicationForm({
         }),
       ]).start(() => {
         setShowSuccessToast(false);
-        onSuccess?.();
-        onClose();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          onClose();
+        }
       });
     }, 3500);
   };
@@ -343,10 +351,21 @@ export default function MultiStepApplicationForm({
   // -----------------------------
   // STEP STATES
   // -----------------------------
+  const normalizedInitialLoanType = Array.isArray(initialLoanType)
+    ? initialLoanType[0]
+    : initialLoanType;
+  const normalizedInitialLoanCategory = Array.isArray(initialLoanCategory)
+    ? initialLoanCategory[0]
+    : initialLoanCategory;
+
   const [step0, setStep0] = useState<Step0Values>({
     loanAmount: "",
-    loanType: "",
-    loanCategory: "",
+    loanType: String(normalizedInitialLoanType || "").toLowerCase(),
+    loanCategory:
+      normalizedInitialLoanCategory === "secured" ||
+      normalizedInitialLoanCategory === "unsecured"
+        ? normalizedInitialLoanCategory
+        : "",
     tenure: "",
     selectedProviders: [],
     providerAmounts: [],
