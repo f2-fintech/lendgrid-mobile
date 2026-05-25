@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Buffer } from "buffer";
 import Constants from "expo-constants";
 
 const extra = (Constants.expoConfig?.extra ?? {}) as any;
