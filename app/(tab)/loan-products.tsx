@@ -23,7 +23,7 @@ import { Divider, Text, useTheme } from "react-native-paper";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // Expanded premium Zepto Card Dimensions
-const ZEPTO_CARD_WIDTH = SCREEN_WIDTH * 0.65;
+const ZEPTO_CARD_WIDTH = SCREEN_WIDTH * 0.72;
 const CAROUSEL_WIDTH = ZEPTO_CARD_WIDTH;
 const CAROUSEL_HEIGHT = 150;
 
@@ -54,9 +54,80 @@ type LoanProduct = {
   type: "unsecured" | "secured" | "professional";
 };
 
-// ─── VERIFIED F2 DATASET (MINIMUM 2 IMAGES PER CARD) ─────────────────────────
+// ─── VERIFIED DATASET (UPDATED SHIFTS AND ALIGNMENTS) ─────────────────────────
 
 const LOAN_PRODUCTS: LoanProduct[] = [
+  {
+    id: "overdraft",
+    title: "Overdraft / Cash Credit Limit",
+    subtitle:
+      "Optimize corporate cash flow mechanics with high credit lines. Interest charges apply only to drawn volumes.",
+    icon: "refresh-cw",
+    badge: "Flexible Credit",
+    interestRate: "Starting 13.75% p.a.",
+    maxAmount: "Up to ₹75 Lakhs",
+    tenure: "Flexible Tiers",
+    processingFee: "Up to 2% - 3%",
+    type: "unsecured",
+    tags: ["Working Capital", "CC Limit", "Unsecured"],
+    features: [
+      {
+        label: "Partner Providers",
+        value: "Bajaj Finserv, Tata Capital, L&T Finance",
+      },
+      {
+        label: "Interest Mechanics",
+        value: "Accrues strictly on utilized volumes",
+      },
+      { label: "L&T Finance Rate", value: "13.75% – 16.50% range" },
+      { label: "Tata Capital Rate", value: "14% – 16% range" },
+    ],
+    eligibility: [
+      "Active business profile with clear banking turnovers",
+      "Requires operational cash management transparency",
+      "Available for Medical, CA, and general entrepreneurs",
+    ],
+    brochureFile: "business-loan-proposal.pdf",
+    images: [
+      "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500&auto=format&fit=crop",
+    ],
+  },
+  {
+    id: "doctor-professional",
+    title: "Doctor Professional Loan",
+    subtitle:
+      "Specialized capitalization architectures for healthcare experts, clinical center setup, and high-tier equipment acquisitions.",
+    icon: "activity",
+    badge: "Medical Elite",
+    interestRate: "Starting 8.50% p.a.",
+    maxAmount: "Up to ₹5 Cr",
+    tenure: "Up to 7 years",
+    processingFee: "Up to 1.00%",
+    type: "unsecured", // Shifted to Unsecured lane as requested
+    tags: ["Doctor Special", "Equipment Financing", "Clinic Expansion"],
+    features: [
+      {
+        label: "Orchestration Group",
+        value: "HDFC Bank, Axis Bank, Chola Finance",
+      },
+      { label: "Equipment Interest", value: "8.50% – 10.00% margins" },
+      {
+        label: "Asset LTV Ratio",
+        value: "Funds up to 65% – 70% of machinery cost",
+      },
+    ],
+    eligibility: [
+      "Valid Post-Qualification degree confirmations (MBBS, BDS, MD, etc.)",
+      "Valid current Medical Registration Certificates verified with boards",
+      "Clean post-qualification experience metrics",
+    ],
+    brochureFile: "doctor-loan-proposal.pdf",
+    images: [
+      "https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=500&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=500&auto=format&fit=crop",
+    ],
+  },
   {
     id: "business",
     title: "Business Term Loan",
@@ -127,42 +198,6 @@ const LOAN_PRODUCTS: LoanProduct[] = [
     images: [
       "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=500&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=500&auto=format&fit=crop",
-    ],
-  },
-  {
-    id: "overdraft",
-    title: "Overdraft / Cash Credit Limit",
-    subtitle:
-      "Optimize corporate cash flow mechanics with high credit lines. Interest charges apply only to drawn volumes.",
-    icon: "refresh-cw",
-    badge: "Flexible Credit",
-    interestRate: "Starting 13.75% p.a.",
-    maxAmount: "Up to ₹75 Lakhs",
-    tenure: "Flexible Tiers",
-    processingFee: "Up to 2% - 3%",
-    type: "unsecured",
-    tags: ["Working Capital", "CC Limit", "Unsecured"],
-    features: [
-      {
-        label: "Partner Providers",
-        value: "Bajaj Finserv, Tata Capital, L&T Finance",
-      },
-      {
-        label: "Interest Mechanics",
-        value: "Accrues strictly on utilized volumes",
-      },
-      { label: "L&T Finance Rate", value: "13.75% – 16.50% range" },
-      { label: "Tata Capital Rate", value: "14% – 16% range" },
-    ],
-    eligibility: [
-      "Active business profile with clear banking turnovers",
-      "Requires operational cash management transparency",
-      "Available for Medical, CA, and general entrepreneurs",
-    ],
-    brochureFile: "business-loan-proposal.pdf",
-    images: [
-      "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=500&auto=format&fit=crop",
     ],
   },
   {
@@ -267,41 +302,6 @@ const LOAN_PRODUCTS: LoanProduct[] = [
     images: [
       "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=500&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=500&auto=format&fit=crop",
-    ],
-  },
-  {
-    id: "doctor-professional",
-    title: "Doctor Professional Loan",
-    subtitle:
-      "Specialized capitalization architectures for healthcare experts, clinical center setup, and high-tier equipment acquisitions.",
-    icon: "activity",
-    badge: "Medical Elite",
-    interestRate: "Starting 8.50% p.a.",
-    maxAmount: "Up to ₹5 Cr",
-    tenure: "Up to 7 years",
-    processingFee: "Up to 1.00%",
-    type: "professional",
-    tags: ["Doctor Special", "Equipment Financing", "Clinic Expansion"],
-    features: [
-      {
-        label: "Orchestration Group",
-        value: "HDFC Bank, Axis Bank, Chola Finance",
-      },
-      { label: "Equipment Interest", value: "8.50% – 10.00% margins" },
-      {
-        label: "Asset LTV Ratio",
-        value: "Funds up to 65% – 70% of machinery cost",
-      },
-    ],
-    eligibility: [
-      "Valid Post-Qualification degree confirmations (MBBS, BDS, MD, etc.)",
-      "Valid current Medical Registration Certificates verified with boards",
-      "Clean post-qualification experience metrics",
-    ],
-    brochureFile: "doctor-loan-proposal.pdf",
-    images: [
-      "https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=500&auto=format&fit=crop", // Real Indian medical professional smiling
-      "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=500&auto=format&fit=crop", // Indian doctor analyzing patient healthcare parameters
     ],
   },
 ];
@@ -418,10 +418,12 @@ function ZeptoProductCard({
   product,
   onSelect,
   onApply,
+  onDownloadBrochure,
 }: {
   product: LoanProduct;
   onSelect: (p: LoanProduct) => void;
   onApply: (p: LoanProduct) => void;
+  onDownloadBrochure: (file?: string) => void;
 }) {
   const { colors } = useTheme();
 
@@ -494,16 +496,41 @@ function ZeptoProductCard({
       </View>
 
       <View style={styles.actionRowContainer}>
+        {/* Action 1: Download Brochure Trigger */}
         <Pressable
-          onPress={() => onSelect(product)}
-          style={styles.detailsToggleBtn}
+          onPress={() => onDownloadBrochure(product.brochureFile)}
+          disabled={!product.brochureFile}
+          style={[
+            styles.detailsToggleBtn,
+            { opacity: product.brochureFile ? 1 : 0.4 },
+          ]}
         >
           <Text style={[styles.detailsToggleText, { color: colors.primary }]}>
-            See Details
+            Brochure
           </Text>
-          <Feather name="info" size={12} color={colors.primary} />
+          <Feather name="download" size={11} color={colors.primary} />
         </Pressable>
 
+        {/* Action 2: Info Deep-dive Action Trigger (Updated for Text + Icon) */}
+        <Pressable
+          onPress={() => onSelect(product)}
+          style={[
+            styles.cardInfoBtn,
+            { backgroundColor: colors.secondaryContainer },
+          ]}
+        >
+          <Text
+            style={[
+              styles.detailsToggleText,
+              { color: colors.onSecondaryContainer },
+            ]}
+          >
+            Info
+          </Text>
+          <Feather name="info" size={11} color={colors.onSecondaryContainer} />
+        </Pressable>
+
+        {/* Action 3: Complete Lead Application Form Flow */}
         <Pressable
           onPress={() => onApply(product)}
           style={[styles.zeptoAddBtn, { backgroundColor: colors.primary }]}
@@ -511,7 +538,7 @@ function ZeptoProductCard({
           <Text style={[styles.zeptoAddBtnText, { color: colors.onPrimary }]}>
             Apply
           </Text>
-          <Feather name="arrow-right" size={12} color={colors.onPrimary} />
+          <Feather name="arrow-right" size={11} color={colors.onPrimary} />
         </Pressable>
       </View>
     </View>
@@ -617,7 +644,13 @@ export default function LoanProductsScreen() {
   };
 
   const handleDownloadBrochure = async (file?: string) => {
-    if (!file) return;
+    if (!file) {
+      Alert.alert(
+        "Unavailable",
+        "Brochure document structure is pending deployment.",
+      );
+      return;
+    }
 
     const brochureUrl = `${BROCHURE_BASE_URL}${encodeURIComponent(file)}`;
 
@@ -733,6 +766,7 @@ export default function LoanProductsScreen() {
               product={p}
               onSelect={setSelectedProduct}
               onApply={handleApplyProduct}
+              onDownloadBrochure={handleDownloadBrochure}
             />
           ))}
         </ScrollView>
@@ -756,6 +790,7 @@ export default function LoanProductsScreen() {
               product={p}
               onSelect={setSelectedProduct}
               onApply={handleApplyProduct}
+              onDownloadBrochure={handleDownloadBrochure}
             />
           ))}
         </ScrollView>
@@ -779,6 +814,7 @@ export default function LoanProductsScreen() {
               product={p}
               onSelect={setSelectedProduct}
               onApply={handleApplyProduct}
+              onDownloadBrochure={handleDownloadBrochure}
             />
           ))}
         </ScrollView>
@@ -1119,7 +1155,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   cardInfoPadding: { padding: 12, flex: 1 },
-  zeptoCardTitle: { fontSize: 16, fontWeight: "700", lineHeight: 20 },
+  zeptoCardTitle: { fontSize: 15, fontWeight: "700", lineHeight: 20 },
   zeptoCardSubtitle: { fontSize: 12, lineHeight: 16, marginTop: 4, height: 32 },
   zeptoPricingRow: {
     flexDirection: "row",
@@ -1137,33 +1173,48 @@ const styles = StyleSheet.create({
   // Action Elements Row
   actionRowContainer: {
     flexDirection: "row",
-    paddingHorizontal: 12,
+    paddingHorizontal: 8, // Dropped down from 12 to unlock side margins
     marginTop: 8,
-    gap: 8,
+    gap: 4, // Tightened gap to secure extra horizontal real estate
     alignItems: "center",
   },
   detailsToggleBtn: {
-    flex: 1,
+    flex: 2, // Distributed dynamically
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    height: 34,
+    height: 32,
     borderRadius: 6,
-    gap: 4,
+    gap: 2,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.08)",
   },
-  detailsToggleText: { fontSize: 11, fontWeight: "700" },
-  zeptoAddBtn: {
-    flex: 1,
+  cardInfoBtn: {
+    flex: 1.5, // Slightly lower footprint requirement for the word "Info"
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    height: 34,
+    height: 32,
     borderRadius: 6,
-    gap: 4,
+    gap: 2,
   },
-  zeptoAddBtnText: { fontSize: 12, fontWeight: "700" },
+  zeptoAddBtn: {
+    flex: 1.8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 32,
+    borderRadius: 6,
+    gap: 2,
+  },
+  detailsToggleText: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  zeptoAddBtnText: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
 
   footerContainer: {
     paddingHorizontal: 20,

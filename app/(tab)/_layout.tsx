@@ -7,6 +7,7 @@ import {
   Animated,
   Easing,
   Image,
+  Linking,
   Pressable,
   Share,
   StatusBar,
@@ -46,11 +47,15 @@ import {
 import { decodeJwt } from "@/lib/utils/utils";
 
 type DrawerRoute =
-  | "/data"
+  // | "/data"
   | "/training-resources"
   | "/saas-products"
   | "/loan-products"
-  | "/help-support";
+  | "/emi-calculator"
+  | "/banker-list"
+  | "/help-support"
+  | "external-cibil-score"
+  | "external-eligibility";
 
 type DrawerItem = {
   icon: keyof typeof Feather.glyphMap;
@@ -59,7 +64,7 @@ type DrawerItem = {
 };
 
 const DRAWER_ITEMS: DrawerItem[] = [
-  { icon: "database", label: "Data", route: "/data" },
+  // { icon: "database", label: "Data", route: "/data" },
   {
     icon: "book-open",
     label: "Training and Resources",
@@ -67,6 +72,22 @@ const DRAWER_ITEMS: DrawerItem[] = [
   },
   { icon: "grid", label: "SAAS Products", route: "/saas-products" },
   { icon: "credit-card", label: "Loan Products", route: "/loan-products" },
+  {
+    icon: "percent",
+    label: "EMI Calculator",
+    route: "/emi-calculator",
+  },
+  { icon: "users", label: "Banker Lists", route: "/banker-list" },
+  {
+    icon: "file-text",
+    label: "Check CIBIL Score & Report",
+    route: "external-cibil-score",
+  },
+  {
+    icon: "shield",
+    label: "Check Eligibility",
+    route: "external-eligibility",
+  },
   { icon: "help-circle", label: "Help Support", route: "/help-support" },
 ];
 
@@ -281,7 +302,9 @@ export default function Layout() {
     Animated.timing(drawerProgress, {
       toValue: sidebarVisible ? 1 : 0,
       duration: sidebarVisible ? 220 : 180,
-      easing: sidebarVisible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+      easing: sidebarVisible
+        ? Easing.out(Easing.cubic)
+        : Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished && !sidebarVisible) {
@@ -431,6 +454,22 @@ export default function Layout() {
   };
 
   const navigateFromDrawer = (route: DrawerRoute) => {
+    if (route === "external-cibil-score") {
+      closeDrawer();
+      Linking.openURL("https://f2fintech.com/check-cibil-score").catch(
+        () => {},
+      );
+      return;
+    }
+
+    if (route === "external-eligibility") {
+      closeDrawer();
+      Linking.openURL("https://finwise-eligibility.netlify.app/").catch(
+        () => {},
+      );
+      return;
+    }
+
     if (route === pathname) {
       closeDrawer();
       return;
@@ -478,7 +517,7 @@ export default function Layout() {
             styles.drawerPanel,
             {
               width: drawerWidth,
-              paddingTop: insets.top + 24,
+              paddingTop: insets.top + 6,
               paddingBottom: insets.bottom + 18,
               backgroundColor: theme.colors.surface,
               borderRightColor: theme.colors.outlineVariant,
@@ -525,10 +564,7 @@ export default function Layout() {
             {showCompanyName ? (
               <Text
                 numberOfLines={2}
-                style={[
-                  styles.drawerCompany,
-                  { color: theme.colors.primary },
-                ]}
+                style={[styles.drawerCompany, { color: theme.colors.primary }]}
               >
                 {companyDisplayName}
               </Text>
@@ -635,10 +671,7 @@ export default function Layout() {
                 color={theme.colors.onSurface}
               />
               <Text
-                style={[
-                  styles.signOutText,
-                  { color: theme.colors.onSurface },
-                ]}
+                style={[styles.signOutText, { color: theme.colors.onSurface }]}
               >
                 Logout
               </Text>
@@ -709,123 +742,141 @@ export default function Layout() {
             headerLeft: () => <GlobalMenu />,
           }}
         >
-        <Tabs.Screen
-          name="dashboard"
-          options={{
-            title: "Dashboard",
-            href: isSales ? null : "/dashboard",
-            headerRight: () => <DashboardHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Feather name="home" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="commissions"
-          options={{
-            title: "Commissions",
-            href: isSales ? null : "/commissions",
-            headerRight: () => <CommissionsHeaderRight />,
-            tabBarIcon: ({ color }) => (
-              <FontAwesome name="money" size={24} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="applications"
-          options={{
-            title: "Applications",
-            href: "/applications",
-            headerRight: () => <AppsHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Feather name="file-text" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="tickets"
-          options={{
-            title: "Tickets",
-            href: isSales ? "/tickets" : null,
-            headerRight: () => <AppsHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Feather name="clipboard" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "Profile",
-            href: "/profile",
-            headerRight: () => <ProfileHeaderRight />,
-            tabBarIcon: ({ color }) => (
-              <FontAwesome name="user-circle-o" size={24} color={color} />
-            ),
-          }}
-        />
+          <Tabs.Screen
+            name="dashboard"
+            options={{
+              title: "Dashboard",
+              href: isSales ? null : "/dashboard",
+              headerRight: () => <DashboardHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Feather name="home" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="commissions"
+            options={{
+              title: "Commissions",
+              href: isSales ? null : "/commissions",
+              headerRight: () => <CommissionsHeaderRight />,
+              tabBarIcon: ({ color }) => (
+                <FontAwesome name="money" size={24} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="applications"
+            options={{
+              title: "Applications",
+              href: "/applications",
+              headerRight: () => <AppsHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Feather name="file-text" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="tickets"
+            options={{
+              title: "Tickets",
+              href: isSales ? "/tickets" : null,
+              headerRight: () => <AppsHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Feather name="clipboard" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{
+              title: "Profile",
+              href: "/profile",
+              headerRight: () => <ProfileHeaderRight />,
+              tabBarIcon: ({ color }) => (
+                <FontAwesome name="user-circle-o" size={24} color={color} />
+              ),
+            }}
+          />
 
-        <Tabs.Screen
-          name="data"
-          options={{
-            title: "Data",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="data"
+            options={{
+              title: "Data",
+              href: null,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="training-resources"
-          options={{
-            title: "Training and Resources",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="training-resources"
+            options={{
+              title: "Training and Resources",
+              href: null,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="saas-products"
-          options={{
-            title: "SAAS Products",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="saas-products"
+            options={{
+              title: "SAAS Products",
+              href: null,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="loan-products"
-          options={{
-            title: "Loan Products",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="loan-products"
+            options={{
+              title: "Loan Products",
+              href: null,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="help-support"
-          options={{
-            title: "Help Support",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="emi-calculator"
+            options={{
+              title: "EMI Calculator",
+              href: null,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="notifications"
-          options={{
-            title: "Notifications",
-            href: null,
-            headerLeft: () => <NotificationsHeaderLeft />,
-            headerRight: () => <NotificationsHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons
-                name="notifications-outline"
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
+          <Tabs.Screen
+            name="banker-list"
+            options={{
+              title: "Banker Lists",
+              href: null,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
+
+          <Tabs.Screen
+            name="help-support"
+            options={{
+              title: "Help Support",
+              href: null,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
+
+          <Tabs.Screen
+            name="notifications"
+            options={{
+              title: "Notifications",
+              href: null,
+              headerLeft: () => <NotificationsHeaderLeft />,
+              headerRight: () => <NotificationsHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons
+                  name="notifications-outline"
+                  size={size}
+                  color={color}
+                />
+              ),
+            }}
+          />
         </Tabs>
         <Drawer />
       </View>
@@ -860,7 +911,7 @@ const styles = StyleSheet.create({
   },
   drawerBackButton: {
     alignSelf: "flex-start",
-    marginBottom: 18,
+    marginBottom: 8,
     minHeight: 32,
     minWidth: 32,
     justifyContent: "center",
@@ -921,14 +972,14 @@ const styles = StyleSheet.create({
   },
   drawerDivider: {
     height: StyleSheet.hairlineWidth,
-    marginTop: 18,
-    marginBottom: 18,
+    marginTop: 10,
+    marginBottom: 10,
   },
   drawerNav: {
-    gap: 6,
+    gap: 2,
   },
   drawerItem: {
-    minHeight: 48,
+    minHeight: 42,
     borderRadius: 8,
     paddingHorizontal: 10,
     flexDirection: "row",
