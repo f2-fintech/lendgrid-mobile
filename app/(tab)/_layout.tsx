@@ -1,5 +1,11 @@
 import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
-import { Tabs, useFocusEffect, usePathname, useRouter } from "expo-router";
+import {
+  Tabs,
+  useFocusEffect,
+  useLocalSearchParams,
+  usePathname,
+  useRouter,
+} from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -19,6 +25,7 @@ import { Button, Dialog, Portal, Text, useTheme } from "react-native-paper";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import * as WebBrowser from "expo-web-browser";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
 
@@ -46,20 +53,32 @@ import {
 import { decodeJwt } from "@/lib/utils/utils";
 
 type DrawerRoute =
-  | "/data"
+  // | "/data"
+  | "/invite"
   | "/training-resources"
   | "/saas-products"
   | "/loan-products"
-  | "/help-support";
+  | "/emi-calculator"
+  | "/banker-list"
+  | "/help-support"
+  | "external-cibil-score"
+  | "external-eligibility";
 
 type DrawerItem = {
-  icon: keyof typeof Feather.glyphMap;
+  icon: keyof typeof Feather.glyphMap | keyof typeof FontAwesome.glyphMap;
+  iconFamily?: "feather" | "fontawesome";
   label: string;
   route: DrawerRoute;
 };
 
 const DRAWER_ITEMS: DrawerItem[] = [
-  { icon: "database", label: "Data", route: "/data" },
+  // { icon: "database", label: "Data", route: "/data" },
+  {
+    icon: "whatsapp",
+    iconFamily: "fontawesome",
+    label: "Invite and Add Your Agent",
+    route: "/invite",
+  },
   {
     icon: "book-open",
     label: "Training and Resources",
@@ -67,6 +86,22 @@ const DRAWER_ITEMS: DrawerItem[] = [
   },
   { icon: "grid", label: "SAAS Products", route: "/saas-products" },
   { icon: "credit-card", label: "Loan Products", route: "/loan-products" },
+  {
+    icon: "percent",
+    label: "EMI Calculator",
+    route: "/emi-calculator",
+  },
+  { icon: "users", label: "Banker Lists", route: "/banker-list" },
+  {
+    icon: "file-text",
+    label: "Check CIBIL Score & Report",
+    route: "external-cibil-score",
+  },
+  {
+    icon: "shield",
+    label: "Check Eligibility",
+    route: "external-eligibility",
+  },
   { icon: "help-circle", label: "Help Support", route: "/help-support" },
 ];
 
@@ -92,6 +127,7 @@ export default function Layout() {
   const theme = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const params = useLocalSearchParams<{ openDrawer?: string; backTo?: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const profile = useSelector((state: RootState) => state.profile);
@@ -100,8 +136,12 @@ export default function Layout() {
   const [logoutVisible, setLogoutVisible] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
-  const [pendingDrawerRoute, setPendingDrawerRoute] =
-    useState<DrawerRoute | null>(null);
+  const [drawerOriginRoute, setDrawerOriginRoute] = useState<string | null>(
+    null,
+  );
+  const [pendingDrawerRoute, setPendingDrawerRoute] = useState<string | null>(
+    null,
+  );
   const [storedProfile, setStoredProfile] = useState<{
     name: string;
     companyName: string;
@@ -281,7 +321,9 @@ export default function Layout() {
     Animated.timing(drawerProgress, {
       toValue: sidebarVisible ? 1 : 0,
       duration: sidebarVisible ? 220 : 180,
-      easing: sidebarVisible ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+      easing: sidebarVisible
+        ? Easing.out(Easing.cubic)
+        : Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished && !sidebarVisible) {
@@ -295,6 +337,42 @@ export default function Layout() {
 
     closeDrawer();
   }, [closeDrawer, pathname, pendingDrawerRoute]);
+
+  const defaultBackRoute = userType === "sales" ? "/applications" : "/dashboard";
+
+  const openDrawer = useCallback(
+    (originRoute = pathname) => {
+      setDrawerOriginRoute(originRoute);
+      setPendingDrawerRoute(null);
+      drawerProgress.setValue(0);
+      setDrawerMounted(true);
+      setSidebarVisible(true);
+    },
+    [drawerProgress, pathname],
+  );
+
+  const openDrawerFromParam = useCallback((originRoute: string) => {
+    setDrawerOriginRoute(originRoute);
+    setPendingDrawerRoute(null);
+    drawerProgress.setValue(0);
+    setDrawerMounted(true);
+    setSidebarVisible(true);
+  }, [drawerProgress]);
+
+  useEffect(() => {
+    if (params.openDrawer !== "1") return;
+
+    openDrawerFromParam(params.backTo || pathname);
+    router.setParams({ openDrawer: undefined });
+  }, [openDrawerFromParam, params.backTo, params.openDrawer, pathname, router]);
+
+  const isSales = String(userType || "").toLowerCase() === "sales";
+
+  useEffect(() => {
+    if (userType === undefined || !isSales || pathname !== "/invite") return;
+
+    router.replace("/applications");
+  }, [isSales, pathname, router, userType]);
 
   if (userType === undefined) {
     return (
@@ -311,8 +389,7 @@ export default function Layout() {
     );
   }
 
-  const isSales = userType === "sales";
-  const notificationBackRoute = isSales ? "/applications" : "/dashboard";
+  const notificationBackRoute = defaultBackRoute;
   const drawerWidth = width;
   const drawerTranslateX = drawerProgress.interpolate({
     inputRange: [0, 1],
@@ -320,6 +397,10 @@ export default function Layout() {
   });
   const showCompanyName =
     storedProfile.role === "aggregator_admin" && !!storedProfile.companyName;
+  const isAggregatorAdmin = !isSales && storedProfile.role === "aggregator_admin";
+  const visibleDrawerItems = DRAWER_ITEMS.filter(
+    (item) => item.route !== "/invite" || isAggregatorAdmin,
+  );
   const roleLabel = formatRoleLabel(storedProfile.role);
   const companyDisplayName = formatDisplayName(storedProfile.companyName);
   const userDisplayName = formatDisplayName(storedProfile.name);
@@ -423,26 +504,92 @@ export default function Layout() {
     </TouchableOpacity>
   );
 
-  const openDrawer = () => {
-    setPendingDrawerRoute(null);
-    drawerProgress.setValue(0);
-    setDrawerMounted(true);
-    setSidebarVisible(true);
+  const SidebarBackButton = () => (
+    <TouchableOpacity
+      onPress={() => openDrawer(params.backTo || drawerOriginRoute || pathname)}
+      style={styles.sidebarBackButton}
+      activeOpacity={0.7}
+    >
+      <Ionicons
+        name="chevron-back"
+        size={29}
+        color={theme.colors.primary}
+      />
+    </TouchableOpacity>
+  );
+
+  const handleDrawerBack = () => {
+    const originRoute = drawerOriginRoute || params.backTo;
+
+    if (
+      typeof originRoute === "string" &&
+      originRoute.startsWith("/") &&
+      originRoute !== pathname
+    ) {
+      setPendingDrawerRoute(originRoute);
+      router.replace(originRoute as any);
+      return;
+    }
+
+    closeDrawer();
+  };
+
+  const openDrawerWebsite = async (url: string) => {
+    closeDrawer();
+
+    try {
+      await WebBrowser.openBrowserAsync(url, {
+        toolbarColor: theme.colors.background,
+        controlsColor: theme.colors.primary,
+        enableBarCollapsing: true,
+        showTitle: true,
+      });
+    } catch {
+      Alert.alert("Error", "Could not open this page.");
+    }
   };
 
   const navigateFromDrawer = (route: DrawerRoute) => {
+    if (route === "/invite" && !isAggregatorAdmin) {
+      closeDrawer();
+      return;
+    }
+
+    if (route === "external-cibil-score") {
+      openDrawerWebsite("https://f2fintech.com/check-cibil-score");
+      return;
+    }
+
+    if (route === "external-eligibility") {
+      openDrawerWebsite("https://finwise-eligibility.netlify.app/");
+      return;
+    }
+
     if (route === pathname) {
       closeDrawer();
       return;
     }
 
+    const backTo = drawerOriginRoute || pathname || notificationBackRoute;
     setPendingDrawerRoute(route);
-    router.push(route as any);
+
+    if (route === "/banker-list") {
+      router.push({
+        pathname: route,
+        params: { backTo },
+      } as any);
+      return;
+    }
+
+    router.push({
+      pathname: route as any,
+      params: { backTo },
+    } as any);
   };
 
   const GlobalMenu = () => (
     <TouchableOpacity
-      onPress={openDrawer}
+      onPress={() => openDrawer()}
       style={{
         marginLeft: 14,
         padding: 8,
@@ -478,7 +625,7 @@ export default function Layout() {
             styles.drawerPanel,
             {
               width: drawerWidth,
-              paddingTop: insets.top + 24,
+              paddingTop: insets.top + 6,
               paddingBottom: insets.bottom + 18,
               backgroundColor: theme.colors.surface,
               borderRightColor: theme.colors.outlineVariant,
@@ -487,7 +634,7 @@ export default function Layout() {
           ]}
         >
           <TouchableOpacity
-            onPress={closeDrawer}
+            onPress={handleDrawerBack}
             activeOpacity={0.72}
             style={styles.drawerBackButton}
           >
@@ -525,10 +672,7 @@ export default function Layout() {
             {showCompanyName ? (
               <Text
                 numberOfLines={2}
-                style={[
-                  styles.drawerCompany,
-                  { color: theme.colors.primary },
-                ]}
+                style={[styles.drawerCompany, { color: theme.colors.primary }]}
               >
                 {companyDisplayName}
               </Text>
@@ -577,7 +721,7 @@ export default function Layout() {
           />
 
           <View style={styles.drawerNav}>
-            {DRAWER_ITEMS.map((item) => {
+            {visibleDrawerItems.map((item) => {
               const active = pathname === item.route;
               return (
                 <TouchableOpacity
@@ -591,15 +735,27 @@ export default function Layout() {
                     },
                   ]}
                 >
-                  <Feather
-                    name={item.icon}
-                    size={19}
-                    color={
-                      active
-                        ? theme.colors.onPrimary
-                        : theme.colors.onSurfaceVariant
-                    }
-                  />
+                  {item.iconFamily === "fontawesome" ? (
+                    <FontAwesome
+                      name={item.icon as keyof typeof FontAwesome.glyphMap}
+                      size={19}
+                      color={
+                        active
+                          ? theme.colors.onPrimary
+                          : theme.colors.onSurfaceVariant
+                      }
+                    />
+                  ) : (
+                    <Feather
+                      name={item.icon as keyof typeof Feather.glyphMap}
+                      size={19}
+                      color={
+                        active
+                          ? theme.colors.onPrimary
+                          : theme.colors.onSurfaceVariant
+                      }
+                    />
+                  )}
                   <Text
                     style={[
                       styles.drawerItemText,
@@ -635,10 +791,7 @@ export default function Layout() {
                 color={theme.colors.onSurface}
               />
               <Text
-                style={[
-                  styles.signOutText,
-                  { color: theme.colors.onSurface },
-                ]}
+                style={[styles.signOutText, { color: theme.colors.onSurface }]}
               >
                 Logout
               </Text>
@@ -709,123 +862,159 @@ export default function Layout() {
             headerLeft: () => <GlobalMenu />,
           }}
         >
-        <Tabs.Screen
-          name="dashboard"
-          options={{
-            title: "Dashboard",
-            href: isSales ? null : "/dashboard",
-            headerRight: () => <DashboardHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Feather name="home" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="commissions"
-          options={{
-            title: "Commissions",
-            href: isSales ? null : "/commissions",
-            headerRight: () => <CommissionsHeaderRight />,
-            tabBarIcon: ({ color }) => (
-              <FontAwesome name="money" size={24} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="applications"
-          options={{
-            title: "Applications",
-            href: "/applications",
-            headerRight: () => <AppsHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Feather name="file-text" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="tickets"
-          options={{
-            title: "Tickets",
-            href: isSales ? "/tickets" : null,
-            headerRight: () => <AppsHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Feather name="clipboard" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "Profile",
-            href: "/profile",
-            headerRight: () => <ProfileHeaderRight />,
-            tabBarIcon: ({ color }) => (
-              <FontAwesome name="user-circle-o" size={24} color={color} />
-            ),
-          }}
-        />
+          <Tabs.Screen
+            name="dashboard"
+            options={{
+              title: "Dashboard",
+              href: isSales ? null : "/dashboard",
+              headerRight: () => <DashboardHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Feather name="home" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="commissions"
+            options={{
+              title: "Commissions",
+              href: isSales ? null : "/commissions",
+              headerRight: () => <CommissionsHeaderRight />,
+              tabBarIcon: ({ color }) => (
+                <FontAwesome name="money" size={24} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="applications"
+            options={{
+              title: "Applications",
+              href: "/applications",
+              headerRight: () => <AppsHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Feather name="file-text" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="tickets"
+            options={{
+              title: "Tickets",
+              href: isSales ? "/tickets" : null,
+              headerRight: () => <AppsHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Feather name="clipboard" size={size} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="profile"
+            options={{
+              title: "Profile",
+              href: "/profile",
+              headerRight: () => <ProfileHeaderRight />,
+              tabBarIcon: ({ color }) => (
+                <FontAwesome name="user-circle-o" size={24} color={color} />
+              ),
+            }}
+          />
 
-        <Tabs.Screen
-          name="data"
-          options={{
-            title: "Data",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="data"
+            options={{
+              title: "Data",
+              href: null,
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="training-resources"
-          options={{
-            title: "Training and Resources",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="invite"
+            options={{
+              title: "Invite Agent",
+              href: null,
+              tabBarItemStyle: { display: "none" },
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="saas-products"
-          options={{
-            title: "SAAS Products",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="training-resources"
+            options={{
+              title: "Training and Resources",
+              href: null,
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="loan-products"
-          options={{
-            title: "Loan Products",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="saas-products"
+            options={{
+              title: "SAAS Products",
+              href: null,
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="help-support"
-          options={{
-            title: "Help Support",
-            href: null,
-            headerRight: () => <ThemeToggleBtn />,
-          }}
-        />
+          <Tabs.Screen
+            name="loan-products"
+            options={{
+              title: "Loan Products",
+              href: null,
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
 
-        <Tabs.Screen
-          name="notifications"
-          options={{
-            title: "Notifications",
-            href: null,
-            headerLeft: () => <NotificationsHeaderLeft />,
-            headerRight: () => <NotificationsHeaderRight />,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons
-                name="notifications-outline"
-                size={size}
-                color={color}
-              />
-            ),
-          }}
-        />
+          <Tabs.Screen
+            name="emi-calculator"
+            options={{
+              title: "EMI Calculator",
+              href: null,
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
+
+          <Tabs.Screen
+            name="banker-list"
+            options={{
+              title: "Banker Lists",
+              href: null,
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
+
+          <Tabs.Screen
+            name="help-support"
+            options={{
+              title: "Help Support",
+              href: null,
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
+
+          <Tabs.Screen
+            name="notifications"
+            options={{
+              title: "Notifications",
+              href: null,
+              headerLeft: () => <NotificationsHeaderLeft />,
+              headerRight: () => <NotificationsHeaderRight />,
+              tabBarIcon: ({ color, size }) => (
+                <Ionicons
+                  name="notifications-outline"
+                  size={size}
+                  color={color}
+                />
+              ),
+            }}
+          />
         </Tabs>
         <Drawer />
       </View>
@@ -836,6 +1025,13 @@ export default function Layout() {
 const styles = StyleSheet.create({
   appShell: {
     flex: 1,
+  },
+  sidebarBackButton: {
+    marginLeft: 8,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   drawerOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -860,7 +1056,7 @@ const styles = StyleSheet.create({
   },
   drawerBackButton: {
     alignSelf: "flex-start",
-    marginBottom: 18,
+    marginBottom: 8,
     minHeight: 32,
     minWidth: 32,
     justifyContent: "center",
@@ -921,14 +1117,14 @@ const styles = StyleSheet.create({
   },
   drawerDivider: {
     height: StyleSheet.hairlineWidth,
-    marginTop: 18,
-    marginBottom: 18,
+    marginTop: 10,
+    marginBottom: 10,
   },
   drawerNav: {
-    gap: 6,
+    gap: 2,
   },
   drawerItem: {
-    minHeight: 48,
+    minHeight: 42,
     borderRadius: 8,
     paddingHorizontal: 10,
     flexDirection: "row",
