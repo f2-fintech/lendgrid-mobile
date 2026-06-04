@@ -2,9 +2,9 @@ import "dotenv/config";
 
 export default {
   expo: {
-    owner: "adarsh7523",
+    owner: "f2-tech",
     name: "LendGrid",
-    slug: "lendgrid-mobile",
+    slug: "lendgrid",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/adaptive-icon_1.png",
@@ -91,7 +91,10 @@ export default {
       ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL,
       CORE_REST_URL: process.env.EXPO_PUBLIC_CORE_REST_URL,
       UPLOAD_API_URL: process.env.EXPO_PUBLIC_UPLOAD_API_URL,
-
+      BANKER_DIRECTORY_URL: process.env.EXPO_PUBLIC_BANKER_DIRECTORY_URL,
+      BANKER_ASSOCIATED_BANKS_URL:
+        process.env.EXPO_PUBLIC_BANKER_ASSOCIATED_BANKS_URL,
+      BANKER_STATE_CITY_URL: process.env.EXPO_PUBLIC_BANKER_STATE_CITY_URL,
       PRIVACY_URL: process.env.EXPO_PUBLIC_PRIVACY_POLICY_URL,
       TERMS_URL: process.env.EXPO_PUBLIC_TERMS_OF_SERVICE_URL,
       CAPTCHA_SITE_KEY: process.env.EXPO_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY,
@@ -111,7 +114,7 @@ export default {
       ENV: process.env.EXPO_PUBLIC_ENV,
 
       eas: {
-        projectId: "16608c42-65bc-47d0-9cca-f5158e848475",
+        projectId: "3cf91ffe-266c-441e-a633-c3f0f25e3b50",
       },
     },
   },

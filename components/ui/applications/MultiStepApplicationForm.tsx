@@ -1,25 +1,26 @@
 import { coreApi, restApi } from "@/apis/config/axiosConfig";
 import {
-  generateApplicationNumber,
-  getPrettyError,
-  normalizeString,
-  uploadToS3,
+    generateApplicationNumber,
+    getPrettyError,
+    normalizeString,
+    uploadToS3,
 } from "@/lib/utils/utils";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
 import { Buffer } from "buffer";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
-  Easing,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    Animated,
+    Easing,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HorizontalStepper, { StepConfig } from "./Verticalstepper";
 
@@ -27,12 +28,12 @@ import { Feather } from "@expo/vector-icons";
 import Step0LoanDetails, { Step0Values } from "./steps/Step_0_LoanDetails";
 import Step1BasicDetails, { Step1Values } from "./steps/Step_1_BasicDetails";
 import Step2Statement, {
-  PickedFile,
-  Step2Value,
+    PickedFile,
+    Step2Value,
 } from "./steps/Step_2_Statement";
 import Step3IdProof, { Step3Values } from "./steps/Step_3_IdProof";
 import Step4AdditionalDetails, {
-  Step4Values,
+    Step4Values,
 } from "./steps/Step_4_AdditionalDetails";
 
 type Props = {
@@ -203,6 +204,7 @@ export default function MultiStepApplicationForm({
   initialLoanCategory,
 }: Props) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [applicationNo, setApplicationNo] = useState<string | null>(null);
   const [step, setStep] = useState(0);
@@ -702,8 +704,8 @@ export default function MultiStepApplicationForm({
 
       const storedCompanyId = await getCompanyId();
       const useCompanyId = isOmsStaff
-        ? selectedCompany?.companyId ?? selectedCompanyId
-        : selectedCompany?.companyId ?? storedCompanyId;
+        ? (selectedCompany?.companyId ?? selectedCompanyId)
+        : (selectedCompany?.companyId ?? storedCompanyId);
       const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
 
       if (isOmsStaff && !useCompanyIdString) return null;
@@ -746,7 +748,14 @@ export default function MultiStepApplicationForm({
     } catch (err) {
       console.error("❌ Early customer creation failed:", err);
     }
-  }, [step1, selectedCompany, selectedCompanyId, isOmsStaff, customerId, password]);
+  }, [
+    step1,
+    selectedCompany,
+    selectedCompanyId,
+    isOmsStaff,
+    customerId,
+    password,
+  ]);
 
   useEffect(() => {
     if (step === 1 && step1Valid) {
@@ -805,8 +814,8 @@ export default function MultiStepApplicationForm({
   const buildRequestConfig = useCallback(async () => {
     const storedCompanyId = await getCompanyId();
     const useCompanyId = isOmsStaff
-      ? selectedCompany?.companyId ?? selectedCompanyId
-      : selectedCompany?.companyId ?? storedCompanyId;
+      ? (selectedCompany?.companyId ?? selectedCompanyId)
+      : (selectedCompany?.companyId ?? storedCompanyId);
     const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
 
     return {
@@ -1004,7 +1013,12 @@ export default function MultiStepApplicationForm({
         }
 
         const requestConfig = await buildRequestConfig();
-        await uploadDocumentFile(file as PickedFile, docType, activeCustomerId, requestConfig);
+        await uploadDocumentFile(
+          file as PickedFile,
+          docType,
+          activeCustomerId,
+          requestConfig,
+        );
         markUploaded();
 
         setSubmitStatus((prev) => ({
@@ -1070,7 +1084,9 @@ export default function MultiStepApplicationForm({
       uploadSingleDocument(file, docTypeMap[field], field, () => {
         setStep3((prev) => ({
           ...prev,
-          [field]: prev[field] ? { ...prev[field]!, uploaded: true } : prev[field],
+          [field]: prev[field]
+            ? { ...prev[field]!, uploaded: true }
+            : prev[field],
         }));
       });
     },
@@ -1119,8 +1135,8 @@ export default function MultiStepApplicationForm({
         ? extractUserIdFromClaims(decoded)
         : undefined;
       const useCompanyId = isOmsStaff
-        ? selectedCompany?.companyId ?? selectedCompanyId
-        : selectedCompany?.companyId ?? storedCompanyId;
+        ? (selectedCompany?.companyId ?? selectedCompanyId)
+        : (selectedCompany?.companyId ?? storedCompanyId);
       const useCompanyIdString = useCompanyId ? String(useCompanyId) : "";
       const appliedByNumber =
         appliedByUserId !== undefined && appliedByUserId !== null
@@ -1222,7 +1238,10 @@ export default function MultiStepApplicationForm({
 
         for (const file of pendingStep2Files) {
           const docType = getStep2DocumentType(file);
-          const url = await uploadToS3(file, `document/${file.name || docType}`);
+          const url = await uploadToS3(
+            file,
+            `document/${file.name || docType}`,
+          );
           const finalUrl =
             docType === "bank statement" && step2.bankingPassword
               ? `${url}#pwd=${encodeURIComponent(step2.bankingPassword)}`
@@ -1299,7 +1318,8 @@ export default function MultiStepApplicationForm({
         existing_loans: JSON.stringify([
           {
             has_running_loans: step0.hasRunningLoans === "yes" ? 1 : 0,
-            which_loan: step0.hasRunningLoans === "yes" ? step0.whichLoan || null : null,
+            which_loan:
+              step0.hasRunningLoans === "yes" ? step0.whichLoan || null : null,
             loan_amount:
               step0.hasRunningLoans === "yes" && step0.runningLoanAmount
                 ? Number(step0.runningLoanAmount)
@@ -1309,7 +1329,9 @@ export default function MultiStepApplicationForm({
         ]),
         case_type: step0.caseType || "fresh",
         application_date: new Date().toISOString(),
-        ...(useCompanyIdString ? { company_id: Number(useCompanyIdString) } : {}),
+        ...(useCompanyIdString
+          ? { company_id: Number(useCompanyIdString) }
+          : {}),
         ...(isOmsStaff && appliedByNumber
           ? { applied_by: appliedByNumber, source: "oms", is_picked: 0 }
           : { source: "lendgrid", is_picked: 0 }),
@@ -1409,7 +1431,8 @@ export default function MultiStepApplicationForm({
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
     >
       <HorizontalStepper
         steps={STEPS}
@@ -1503,7 +1526,11 @@ export default function MultiStepApplicationForm({
 
       <ScrollView
         ref={formScrollRef}
-        contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          padding: 20,
+          paddingBottom: 220 + insets.bottom,
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -1728,7 +1755,9 @@ export default function MultiStepApplicationForm({
           bottom: 0,
           left: 0,
           right: 0,
-          padding: 16,
+          paddingTop: 16,
+          paddingHorizontal: 16,
+          paddingBottom: 16 + insets.bottom,
           flexDirection: "row",
           gap: 12,
           backgroundColor: theme.colors.surface,

@@ -5,12 +5,21 @@ import {
 import AppProviders from "@/redux/providers";
 import { ApolloProvider } from "@apollo/client/react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, StatusBar, View, useColorScheme } from "react-native";
+import {
+  Platform,
+  StatusBar,
+  Text as RNText,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from "react-native";
+import { useTheme } from "react-native-paper";
 
 import { useAppDispatch } from "@/hooks/lightDark";
 import { syncPushTokenForCurrentUser } from "@/lib/utils/pushSession";
@@ -61,7 +70,22 @@ function RootNavigation({
   onReady: () => void;
 }) {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ backTo?: string }>();
+  const theme = useTheme();
   const [ready, setReady] = useState(false);
+
+  const openSidebarFromRoot = useCallback(() => {
+    const targetRoute =
+      typeof params.backTo === "string" && params.backTo.startsWith("/")
+        ? params.backTo
+        : "/dashboard";
+
+    router.replace({
+      pathname: targetRoute as any,
+      params: { openDrawer: "1", backTo: targetRoute },
+    });
+  }, [params.backTo, router]);
 
   useEffect(() => {
     const themeToSet = persistedTheme || colorScheme || "light";
@@ -83,6 +107,49 @@ function RootNavigation({
       <Stack.Screen name="(tab)" />
       <Stack.Screen name="reset-password" />
       <Stack.Screen name="create-application" options={{ headerShown: true }} />
+      <Stack.Screen
+        name="banker-list"
+        options={{
+          headerShown: true,
+          title: "Banker Lists",
+          headerTitle: () => (
+            <RNText
+              style={{
+                color: theme.colors.onSurface,
+                fontSize: 18,
+                fontWeight: "700",
+                marginLeft: 4,
+              }}
+            >
+              Banker Lists
+            </RNText>
+          ),
+          headerTitleAlign: "left",
+          headerStyle: { backgroundColor: theme.colors.background },
+          headerTintColor: theme.colors.onSurface,
+          headerShadowVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={openSidebarFromRoot}
+              style={{
+                marginLeft: -8,
+                marginRight: 0,
+                minWidth: 36,
+                minHeight: 44,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="chevron-back"
+                size={29}
+                color={theme.colors.primary}
+              />
+            </TouchableOpacity>
+          ),
+        }}
+      />
     </Stack>
   );
 }
