@@ -82,6 +82,66 @@ export const getProfileApi = async () => {
   return gqlRequest<{ profile: User }>(query).then((d) => d.profile);
 };
 
+export const getReferralCodeApi = async () => {
+  const inviteLinkQuery = `
+    query MyReferralInviteLink($source: String) {
+      myReferralInviteLink(source: $source) {
+        referralCode
+        companyName
+        onboardingLink
+        source
+      }
+    }
+  `;
+
+  try {
+    return await gqlRequest<{
+      myReferralInviteLink: {
+        referralCode?: string | null;
+        companyName?: string | null;
+        onboardingLink?: string | null;
+        source?: string | null;
+      };
+    }>(inviteLinkQuery, { source: "mobile" }).then(
+      (d) => d.myReferralInviteLink,
+    );
+  } catch {
+    const profileQuery = `
+      query Profile {
+        profile {
+          profileId
+        }
+      }
+    `;
+
+    const profile = await gqlRequest<{
+      profile: { profileId?: string | null };
+    }>(profileQuery).then((d) => d.profile);
+
+    if (!profile?.profileId) {
+      throw new Error("Aggregator profile not found for current user");
+    }
+
+    const referralQuery = `
+      query FindOneAggregatorReferral($id: ID!) {
+        findOneAggregatorProfile(id: $id) {
+          referralCode
+          companyName
+        }
+      }
+    `;
+
+    return gqlRequest<{
+      findOneAggregatorProfile: {
+        referralCode?: string | null;
+        companyName?: string | null;
+      };
+    }>(referralQuery, { id: profile.profileId }).then(
+      (d) => d.findOneAggregatorProfile,
+    );
+  }
+};
+
 export const updateUserApi = async (payload: {
   id: string;
   username?: string;
@@ -288,4 +348,50 @@ export const clearPushTokenApi = async () => {
   }
 
   throw lastError;
+};
+
+export const registerUserApi = async (payload: {
+  username: string;
+  email: string;
+  contact: string;
+  password?: string;
+  role: string;
+  parentAggregatorId?: string;
+}) => {
+  const query = `
+    mutation CreateUser($createUserInput: CreateUserDto!) {
+      createUser(createUserInput: $createUserInput) {
+        success
+        message
+        companyId
+        companyName
+        user {
+          _id
+          username
+          email
+          role
+        }
+      }
+    }
+  `;
+
+  return gqlRequest<{
+    createUser: {
+      success: boolean;
+      message: string;
+      companyId?: string;
+      companyName?: string;
+      user?: {
+        _id: string;
+        username: string;
+        email: string;
+        role: string;
+      };
+    };
+  }>(query, {
+    createUserInput: {
+      ...payload,
+      role: payload.role ? payload.role.toUpperCase() : undefined,
+    },
+  }).then((d) => d.createUser);
 };

@@ -23,6 +23,7 @@ import { useTheme } from "react-native-paper";
 
 import { useAppDispatch } from "@/hooks/lightDark";
 import { syncPushTokenForCurrentUser } from "@/lib/utils/pushSession";
+import { decodeJwt } from "@/lib/utils/utils";
 import { setTheme } from "@/redux/features/themeSlice";
 
 Notifications.setNotificationHandler({
@@ -200,8 +201,21 @@ export default function RootLayout() {
             AsyncStorage.getItem("userType"),
             AsyncStorage.getItem("authSource"),
           ]);
+          const role = String(decodeJwt(token)?.role || "").toLowerCase();
+          const normalizedUserType =
+            role === "aggregator_member" ? "sales" : userType;
+          const normalizedAuthSource =
+            role === "aggregator_member" ? "oms" : authSource;
+
+          if (role === "aggregator_member") {
+            await AsyncStorage.multiSet([
+              ["userType", "sales"],
+              ["authSource", "oms"],
+            ]);
+          }
+
           const canSyncGraphqlPushToken =
-            userType !== "sales" && authSource !== "oms";
+            normalizedUserType !== "sales" && normalizedAuthSource !== "oms";
 
           if (canSyncGraphqlPushToken) {
             await syncPushTokenForCurrentUser();

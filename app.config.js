@@ -27,6 +27,11 @@ export default {
               host: "lendgrid.in",
               pathPrefix: "/reset-password",
             },
+            {
+              scheme: "https",
+              host: "lendgrid.in",
+              pathPrefix: "/signup",
+            },
           ],
         },
       ],

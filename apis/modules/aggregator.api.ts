@@ -51,6 +51,7 @@ export const aggregatorApi = {
             _id
             userId
             companyName
+            referralCode
             businessType
             city
             state
@@ -61,7 +62,7 @@ export const aggregatorApi = {
         }
       }
     `,
-      { createInput: payload }
+      { createInput: payload },
     ),
 
   /**
@@ -108,7 +109,7 @@ export const aggregatorApi = {
         }
       }
     `,
-      { paginationArgs: params || { page: 1, limit: 10 } }
+      { paginationArgs: params || { page: 1, limit: 10 } },
     ),
 
   /**
@@ -122,6 +123,7 @@ export const aggregatorApi = {
           _id
           userId
           companyName
+          referralCode
           businessType
           registeredAddress
           city
@@ -184,7 +186,7 @@ export const aggregatorApi = {
         }
       }
     `,
-      { id }
+      { id },
     ),
 
   /**
@@ -198,6 +200,7 @@ export const aggregatorApi = {
           _id
           userId
           companyName
+          referralCode
           businessType
           registeredAddress
           city
@@ -244,7 +247,7 @@ export const aggregatorApi = {
           }
         }
       }
-    `
+    `,
     ),
 
   /**
@@ -272,7 +275,7 @@ export const aggregatorApi = {
         }
       }
     `,
-      { searchTerm, paginationArgs: params || { page: 1, limit: 10 } }
+      { searchTerm, paginationArgs: params || { page: 1, limit: 10 } },
     ),
 
   /**
@@ -290,7 +293,7 @@ export const aggregatorApi = {
         }
       }
     `,
-      { updateInput: payload }
+      { updateInput: payload },
     ),
 
   /**
@@ -299,7 +302,7 @@ export const aggregatorApi = {
   updateKycStatus: (
     id: string,
     kycStatus: KYCStatus,
-    rejectionReason?: string
+    rejectionReason?: string,
   ) =>
     gqlRequest<{ updateAggregatorKycStatus: AggregatorProfile }>(
       `
@@ -313,7 +316,7 @@ export const aggregatorApi = {
         }
       }
     `,
-      { id, kycStatus, rejectionReason }
+      { id, kycStatus, rejectionReason },
     ),
 
   /**
@@ -330,7 +333,7 @@ export const aggregatorApi = {
         }
       }
     `,
-      { id, userId }
+      { id, userId },
     ),
 
   /**
@@ -347,7 +350,7 @@ export const aggregatorApi = {
         }
       }
     `,
-      { id, userId }
+      { id, userId },
     ),
 
   /**
@@ -363,6 +366,6 @@ export const aggregatorApi = {
         }
       }
     `,
-      { id }
+      { id },
     ),
 };

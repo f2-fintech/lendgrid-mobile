@@ -123,15 +123,17 @@ export function useOmsLogin() {
       }
 
       const isSales = role === "sales";
-      const isAggregator =
-        role === "aggregator_admin" || role === "aggregator_member";
+      const isAggregatorMember = role === "aggregator_member";
+      const isAggregatorAdmin = role === "aggregator_admin";
 
       if (__DEV__) {
         console.log(
           "[OMS AUTH] Role detection - isSales:",
           isSales,
-          "isAggregator:",
-          isAggregator,
+          "isAggregatorAdmin:",
+          isAggregatorAdmin,
+          "isAggregatorMember:",
+          isAggregatorMember,
           "role value:",
           role,
           "matches: sales?",
@@ -143,7 +145,7 @@ export function useOmsLogin() {
         );
       }
 
-      if (!isSales && !isAggregator) {
+      if (!isSales && !isAggregatorAdmin && !isAggregatorMember) {
         console.error("[OMS AUTH] Role not recognized:", role);
         onError("Access denied");
         return;
@@ -177,7 +179,7 @@ export function useOmsLogin() {
       // 🔥 STEP 4: SAVE NEW TOKEN
       await AsyncStorage.setItem("token", result.access_token);
       await AsyncStorage.setItem("authSource", "oms");
-      const savedType = isSales ? "sales" : "aggregator";
+      const savedType = isSales || isAggregatorMember ? "sales" : "aggregator";
       await AsyncStorage.setItem("userType", savedType);
       const userIdValue =
         decoded?.userId ??
@@ -195,8 +197,10 @@ export function useOmsLogin() {
           savedType,
           "- isSales:",
           isSales,
-          "isAggregator:",
-          isAggregator,
+          "isAggregatorAdmin:",
+          isAggregatorAdmin,
+          "isAggregatorMember:",
+          isAggregatorMember,
         );
       }
 
@@ -242,7 +246,11 @@ export function useOmsLogin() {
       await new Promise((res) => setTimeout(res, 300));
 
       // 🔥 STEP 7: NAVIGATION
-      router.replace(isSales ? "/(tab)/applications" : ROUTES.Dashboard);
+      router.replace(
+        isSales || isAggregatorMember
+          ? "/(tab)/applications"
+          : ROUTES.Dashboard,
+      );
     } catch (err: any) {
       console.error("[OMS AUTH] Error during login:", {
         message: err?.message,

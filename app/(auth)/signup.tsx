@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -21,11 +21,14 @@ import { COLORS } from "@/styles/theme/tokens";
 
 // ─── Brand colors for light mode ──────────────────────────────────────────────
 const BRAND = COLORS.primary;
-const BRAND_BG = "#EEF0FD";
 const BRAND_BORDER = "#B0B8F0";
 
 export default function SignUp() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    ref?: string | string[];
+    c_name?: string | string[];
+  }>();
   const scrollRef = useRef<KeyboardAwareScrollView>(null);
   const theme = useTheme();
   const isDark = theme.dark;
@@ -53,12 +56,44 @@ export default function SignUp() {
     confirmPassword: "",
     contact: "",
     agreeToTerms: true,
+    referralCode: "",
+    parentCompanyName: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaRefreshKey, setCaptchaRefreshKey] = useState(0);
+
+  const readParam = (value?: string | string[]) =>
+    Array.isArray(value) ? value[0] || "" : value || "";
+
+  const referralCodeFromParams = readParam(params.ref).trim();
+  const parentCompanyNameFromParams = readParam(params.c_name).trim();
+
+  // Load initial referral info from deep link parameters
+  useEffect(() => {
+    if (referralCodeFromParams) {
+      setFormData((prev) => ({
+        ...prev,
+        referralCode: referralCodeFromParams,
+        parentCompanyName: parentCompanyNameFromParams,
+        companyName: parentCompanyNameFromParams || prev.companyName,
+        role: "AGGREGATOR_MEMBER",
+      }));
+    }
+  }, [referralCodeFromParams, parentCompanyNameFromParams]);
+
+  // Dynamically derive if this is a referral signup based on the state
+  const isReferralSignup = Boolean(formData.referralCode);
+
+  // Keep role synchronized with the presence of referralCode
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      role: isReferralSignup ? "AGGREGATOR_MEMBER" : "AGGREGATOR_ADMIN",
+    }));
+  }, [isReferralSignup]);
 
   const handleChange = <K extends keyof SignUpSchemaType>(
     key: K,
@@ -94,10 +129,13 @@ export default function SignUp() {
         username: apiData.fullName,
         email: apiData.email.toLowerCase(),
         password: apiData.password,
-        role: "AGGREGATOR_ADMIN",
-        companyName: apiData.companyName,
+        role: isReferralSignup ? "AGGREGATOR_MEMBER" : "AGGREGATOR_ADMIN",
+        companyName: formData.parentCompanyName || apiData.companyName,
         aggregatorType: "CHANNEL_PARTNER",
+        isOmsEnabled: true,
+        fixedCommissionPercent: 0.75,
         contact: apiData.contact,
+        referralCode: isReferralSignup ? formData.referralCode : undefined,
         captchaToken,
       };
 
@@ -181,12 +219,12 @@ export default function SignUp() {
             Create your account to get started
           </Text>
 
-          {/*  Company Name */}
+          {/* Referral Code */}
           <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-            Company Name
+            Referral Code (Optional)
           </Text>
           <TextInput
-            placeholder="Your Company Ltd."
+            placeholder="Enter referral code"
             placeholderTextColor={isDark ? "#999" : "#AABACF"}
             style={[
               styles.input,
@@ -198,12 +236,61 @@ export default function SignUp() {
                 borderRadius: 10,
               },
             ]}
-            value={formData.companyName}
-            onChangeText={(v) => handleChange("companyName", v)}
+            value={formData.referralCode}
+            onChangeText={(v) => handleChange("referralCode", v)}
           />
-          {errors.companyName ? (
-            <Text style={styles.error}>{errors.companyName}</Text>
-          ) : null}
+
+          {isReferralSignup ? (
+            formData.parentCompanyName ? (
+              <>
+                <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
+                  Referred By Company
+                </Text>
+                <TextInput
+                  editable={false}
+                  placeholder="Parent company"
+                  placeholderTextColor={isDark ? "#999" : "#AABACF"}
+                  style={[
+                    styles.input,
+                    styles.disabledInput,
+                    !isDark && {
+                      backgroundColor: "#EEF0FD",
+                      borderColor: BRAND_BORDER,
+                      borderWidth: 1.5,
+                      color: BRAND,
+                      borderRadius: 10,
+                    },
+                  ]}
+                  value={formData.parentCompanyName}
+                />
+              </>
+            ) : null
+          ) : (
+            <>
+              <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
+                Company Name
+              </Text>
+              <TextInput
+                placeholder="Your Company Ltd."
+                placeholderTextColor={isDark ? "#999" : "#AABACF"}
+                style={[
+                  styles.input,
+                  !isDark && {
+                    backgroundColor: "#F5F7FF",
+                    borderColor: BRAND_BORDER,
+                    borderWidth: 1.5,
+                    color: "#0D1B3E",
+                    borderRadius: 10,
+                  },
+                ]}
+                value={formData.companyName}
+                onChangeText={(v) => handleChange("companyName", v)}
+              />
+              {errors.companyName ? (
+                <Text style={styles.error}>{errors.companyName}</Text>
+              ) : null}
+            </>
+          )}
 
           {/*  Full Name + Phone */}
           <View style={styles.row}>
@@ -507,6 +594,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
     fontSize: 14,
+  },
+  disabledInput: {
+    color: "#FFD600",
+    fontWeight: "800",
+    opacity: 1,
   },
 
   passwordContainer: {

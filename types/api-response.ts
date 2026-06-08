@@ -80,6 +80,7 @@ export interface User {
   username: string;
   email: string;
   role: string;
+  profileId?: string;
   contact?: string;
   photoUrl?: string;
   status?: string;
@@ -143,6 +144,7 @@ export type AggregatorProfile = {
   totalCommissionEarned?: number;
   totalPaidOut?: number;
   pendingPayout?: number;
+  referralCode?: string;
   deletedAt?: string;
   createdAt: string;
   updatedAt: string;
