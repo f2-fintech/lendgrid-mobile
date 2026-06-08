@@ -1,6 +1,7 @@
 import { setGraphqlAuthToken } from "@/apis/config/graphql_Notification_Client";
 import { ROUTES } from "@/assets/constants/routes";
 import CustomSplashScreen from "@/components/common/CustomSplashScreen";
+import { decodeJwt } from "@/lib/utils/utils";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 
@@ -20,7 +21,15 @@ export default function Index() {
         if (!alive) return;
 
         if (token) {
-          if (userType === "sales") {
+          const role = String(decodeJwt(token)?.role || "").toLowerCase();
+          if (role === "aggregator_member") {
+            await AsyncStorage.multiSet([
+              ["userType", "sales"],
+              ["authSource", "oms"],
+            ]);
+          }
+
+          if (userType === "sales" || role === "aggregator_member") {
             setNextRoute("/(tab)/applications");
           } else {
             setNextRoute(ROUTES.Dashboard);

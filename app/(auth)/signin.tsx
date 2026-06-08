@@ -377,19 +377,22 @@ function UserLoginForm({
         const role = payload?.role?.toLowerCase() || "";
 
         const isSales = role === "sales";
-        const isAggregator =
-          role === "aggregator_admin" ||
-          role === "aggregator_member" ||
-          role === "aggregator";
+        const isAggregatorMember = role === "aggregator_member";
+        const isAggregatorAdmin =
+          role === "aggregator_admin" || role === "aggregator";
 
         let userType = "sales";
-        if (isAggregator) {
+        if (isAggregatorAdmin) {
           userType = "aggregator";
-        } else if (isSales) {
+        } else if (isSales || isAggregatorMember) {
           userType = "sales";
         }
 
         await AsyncStorage.setItem("userType", userType);
+        await AsyncStorage.setItem(
+          "authSource",
+          isAggregatorMember ? "oms" : "user",
+        );
 
         const companyIdValue =
           payload?.companyId ??

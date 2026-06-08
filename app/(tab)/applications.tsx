@@ -225,7 +225,8 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       const decodedRole = String(decoded?.role || "").toLowerCase();
       const isOmsSalesSession =
         normalizedAuthSource === "oms" &&
-        (normalizedUserType === "sales" || decodedRole === "sales");
+        (normalizedUserType === "sales" || decodedRole === "sales") &&
+        decodedRole !== "aggregator_member";
       if (!mounted) return;
       setUserType(normalizedUserType);
       setSalesUserId(
@@ -272,7 +273,9 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   const decodedSource = String(decodedClaims?.source || "").toLowerCase();
   const isOmsSales =
     (authSource === "oms" || decodedSource === "oms") &&
-    (decodedRole === "sales" || userType === "sales");
+    (decodedRole === "sales" || userType === "sales") &&
+    decodedRole !== "aggregator_member";
+  const isAggregatorMember = decodedRole === "aggregator_member";
   const normalizedSalesUserId =
     (isOmsSales || userType === "sales") && salesUserId
       ? salesUserId
@@ -449,7 +452,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     page: appsPage,
     limit: appsRowsPerPage,
     search: debouncedSearch || undefined,
-    appliedBy: normalizedSalesUserId,
+    appliedBy: isAggregatorMember ? salesUserId : normalizedSalesUserId,
     companyId: applicationsCompanyId,
     enabled: activeTab === "applications" && authLoaded,
   });
@@ -460,13 +463,18 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     page: ticketsPage,
     limit: ticketsRowsPerPage,
     search: debouncedSearch || undefined,
-    userId: isOmsSales ? normalizedSalesUserId : undefined,
-    appliedBy: isOmsSales ? "sales" : undefined,
+    userId: isOmsSales
+      ? normalizedSalesUserId
+      : isAggregatorMember
+        ? salesUserId
+        : undefined,
+    appliedBy: (isOmsSales || isAggregatorMember) ? "sales" : undefined,
     companyId: isOmsSales ? undefined : applicationsCompanyId,
     enabled:
       activeTab === "tickets" &&
       authLoaded &&
-      (!isOmsSales || !!normalizedSalesUserId),
+      (!isOmsSales || !!normalizedSalesUserId) &&
+      (!isAggregatorMember || !!salesUserId),
   });
 
   const {

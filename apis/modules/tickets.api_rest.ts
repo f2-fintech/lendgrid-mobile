@@ -43,11 +43,13 @@ export function fetchTickets(params: {
   search?: string;
   status?: string;
   userId?: string | number;
+  aggregatorMemberId?: string;
   appliedBy?: string;
   companyId?: string | number;
 }) {
   const companyId = params.companyId ? String(params.companyId) : undefined;
-  const path = params.userId
+  const isNumericUserId = params.userId && /^\d+$/.test(String(params.userId));
+  const path = (params.userId && isNumericUserId)
     ? `/get-all-tickets/${params.userId}`
     : "/get-all-tickets";
   const queryParams = {
@@ -56,6 +58,8 @@ export function fetchTickets(params: {
     ...(params.search ? { search: params.search, name: params.search } : {}),
     ...(params.status ? { status: params.status } : {}),
     ...(params.appliedBy ? { appliedBy: params.appliedBy } : {}),
+    ...(params.aggregatorMemberId ? { aggregatorMemberId: params.aggregatorMemberId } : {}),
+    ...((params.userId && !isNumericUserId) ? { aggregatorMemberId: String(params.userId) } : {}),
   };
 
   if (__DEV__) {

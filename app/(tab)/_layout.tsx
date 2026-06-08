@@ -55,6 +55,7 @@ import { decodeJwt } from "@/lib/utils/utils";
 type DrawerRoute =
   // | "/data"
   | "/invite"
+  | "/team"
   | "/training-resources"
   | "/saas-products"
   | "/loan-products"
@@ -78,6 +79,11 @@ const DRAWER_ITEMS: DrawerItem[] = [
     iconFamily: "fontawesome",
     label: "Invite and Add Your Agent",
     route: "/invite",
+  },
+  {
+    icon: "users",
+    label: "Team Management",
+    route: "/team",
   },
   {
     icon: "book-open",
@@ -172,7 +178,21 @@ export default function Layout() {
   const loadUserType = useCallback(async () => {
     // Ensure company is auto-selected before or while loading user type
     await autoSelectCompany();
-    const type = await AsyncStorage.getItem("userType");
+    const [type, token] = await Promise.all([
+      AsyncStorage.getItem("userType"),
+      AsyncStorage.getItem("token"),
+    ]);
+    const role = String(decodeJwt(token)?.role || "").toLowerCase();
+
+    if (role === "aggregator_member") {
+      await AsyncStorage.multiSet([
+        ["userType", "sales"],
+        ["authSource", "oms"],
+      ]);
+      setUserType("sales");
+      return;
+    }
+
     setUserType(type);
   }, [autoSelectCompany]);
 
@@ -399,7 +419,7 @@ export default function Layout() {
     storedProfile.role === "aggregator_admin" && !!storedProfile.companyName;
   const isAggregatorAdmin = !isSales && storedProfile.role === "aggregator_admin";
   const visibleDrawerItems = DRAWER_ITEMS.filter(
-    (item) => item.route !== "/invite" || isAggregatorAdmin,
+    (item) => (item.route !== "/invite" && item.route !== "/team") || isAggregatorAdmin,
   );
   const roleLabel = formatRoleLabel(storedProfile.role);
   const companyDisplayName = formatDisplayName(storedProfile.companyName);
@@ -550,7 +570,7 @@ export default function Layout() {
   };
 
   const navigateFromDrawer = (route: DrawerRoute) => {
-    if (route === "/invite" && !isAggregatorAdmin) {
+    if ((route === "/invite" || route === "/team") && !isAggregatorAdmin) {
       closeDrawer();
       return;
     }
@@ -932,6 +952,17 @@ export default function Layout() {
             name="invite"
             options={{
               title: "Invite Agent",
+              href: null,
+              tabBarItemStyle: { display: "none" },
+              headerLeft: () => <SidebarBackButton />,
+              headerRight: () => <ThemeToggleBtn />,
+            }}
+          />
+
+          <Tabs.Screen
+            name="team"
+            options={{
+              title: "Team Management",
               href: null,
               tabBarItemStyle: { display: "none" },
               headerLeft: () => <SidebarBackButton />,

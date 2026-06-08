@@ -475,7 +475,8 @@ export default function MultiStepApplicationForm({
       const decodedRole = String(decoded?.role || "").toLowerCase();
       const oms =
         authSource === "oms" &&
-        (userType === "sales" || decodedRole === "sales");
+        (userType === "sales" || decodedRole === "sales") &&
+        decodedRole !== "aggregator_member";
       setIsOmsStaff(oms);
 
       if (oms) {
@@ -1131,6 +1132,8 @@ export default function MultiStepApplicationForm({
       const storedCompanyId = await getCompanyId();
       const token = await AsyncStorage.getItem("token");
       const decoded = decodeJwt(token);
+      const isAggregatorMember = String(decoded?.role || "").toLowerCase() === "aggregator_member";
+      const aggregatorMemberId = isAggregatorMember ? extractUserIdFromClaims(decoded) : undefined;
       const appliedByUserId = isOmsStaff
         ? extractUserIdFromClaims(decoded)
         : undefined;
@@ -1176,6 +1179,7 @@ export default function MultiStepApplicationForm({
           ? { company_id: Number(useCompanyIdString) }
           : {}),
         ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
+        ...(aggregatorMemberId ? { aggregator_member_id: aggregatorMemberId } : {}),
       };
       console.log("[MultiStepApplicationForm] create-customer payload", {
         selectedCompany,
@@ -1336,6 +1340,7 @@ export default function MultiStepApplicationForm({
           ? { applied_by: appliedByNumber, source: "oms", is_picked: 0 }
           : { source: "lendgrid", is_picked: 0 }),
         ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
+        ...(aggregatorMemberId ? { aggregator_member_id: aggregatorMemberId } : {}),
       };
 
       console.log("[MultiStepApplicationForm] create-application payload", {

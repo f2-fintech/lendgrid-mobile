@@ -45,9 +45,9 @@ export function fetchCustomerApplications(params: {
     page: params.page ?? 1,
     limit: params.limit ?? 10,
     ...(params.appliedBy
-      ? {
-          appliedBy: params.appliedBy,
-        }
+      ? /^\d+$/.test(String(params.appliedBy))
+        ? { appliedBy: params.appliedBy }
+        : { aggregatorMemberId: params.appliedBy }
       : {}),
     ...(companyId
       ? companyId === "all"

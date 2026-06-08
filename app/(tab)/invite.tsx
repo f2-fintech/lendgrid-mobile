@@ -1,4 +1,6 @@
+import { getReferralCodeApi } from "@/apis/modules/auth.api";
 import { FontAwesome } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,7 +16,10 @@ import {
 } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
-const INVITE_CODE = "LG-AGENT-2026";
+const WEB_BASE_URL =
+  process.env.EXPO_PUBLIC_WEB_BASE_URL?.replace(/\/$/, "") ||
+  "https://lendgrid.in";
+
 const NETWORK_ILLUSTRATION =
   "https://cdn.pixabay.com/photo/2020/08/22/11/21/network-5508173_1280.png";
 const LogoDark = require("@/assets/images/logo.png");
@@ -110,6 +115,17 @@ export default function InviteScreen() {
     accentGlow: isDark ? "rgba(255,215,0,0.06)" : "rgba(255,215,0,0.1)",
   };
 
+  const { data, isError, isLoading } = useQuery({
+    queryKey: ["referralCode"],
+    queryFn: getReferralCodeApi,
+  });
+  const inviteCode = data?.referralCode?.trim() || "";
+  const canShareInvite = Boolean(inviteCode) && !isLoading && !isError;
+  const appSignupLink = canShareInvite
+    ? `${WEB_BASE_URL}/signup?ref=${encodeURIComponent(inviteCode)}&c_name=${encodeURIComponent(data?.companyName || "")}&source=mobile`
+    : "";
+  const onboardingLink = appSignupLink;
+
   const [copied, setCopied] = useState(false);
 
   // Entry animations
@@ -152,9 +168,10 @@ export default function InviteScreen() {
     ],
   });
 
-  const inviteMessage = `Hey! Interested in becoming a loan agent? Join the LendGrid Agent Network today.\n\nRegister using the link below and use the code "${INVITE_CODE}" to get started:\n\nFor Android Users:\nComing soon\n\nFor Other Platform Users:\nComing soon`;
+  const inviteMessage = `Hey! Interested in becoming a loan agent? Join the LendGrid Agent Network today.\n\nRegister using this onboarding link:\n${onboardingLink}\n\nReferral code: ${inviteCode}`;
 
   const shareOnWhatsApp = () => {
+    if (!canShareInvite) return;
     const text = encodeURIComponent(inviteMessage);
     Linking.openURL(`whatsapp://send?text=${text}`).catch(() => {
       Linking.openURL(`https://wa.me/?text=${text}`).catch(() => {});
@@ -162,7 +179,8 @@ export default function InviteScreen() {
   };
 
   const copyInviteCode = async () => {
-    await Clipboard.setStringAsync(INVITE_CODE);
+    if (!canShareInvite) return;
+    await Clipboard.setStringAsync(inviteCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
   };
@@ -386,7 +404,11 @@ export default function InviteScreen() {
               <Text
                 style={[styles.codeStatusText, { color: invitePalette.text }]}
               >
-                Ready to share
+                {isLoading
+                  ? "Loading referral"
+                  : canShareInvite
+                    ? "Ready to share"
+                    : "Referral unavailable"}
               </Text>
             </View>
           </View>
@@ -398,13 +420,21 @@ export default function InviteScreen() {
               style={StyleSheet.absoluteFillObject}
             />
             <View style={styles.codeBoxBorder} />
-            <Text style={styles.codeText} selectable>
-              {INVITE_CODE}
+            <Text
+              style={[styles.codeText, !canShareInvite && { opacity: 0.5 }]}
+              selectable
+            >
+              {isLoading
+                ? "Loading..."
+                : isError
+                  ? "Unable to load"
+                  : inviteCode || "No referral code"}
             </Text>
             <Pressable
               onPress={copyInviteCode}
               style={({ pressed }) => [
                 styles.copyBtn,
+                !canShareInvite && { opacity: 0.45 },
                 pressed && { opacity: 0.75 },
               ]}
             >
@@ -453,6 +483,7 @@ export default function InviteScreen() {
             onPress={shareOnWhatsApp}
             style={({ pressed }) => [
               styles.whatsappBtn,
+              !canShareInvite && { opacity: 0.55 },
               pressed && { opacity: 0.85 },
             ]}
           >

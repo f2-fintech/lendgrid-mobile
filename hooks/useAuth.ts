@@ -8,6 +8,7 @@ import {
   signInApi,
   signUpApi,
   updateUserApi,
+  registerUserApi,
   type LoginResponse,
   type SignUpResponse,
 } from "@/apis/modules/auth.api";
@@ -95,6 +96,21 @@ export const useRemoveUser = () => {
 
   return useMutation({
     mutationFn: removeUserApi,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["usersByRole"] });
+    },
+  });
+};
+
+/**
+ * REGISTER USER
+ */
+export const useRegisterUser = () => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: registerUserApi,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users"] });
       qc.invalidateQueries({ queryKey: ["usersByRole"] });
