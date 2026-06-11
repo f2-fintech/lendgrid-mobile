@@ -371,11 +371,16 @@ export default function MultiStepApplicationForm({
     tenure: "",
     selectedProviders: [],
     providerAmounts: [],
-    hasRunningLoans: "no",
-    whichLoan: "",
-    runningLoanAmount: "",
     caseType: "fresh",
     businessEntityType: "",
+    existingLoans: [
+      {
+        hasRunningLoans: "no",
+        whichLoan: "",
+        loanAmount: "",
+        runningEmi: "",
+      },
+    ],
   });
 
   const [step1, setStep1] = useState<Step1Values>({
@@ -1312,25 +1317,30 @@ export default function MultiStepApplicationForm({
         loan_type: step0.loanType || "personal loan",
         loan_category: step0.loanCategory || "unsecured",
         tenure: numericTenure,
-        has_running_loans: step0.hasRunningLoans === "yes" ? 1 : 0,
+        has_running_loans: step0.existingLoans?.[0]?.hasRunningLoans === "yes" ? 1 : 0,
         which_loan:
-          step0.hasRunningLoans === "yes" ? step0.whichLoan || "" : "",
+          step0.existingLoans?.[0]?.hasRunningLoans === "yes"
+            ? step0.existingLoans[0].whichLoan || ""
+            : "",
         running_loan_amount:
-          step0.hasRunningLoans === "yes" && step0.runningLoanAmount
-            ? Number(step0.runningLoanAmount)
+          step0.existingLoans?.[0]?.hasRunningLoans === "yes" &&
+          step0.existingLoans[0].loanAmount
+            ? Number(step0.existingLoans[0].loanAmount)
             : null,
-        existing_loans: JSON.stringify([
-          {
-            has_running_loans: step0.hasRunningLoans === "yes" ? 1 : 0,
-            which_loan:
-              step0.hasRunningLoans === "yes" ? step0.whichLoan || null : null,
+        existing_loans: JSON.stringify(
+          (step0.existingLoans || []).map((l: any) => ({
+            has_running_loans: l.hasRunningLoans === "yes" ? 1 : 0,
+            which_loan: l.hasRunningLoans === "yes" ? l.whichLoan || null : null,
             loan_amount:
-              step0.hasRunningLoans === "yes" && step0.runningLoanAmount
-                ? Number(step0.runningLoanAmount)
+              l.hasRunningLoans === "yes" && l.loanAmount
+                ? Number(l.loanAmount)
                 : null,
-            running_emi: null,
-          },
-        ]),
+            running_emi:
+              l.hasRunningLoans === "yes" && l.runningEmi
+                ? Number(l.runningEmi)
+                : null,
+          })),
+        ),
         case_type: step0.caseType || "fresh",
         application_date: new Date().toISOString(),
         ...(useCompanyIdString

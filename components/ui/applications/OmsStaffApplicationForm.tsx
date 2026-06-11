@@ -112,11 +112,16 @@ const INITIAL_STEP0: Step0Values = {
   tenure: "",
   selectedProviders: [],
   providerAmounts: [],
-  hasRunningLoans: "no",
-  whichLoan: "",
-  runningLoanAmount: "",
   caseType: "fresh",
   businessEntityType: "",
+  existingLoans: [
+    {
+      hasRunningLoans: "no",
+      whichLoan: "",
+      loanAmount: "",
+      runningEmi: "",
+    },
+  ],
 };
 
 const INITIAL_STEP1: Step1Values = {
@@ -381,10 +386,30 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
         loan_type: step0.loanType,
         loan_category: step0.loanCategory,
         tenure: step0.tenure,
-        has_running_loans: step0.hasRunningLoans,
-        which_loan: step0.hasRunningLoans === "yes" ? step0.whichLoan : "",
+        has_running_loans: step0.existingLoans?.[0]?.hasRunningLoans || "no",
+        which_loan:
+          step0.existingLoans?.[0]?.hasRunningLoans === "yes"
+            ? step0.existingLoans[0].whichLoan || ""
+            : "",
         running_loan_amount:
-          step0.hasRunningLoans === "yes" ? step0.runningLoanAmount : "",
+          step0.existingLoans?.[0]?.hasRunningLoans === "yes" &&
+          step0.existingLoans[0].loanAmount
+            ? step0.existingLoans[0].loanAmount
+            : "",
+        existing_loans: JSON.stringify(
+          (step0.existingLoans || []).map((l: any) => ({
+            has_running_loans: l.hasRunningLoans === "yes" ? 1 : 0,
+            which_loan: l.hasRunningLoans === "yes" ? l.whichLoan || null : null,
+            loan_amount:
+              l.hasRunningLoans === "yes" && l.loanAmount
+                ? Number(l.loanAmount)
+                : null,
+            running_emi:
+              l.hasRunningLoans === "yes" && l.runningEmi
+                ? Number(l.runningEmi)
+                : null,
+          })),
+        ),
         case_type: step0.caseType,
         application_date: new Date().toISOString(),
         company_id: Number(useCompanyIdString),

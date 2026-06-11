@@ -282,7 +282,9 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       : undefined;
   const applicationsCompanyId =
     isOmsSales && normalizedSalesUserId ? "all" : selectedCompanyId;
-  const viewLockedTab = lockedTab ?? (isOmsSales ? "applications" : undefined);
+  const viewLockedTab =
+    lockedTab ??
+    (isOmsSales || isAggregatorMember ? "applications" : undefined);
 
   useEffect(() => {
     if (authLoaded && isOmsSales && viewLockedTab !== "tickets") {

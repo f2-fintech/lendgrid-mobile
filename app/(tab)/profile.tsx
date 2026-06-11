@@ -29,12 +29,24 @@ import {
 } from "@/hooks/useAggregator";
 import { useProfile, useUpdateUser } from "@/hooks/useAuth";
 
+function capitalizeName(name?: string) {
+  if (!name) return "";
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function splitName(fullName?: string) {
   if (!fullName) return { firstName: "", lastName: "" };
-  const parts = fullName.trim().split(" ");
+  const parts = fullName.trim().split(/\s+/);
   const firstName = parts.shift() ?? "";
   const lastName = parts.join(" ");
-  return { firstName, lastName };
+  return {
+    firstName: capitalizeName(firstName),
+    lastName: capitalizeName(lastName),
+  };
 }
 
 const decodeJwt = (token: string | null) => {
@@ -66,8 +78,8 @@ const getOmsProfileValues = (claims: any, storedUser: any) => {
   const { firstName, lastName } = splitName(username);
 
   return {
-    firstName: firstDefined(claims?.firstName, claims?.first_name, firstName),
-    lastName: firstDefined(claims?.lastName, claims?.last_name, lastName),
+    firstName: capitalizeName(firstDefined(claims?.firstName, claims?.first_name, firstName)),
+    lastName: capitalizeName(firstDefined(claims?.lastName, claims?.last_name, lastName)),
     email: firstDefined(
       claims?.email,
       claims?.user?.email,
@@ -109,6 +121,7 @@ export default function ProfileScreen() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [authLoaded, setAuthLoaded] = useState(false);
   const [isOmsStaff, setIsOmsStaff] = useState(false);
+  const [isAggregatorMember, setIsAggregatorMember] = useState(false);
 
   // Snackbar
   const [snackVisible, setSnackVisible] = useState(false);
@@ -120,7 +133,7 @@ export default function ProfileScreen() {
 
   // ---------------- FETCH AUTH PROFILE ----------------
   const { data: user, isLoading: loadingUser } = useProfile(
-    authLoaded && !isOmsStaff,
+    authLoaded && (!isOmsStaff || isAggregatorMember),
   );
   const profileId = user?.profileId;
 
@@ -205,11 +218,13 @@ export default function ProfileScreen() {
       const isStaff =
         storedAuthSource === "oms" &&
         (storedUserType === "sales" || role === "sales");
+      const isAggMember = role === "aggregator_member";
 
       if (!mounted) return;
 
       setIsOmsStaff(isStaff);
-      if (isStaff) {
+      setIsAggregatorMember(isAggMember);
+      if (isStaff && !isAggMember) {
         let parsedUser = null;
         try {
           parsedUser = storedUser ? JSON.parse(storedUser) : null;
@@ -232,6 +247,33 @@ export default function ProfileScreen() {
       mounted = false;
     };
   }, [methods]);
+
+  // ---------------- MAP USER PROFILE TO FORM (For Aggregator Members) ----------------
+  useEffect(() => {
+    if (!isAggregatorMember || !user) return;
+
+    const { firstName, lastName } = splitName(user.username);
+
+    dispatch(updateField({ key: "username", value: user.username || "" }));
+    dispatch(updateField({ key: "email", value: user.email || "" }));
+    dispatch(updateField({ key: "phone", value: user.contact || "" }));
+    dispatch(updateField({ key: "photoUrl", value: user.photoUrl || null }));
+    dispatch(updateField({ key: "status", value: user.status || "ACTIVE" }));
+
+    const avatarFromBackend = urlToFile(user.photoUrl);
+    const currentAvatar = methods.getValues("avatar");
+    const avatarToUse = currentAvatar?.uri ? currentAvatar : avatarFromBackend;
+
+    methods.reset({
+      ...methods.getValues(),
+      email: user.email || "",
+      phone: user.contact || "",
+      status: user.status || "ACTIVE",
+      firstName,
+      lastName,
+      avatar: avatarToUse,
+    } as any);
+  }, [user, isAggregatorMember, dispatch, methods]);
 
   // ---------------- MAP BACKEND DATA → FORM + REDUX ----------------
   useEffect(() => {
@@ -256,8 +298,8 @@ export default function ProfileScreen() {
         value: aggProfile.user?.status || "ACTIVE",
       }),
     );
-    dispatch(updateField({ key: "firstName", value: firstName }));
-    dispatch(updateField({ key: "lastName", value: lastName }));
+    dispatch(updateField({ key: "firstName" as any, value: firstName }));
+    dispatch(updateField({ key: "lastName" as any, value: lastName }));
 
     const avatarFromBackend = urlToFile(aggProfile.user?.photoUrl);
 
@@ -266,7 +308,7 @@ export default function ProfileScreen() {
 
     methods.reset({
       ...aggProfile,
-      aadhaarNumber: aggProfile.aadhaarNumber || "",
+      aadhaarNumber: (aggProfile as any).aadhaarNumber || "",
       documents: normalizedDocs,
       email: aggProfile.user?.email || "",
       phone: aggProfile.user?.contact || "",
@@ -274,11 +316,15 @@ export default function ProfileScreen() {
       firstName,
       lastName,
       avatar: avatarToUse,
-    });
+    } as any);
   }, [aggProfile, dispatch, isOmsStaff, methods]);
 
   // ---------------- LOADING STATES ----------------
-  if (!authLoaded || (!isOmsStaff && (loadingUser || loadingAgg))) {
+  if (
+    !authLoaded ||
+    (!isOmsStaff && (loadingUser || loadingAgg)) ||
+    (isAggregatorMember && loadingUser)
+  ) {
     return (
       <View
         style={{
@@ -316,8 +362,10 @@ export default function ProfileScreen() {
   // ---------------- SAVE HANDLER ----------------
   const onSave = async (values: any) => {
     try {
+      const capitalizedFirstName = capitalizeName(values.firstName);
+      const capitalizedLastName = capitalizeName(values.lastName);
       const username =
-        `${values.firstName || ""} ${values.lastName || ""}`.trim();
+        `${capitalizedFirstName} ${capitalizedLastName}`.trim();
 
       const photoUrl = values.avatar?.uri || null;
 
@@ -344,40 +392,42 @@ export default function ProfileScreen() {
         // authorizedSignatory: toDocUrl(values.documents?.authorizedSignatory),
       };
 
-      await updateAgg.mutateAsync({
-        id: aggProfile?._id,
+      if (aggProfile?._id) {
+        await updateAgg.mutateAsync({
+          id: aggProfile?._id,
 
-        companyName: values.companyName,
-        businessType: values.businessType,
-        registeredAddress: values.registeredAddress,
-        city: values.city,
-        state: values.state,
-        pincode: values.pincode,
-        gstNumber: values.gstNumber,
-        panNumber: values.panNumber,
-        tanNumber: values.tanNumber,
-        cinNumber: values.cinNumber,
-        websiteUrl: values.websiteUrl,
-        pocName: values.pocName,
+          companyName: values.companyName,
+          businessType: values.businessType,
+          registeredAddress: values.registeredAddress,
+          city: values.city,
+          state: values.state,
+          pincode: values.pincode,
+          gstNumber: values.gstNumber,
+          panNumber: values.panNumber,
+          tanNumber: values.tanNumber,
+          cinNumber: values.cinNumber,
+          websiteUrl: values.websiteUrl,
+          pocName: values.pocName,
 
-        aadhaarNumber: values.aadhaarNumber,
+          aadhaarNumber: values.aadhaarNumber,
 
-        documents: normalizedDocuments,
+          documents: normalizedDocuments,
 
-        bankName: values.bankName,
-        accountNumber: values.accountNumber,
-        ifscCode: values.ifscCode,
-        accountHolderName: values.accountHolderName,
-        isBankVerified: values.isBankVerified,
+          bankName: values.bankName,
+          accountNumber: values.accountNumber,
+          ifscCode: values.ifscCode,
+          accountHolderName: values.accountHolderName,
+          isBankVerified: values.isBankVerified,
 
-        kycStatus: values.kycStatus,
-        kycRejectionReason: values.kycRejectionReason,
-        totalApplicationsSubmitted: values.totalApplicationsSubmitted,
-        totalApplicationsDisbursed: values.totalApplicationsDisbursed,
-        totalCommissionEarned: values.totalCommissionEarned,
-        totalPaidOut: values.totalPaidOut,
-        pendingPayout: values.pendingPayout,
-      });
+          kycStatus: values.kycStatus,
+          kycRejectionReason: values.kycRejectionReason,
+          totalApplicationsSubmitted: values.totalApplicationsSubmitted,
+          totalApplicationsDisbursed: values.totalApplicationsDisbursed,
+          totalCommissionEarned: values.totalCommissionEarned,
+          totalPaidOut: values.totalPaidOut,
+          pendingPayout: values.pendingPayout,
+        });
+      }
 
       setIsEditMode(false);
       showSnack("Profile updated successfully");
@@ -434,7 +484,7 @@ export default function ProfileScreen() {
             </Text>
           </View>
 
-          {!isOmsStaff && (
+          {(!isOmsStaff || isAggregatorMember) && (
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TouchableOpacity
                 onPress={() => setIsEditMode((p) => !p)}
