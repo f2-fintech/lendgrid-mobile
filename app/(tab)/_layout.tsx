@@ -195,6 +195,19 @@ export default function Layout() {
   // --- AUTO SELECT COMPANY LOGIC ---
   const autoSelectCompany = useCallback(async () => {
     try {
+      const token = await AsyncStorage.getItem("token");
+      const decoded = decodeJwt(token);
+      const role = String(decoded?.role || "").toLowerCase();
+
+      // Skip default company override for roles with specialized scopes
+      if (
+        role === "aggregator_member" ||
+        role === "sales" ||
+        role === "lendgrid_sales"
+      ) {
+        return;
+      }
+
       const currentCompanyId = await AsyncStorage.getItem("companyId");
       // If companyId isn't set, explicitly set it to 157 for "f2 fintech (lendgrid)"
       if (!currentCompanyId) {
