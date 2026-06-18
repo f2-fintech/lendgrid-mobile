@@ -13,6 +13,7 @@ import { useTheme } from "react-native-paper";
 
 import { CommissionHistory } from "../../components/ui/commissions/CommissionHistory";
 import { CommissionMetrics } from "../../components/ui/commissions/CommissionMetrics";
+import { CommissionRates } from "../../components/ui/commissions/CommissionRates";
 import { CommissionTabs } from "../../components/ui/commissions/CommissionTabs";
 import { CommissionTrends } from "../../components/ui/commissions/CommissionTrends";
 import { commissionsStyles } from "../../styles/components/commissions/commissions.styles";
@@ -33,7 +34,7 @@ export default function CommissionsScreen() {
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d" | "1y">(
     "30d",
   );
-  const [selectedTab, setSelectedTab] = useState<"trends" | "history">(
+  const [selectedTab, setSelectedTab] = useState<"trends" | "history" | "rates">(
     "trends",
   );
 
@@ -44,7 +45,7 @@ export default function CommissionsScreen() {
   const commissionsQuery = useCommissionTransactionsInfinite({
     limit: pageSize,
     filters: {
-      status: filterStatus === "all" ? undefined : filterStatus,
+      status: filterStatus === "all" ? undefined : (filterStatus as CommissionStatus),
       // productType removed completely
     },
     dateRange,
@@ -71,6 +72,7 @@ export default function CommissionsScreen() {
       const t = String(params?.tab || "").toLowerCase();
       if (t === "history") setSelectedTab("history");
       if (t === "trends") setSelectedTab("trends");
+      if (t === "rates") setSelectedTab("rates");
     }, [params?.tab]),
   );
 
@@ -322,12 +324,14 @@ export default function CommissionsScreen() {
           setSelectedTab={setSelectedTab}
         />
 
-        {selectedTab === "trends" ? (
+        {selectedTab === "trends" && (
           <CommissionTrends
             trends={commissionTrends}
             formatCurrency={formatCurrency}
           />
-        ) : (
+        )}
+
+        {selectedTab === "history" && (
           <CommissionHistory
             commissions={filteredCommissions}
             searchTerm={searchTerm}
@@ -343,6 +347,8 @@ export default function CommissionsScreen() {
             total={total}
           />
         )}
+
+        {selectedTab === "rates" && <CommissionRates />}
       </ScrollView>
     </View>
   );

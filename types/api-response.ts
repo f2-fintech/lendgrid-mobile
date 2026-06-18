@@ -146,6 +146,7 @@ export type AggregatorProfile = {
   pendingPayout?: number;
   referralCode?: string;
   deletedAt?: string;
+  rank?: string;
   createdAt: string;
   updatedAt: string;
   // Populated fields
@@ -364,4 +365,14 @@ export interface Payout {
   comments?: string;
   aggregatorId: string;
   lenderId: string;
+}
+
+export interface DealLender {
+  _id: string;
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

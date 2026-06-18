@@ -538,6 +538,7 @@ function UserLoginForm({
 
       <View style={{ marginTop: 14, marginBottom: 8, alignItems: "center" }}>
         <TurnstileCaptcha
+          theme={isDark ? "dark" : "light"}
           refreshKey={captchaRefreshKey}
           onToken={(t) => setCaptchaToken(t)}
         />

@@ -1,24 +1,32 @@
 import { useMemo, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, useColorScheme } from "react-native";
 import { WebView } from "react-native-webview";
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 
 type Props = {
   onToken: (token: string | null) => void;
   refreshKey?: number; // change this value to force reload/reset
   style?: any;
+  theme?: "light" | "dark";
 };
 
 export default function TurnstileCaptcha({
   onToken,
   refreshKey = 0,
   style,
+  theme,
 }: Props) {
   const webRef = useRef<WebView>(null);
+  const scheme = useColorScheme();
+  const reduxTheme = useSelector((state: RootState) => state.theme.mode);
+
+  const activeTheme = theme || reduxTheme || scheme || "light";
 
   //  Load the real website route (allowed hostname)
   const uri = useMemo(() => {
-    return `https://lendgrid.in/turnstile-mobile?rk=${refreshKey}`;
-  }, [refreshKey]);
+    return `https://lendgrid.in/turnstile-mobile?rk=${refreshKey}&theme=${activeTheme}`;
+  }, [refreshKey, activeTheme]);
 
   return (
     <View style={[styles.container, style]}>
