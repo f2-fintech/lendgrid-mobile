@@ -49,3 +49,40 @@ export interface CommissionTransactionFilterInput {
   productType?: string;
   // extend later if you add date ranges to backend
 }
+
+export interface RuleLenderCommission {
+  lenderName: string;
+  securedRate?: number | null;
+  unsecuredRate?: number | null;
+}
+
+export interface CommissionRule {
+  id: string;
+  ruleName: string;
+  icon?: string | null;
+  badgeLabel?: string | null;
+  commissionType: string;
+  commissionRate: number;
+  productType?: string | null;
+  minAmount?: number | null;
+  maxAmount?: number | null;
+  applicableFor: string;
+  aggregatorType?: string | null;
+  status: string;
+  priority?: number | null;
+  description?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string | null;
+  updatedBy?: string | null;
+  lenderCommissions?: RuleLenderCommission[] | null;
+}
+
+export interface CommissionRuleResponse {
+  success: boolean;
+  message?: string | null;
+  data?: CommissionRule | null;
+}
+

@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
-type TabId = "trends" | "history";
+type TabId = "trends" | "history" | "rates";
 
 type Props = {
   selectedTab: TabId;
@@ -29,13 +29,18 @@ export function CommissionTabs({
     () => [
       {
         id: "trends" as const,
-        label: "Commission Trends",
+        label: "Trends",
         icon: "bar-chart-2" as const,
       },
       {
         id: "history" as const,
-        label: "Payment History",
+        label: "History",
         icon: "clock" as const,
+      },
+      {
+        id: "rates" as const,
+        label: "My Rates",
+        icon: "percent" as const,
       },
     ],
     [],

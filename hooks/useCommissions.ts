@@ -1,10 +1,11 @@
 // src/hooks/useCommissions.ts
 import { commissionsApi } from "@/apis/modules/commissions.api";
+import { dealLendersApi } from "@/apis/modules/deal-lenders.api";
 import {
   CommissionTransactionFilterInput,
   PaginatedCommissionTransactions,
 } from "@/types/commissions";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 export const COMMISSION_KEYS = {
@@ -112,4 +113,18 @@ export function useCommissionTransactionsInfinite(options?: {
     resetToFirstPage,
     queryKey,
   };
+}
+
+export function useMyCommissionRule() {
+  return useQuery({
+    queryKey: ["commissions", "myRule"],
+    queryFn: () => commissionsApi.myCommissionRule(),
+  });
+}
+
+export function useDealLenders() {
+  return useQuery({
+    queryKey: ["dealLenders", "list"],
+    queryFn: () => dealLendersApi.getDealLenders(),
+  });
 }

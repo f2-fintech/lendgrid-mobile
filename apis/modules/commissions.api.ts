@@ -80,4 +80,46 @@ export const commissionsApi = {
         filters: params?.filters,
       },
     ).then((res) => res.getCommissionTransactions),
+
+  /**
+   * Get currently logged in aggregator's assigned active commission rule
+   */
+  myCommissionRule: () =>
+    gqlRequest<{ myCommissionRule: any }>(
+      `
+      query MyCommissionRule {
+        myCommissionRule {
+          success
+          message
+          data {
+            id
+            ruleName
+            icon
+            badgeLabel
+            commissionType
+            commissionRate
+            productType
+            minAmount
+            maxAmount
+            applicableFor
+            aggregatorType
+            status
+            priority
+            description
+            effectiveFrom
+            effectiveTo
+            createdAt
+            updatedAt
+            createdBy
+            updatedBy
+            lenderCommissions {
+              lenderName
+              securedRate
+              unsecuredRate
+            }
+          }
+        }
+      }
+    `,
+    ).then((res) => res.myCommissionRule),
 };
