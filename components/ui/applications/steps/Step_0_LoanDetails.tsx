@@ -87,6 +87,28 @@ const toTitleCase = (s: string) =>
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
     .join(" ");
 
+const isBank = (name: string) => {
+  const n = name.toLowerCase();
+  return (
+    n.includes("bank") ||
+    n === "hdfc" ||
+    n === "idfc" ||
+    n === "icici" ||
+    n === "indusind" ||
+    n === "axis" ||
+    n === "pnb" ||
+    n === "canara" ||
+    n === "kotak"
+  );
+};
+
+export type ExistingLoan = {
+  hasRunningLoans: "yes" | "no" | "";
+  whichLoan: string;
+  loanAmount: string;
+  runningEmi: string;
+};
+
 export type Step0Values = {
   loanAmount: string;
   loanType: string;
@@ -94,9 +116,7 @@ export type Step0Values = {
   tenure: string;
   selectedProviders: string[];
   providerAmounts: ProviderAmount[];
-  hasRunningLoans: "yes" | "no" | "";
-  whichLoan: string;
-  runningLoanAmount: string;
+  existingLoans: ExistingLoan[];
   caseType: "fresh" | "top_up" | "";
   businessEntityType:
     | ""
@@ -201,6 +221,25 @@ export default function Step0LoanDetails({
   const [otherProviderText, setOtherProviderText] = useState("");
   const isOthersSelected = value.selectedProviders.includes("Others");
 
+  const { BANKS, NBFCS } = useMemo(() => {
+    const banksList: string[] = [];
+    const nbfcsList: string[] = [];
+
+    PROVIDERS.forEach((p) => {
+      if (p === "Let F2 Fintech decide." || p === "Others") return;
+      if (isBank(p)) {
+        banksList.push(p);
+      } else {
+        nbfcsList.push(p);
+      }
+    });
+
+    return { BANKS: banksList, NBFCS: nbfcsList };
+  }, [PROVIDERS]);
+
+  const [bankSectionExpanded, setBankSectionExpanded] = useState(false);
+  const [nbfcSectionExpanded, setNbfcSectionExpanded] = useState(false);
+
   const [leadTypeModalOpen, setLeadTypeModalOpen] = useState(false);
   const [runningLoanModalOpen, setRunningLoanModalOpen] = useState(false);
   const [whichLoanModalOpen, setWhichLoanModalOpen] = useState(false);
@@ -211,7 +250,7 @@ export default function Step0LoanDetails({
   const [allErrors, setAllErrors] = useState<Record<string, string>>({});
 
   // touched state
-  const [touched, setTouched] = useState({
+  const [touched, setTouched] = useState<Record<string, boolean>>({
     amount: false,
     loanType: false,
     tenure: false,
@@ -220,12 +259,20 @@ export default function Step0LoanDetails({
     otherProvider: false,
 
     leadType: false,
-    hasRunningLoans: false,
-    whichLoan: false,
-    runningLoanAmount: false,
     caseType: false,
     businessEntityType: false,
   });
+
+  const [activeExistingLoanIndex, setActiveExistingLoanIndex] = useState<number | null>(null);
+
+  const canAddAnotherLoan = useMemo(() => {
+    return (value.existingLoans || []).every(
+      (loan) =>
+        loan.hasRunningLoans === "yes" &&
+        loan.whichLoan &&
+        loan.loanAmount,
+    );
+  }, [value.existingLoans]);
 
   const tenureList = useMemo(() => {
     return value.loanCategory ? tenureOptions[value.loanCategory] : [];
@@ -241,9 +288,12 @@ export default function Step0LoanDetails({
       providerAmounts: value.providerAmounts.filter(
         (x) => x.provider !== "Others",
       ),
-      hasRunningLoans: (value.hasRunningLoans || "") as any,
-      whichLoan: value.whichLoan || "",
-      runningLoanAmount: value.runningLoanAmount || "",
+      existingLoans: (value.existingLoans || []).map((loan) => ({
+        hasRunningLoans: loan.hasRunningLoans,
+        whichLoan: loan.whichLoan,
+        loanAmount: loan.loanAmount,
+        runningEmi: loan.runningEmi,
+      })),
       caseType: "fresh" as any,
       businessEntityType: value.businessEntityType || "",
     };
@@ -263,9 +313,7 @@ export default function Step0LoanDetails({
     value.tenure,
     value.selectedProviders,
     value.providerAmounts,
-    value.hasRunningLoans,
-    value.whichLoan,
-    value.runningLoanAmount,
+    value.existingLoans,
     value.caseType,
     value.businessEntityType,
   ]);
@@ -275,13 +323,6 @@ export default function Step0LoanDetails({
   const showLoanTypeError = touched.loanType ? allErrors["loanType"] : "";
   const showTenureError = touched.tenure ? allErrors["tenure"] : "";
   const showProvidersError = touched.providers ? allErrors["providers"] : "";
-  const showHasRunningLoansError = touched.hasRunningLoans
-    ? allErrors["hasRunningLoans"]
-    : "";
-  const showWhichLoanError = touched.whichLoan ? allErrors["whichLoan"] : "";
-  const showRunningLoanAmountError = touched.runningLoanAmount
-    ? allErrors["runningLoanAmount"]
-    : "";
   const showCaseTypeError = touched.caseType ? allErrors["caseType"] : "";
   const showBusinessEntityError = touched.businessEntityType
     ? allErrors["businessEntityType"]
@@ -376,21 +417,47 @@ export default function Step0LoanDetails({
   };
 
   const setHasRunningLoans = (v: "yes" | "no") => {
-    if (v === "no") {
-      onChange({
-        ...value,
-        hasRunningLoans: "no",
-        whichLoan: "",
-        runningLoanAmount: "",
-      });
-    } else {
-      onChange({ ...value, hasRunningLoans: "yes" });
-    }
+    if (activeExistingLoanIndex === null) return;
+    updateLoanRecordField(activeExistingLoanIndex, "hasRunningLoans", v);
   };
 
-  const setWhichLoan = (v: string) => onChange({ ...value, whichLoan: v });
-  const setRunningLoanAmount = (amt: string) =>
-    onChange({ ...value, runningLoanAmount: amt });
+  const setWhichLoan = (v: string) => {
+    if (activeExistingLoanIndex === null) return;
+    updateLoanRecordField(activeExistingLoanIndex, "whichLoan", v);
+  };
+
+  const setRunningLoanAmount = (amt: string) => {
+    if (activeExistingLoanIndex === null) return;
+    updateLoanRecordField(activeExistingLoanIndex, "loanAmount", amt);
+  };
+
+  const appendLoanRecord = () => {
+    const nextList = [
+      ...(value.existingLoans || []),
+      { hasRunningLoans: "yes" as const, whichLoan: "", loanAmount: "", runningEmi: "" },
+    ];
+    onChange({ ...value, existingLoans: nextList });
+  };
+
+  const removeLoanRecord = (index: number) => {
+    const nextList = (value.existingLoans || []).filter((_, idx) => idx !== index);
+    onChange({ ...value, existingLoans: nextList });
+  };
+
+  const updateLoanRecordField = (index: number, field: keyof ExistingLoan, val: string) => {
+    const nextList = (value.existingLoans || []).map((loan, idx) => {
+      if (idx !== index) return loan;
+      const updated = { ...loan, [field]: val };
+      if (field === "hasRunningLoans" && val === "no") {
+        updated.whichLoan = "";
+        updated.loanAmount = "";
+        updated.runningEmi = "";
+      }
+      return updated;
+    });
+    onChange({ ...value, existingLoans: nextList });
+  };
+
   const setCaseType = (v: "fresh" | "top_up") =>
     onChange({ ...value, caseType: v });
   const setBusinessEntityType = (
@@ -666,182 +733,237 @@ export default function Step0LoanDetails({
         </Text>
       )}
 
-      {/* Running Customer Loans */}
-      <Text
-        style={{
-          fontSize: 13,
-          fontWeight: "600",
-          color: theme.colors.onSurface,
-          marginBottom: 8,
-        }}
-      >
-        Running Customer Loans*
-      </Text>
-
-      <TouchableOpacity
-        onPress={() => setRunningLoanModalOpen(true)}
-        activeOpacity={0.8}
-        style={{
-          padding: 14,
-          borderWidth: 1.5,
-          borderColor: theme.colors.outline,
-          borderRadius: 12,
-          backgroundColor: theme.colors.surface,
-          flexDirection: "row",
-          alignItems: "center",
-          marginBottom: 8,
-        }}
-      >
-        <Feather
-          name="credit-card"
-          size={18}
-          color={theme.colors.onSurfaceVariant}
-        />
-        <Text
-          style={{
-            marginLeft: 10,
-            color: value.hasRunningLoans
-              ? theme.colors.onSurface
-              : theme.colors.onSurfaceVariant,
-            fontSize: 15,
-          }}
-        >
-          {value.hasRunningLoans
-            ? value.hasRunningLoans === "yes"
-              ? "Yes"
-              : "No"
-            : "Select option"}
-        </Text>
-        <View style={{ marginLeft: "auto" }}>
-          <Feather
-            name="chevron-down"
-            size={18}
-            color={theme.colors.onSurfaceVariant}
-          />
-        </View>
-      </TouchableOpacity>
-
-      {!!showHasRunningLoansError && (
-        <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
-          {showHasRunningLoansError}
-        </Text>
-      )}
-
-      {/* ✅ NEW: Conditional fields */}
-      {value.hasRunningLoans === "yes" && (
-        <>
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "600",
-              color: theme.colors.onSurface,
-              marginBottom: 8,
-            }}
-          >
-            Which Loan*
+      {/* Existing Loans Section */}
+      <View style={{ marginTop: 16, marginBottom: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 }}>
+          <Feather name="credit-card" size={18} color={theme.colors.primary} />
+          <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.primary, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Existing Loans
           </Text>
+        </View>
 
-          <TouchableOpacity
-            onPress={() => setWhichLoanModalOpen(true)}
-            activeOpacity={0.8}
-            style={{
-              padding: 14,
-              borderWidth: 1.5,
-              borderColor: theme.colors.outline,
-              borderRadius: 12,
-              backgroundColor: theme.colors.surface,
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 8,
-            }}
-          >
-            <Feather
-              name="briefcase"
-              size={18}
-              color={theme.colors.onSurfaceVariant}
-            />
-            <Text
+        {(value.existingLoans || []).map((loan, index) => {
+          const loanErrPrefix = `existingLoans.${index}`;
+          const showHasRunningLoansError = touched[`${loanErrPrefix}.hasRunningLoans`] ? allErrors[`${loanErrPrefix}.hasRunningLoans`] : "";
+          const showWhichLoanError = touched[`${loanErrPrefix}.whichLoan`] ? allErrors[`${loanErrPrefix}.whichLoan`] : "";
+          const showLoanAmountError = touched[`${loanErrPrefix}.loanAmount`] ? allErrors[`${loanErrPrefix}.loanAmount`] : "";
+          const showRunningEmiError = touched[`${loanErrPrefix}.runningEmi`] ? allErrors[`${loanErrPrefix}.runningEmi`] : "";
+
+          return (
+            <View
+              key={index}
               style={{
-                marginLeft: 10,
-                color: value.whichLoan
-                  ? theme.colors.onSurface
-                  : theme.colors.onSurfaceVariant,
-                fontSize: 15,
+                borderWidth: 1.5,
+                borderColor: theme.colors.outlineVariant || theme.colors.outline,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 16,
+                backgroundColor: theme.colors.surfaceVariant || theme.colors.surface,
               }}
             >
-              {value.whichLoan
-                ? toTitleCase(value.whichLoan)
-                : "Choose loan type"}
-            </Text>
-            <View style={{ marginLeft: "auto" }}>
-              <Feather
-                name="chevron-down"
-                size={18}
-                color={theme.colors.onSurfaceVariant}
-              />
+              {/* Card Header: Loan Record #1, and Remove button if length > 1 */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <View style={{ backgroundColor: theme.colors.primaryContainer, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}>
+                  <Text style={{ color: theme.colors.onPrimaryContainer, fontWeight: "600", fontSize: 12 }}>
+                    Loan Record #{index + 1}
+                  </Text>
+                </View>
+                {(value.existingLoans || []).length > 1 && (
+                  <TouchableOpacity
+                    onPress={() => removeLoanRecord(index)}
+                    style={{ padding: 4 }}
+                  >
+                    <Feather name="trash-2" size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Has Running Loans Dropdown */}
+              <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.onSurface, marginBottom: 8 }}>
+                Running Customer Loans*
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setActiveExistingLoanIndex(index);
+                  setRunningLoanModalOpen(true);
+                }}
+                activeOpacity={0.8}
+                style={{
+                  padding: 14,
+                  borderWidth: 1.5,
+                  borderColor: theme.colors.outline,
+                  borderRadius: 12,
+                  backgroundColor: theme.colors.surface,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 8,
+                }}
+              >
+                <Feather name="credit-card" size={18} color={theme.colors.onSurfaceVariant} />
+                <Text style={{
+                  marginLeft: 10,
+                  color: loan.hasRunningLoans ? theme.colors.onSurface : theme.colors.onSurfaceVariant,
+                  fontSize: 15,
+                }}>
+                  {loan.hasRunningLoans ? (loan.hasRunningLoans === "yes" ? "Yes" : "No") : "Select option"}
+                </Text>
+                <View style={{ marginLeft: "auto" }}>
+                  <Feather name="chevron-down" size={18} color={theme.colors.onSurfaceVariant} />
+                </View>
+              </TouchableOpacity>
+              {!!showHasRunningLoansError && (
+                <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+                  {showHasRunningLoansError}
+                </Text>
+              )}
+
+              {/* Conditional Fields: If Yes */}
+              {loan.hasRunningLoans === "yes" && (
+                <>
+                  {/* Which Loan */}
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.onSurface, marginBottom: 8, marginTop: 8 }}>
+                    Which Loan*
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setActiveExistingLoanIndex(index);
+                      setWhichLoanModalOpen(true);
+                    }}
+                    activeOpacity={0.8}
+                    style={{
+                      padding: 14,
+                      borderWidth: 1.5,
+                      borderColor: theme.colors.outline,
+                      borderRadius: 12,
+                      backgroundColor: theme.colors.surface,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Feather name="briefcase" size={18} color={theme.colors.onSurfaceVariant} />
+                    <Text style={{
+                      marginLeft: 10,
+                      color: loan.whichLoan ? theme.colors.onSurface : theme.colors.onSurfaceVariant,
+                      fontSize: 15,
+                    }}>
+                      {loan.whichLoan ? toTitleCase(loan.whichLoan) : "Choose loan type"}
+                    </Text>
+                    <View style={{ marginLeft: "auto" }}>
+                      <Feather name="chevron-down" size={18} color={theme.colors.onSurfaceVariant} />
+                    </View>
+                  </TouchableOpacity>
+                  {!!showWhichLoanError && (
+                    <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+                      {showWhichLoanError}
+                    </Text>
+                  )}
+
+                  {/* Running Loan Amount */}
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.onSurface, marginBottom: 8, marginTop: 8 }}>
+                    Running Loan Amount*
+                  </Text>
+                  <View style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1.5,
+                    borderColor: theme.colors.outline,
+                    borderRadius: 12,
+                    backgroundColor: theme.colors.surface,
+                    paddingHorizontal: 12,
+                    marginBottom: 8,
+                  }}>
+                    <FontAwesome5 name="rupee-sign" size={18} color={theme.colors.onSurfaceVariant} />
+                    <TextInput
+                      value={loan.loanAmount || ""}
+                      onChangeText={(amt) => updateLoanRecordField(index, "loanAmount", amt)}
+                      onBlur={() => setTouched((t) => ({ ...t, [`${loanErrPrefix}.loanAmount`]: true }))}
+                      placeholder="Enter running loan amount"
+                      placeholderTextColor={theme.colors.onSurfaceVariant}
+                      keyboardType="numeric"
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        paddingHorizontal: 10,
+                        color: theme.colors.onSurface,
+                        fontSize: 15,
+                      }}
+                    />
+                  </View>
+                  {!!showLoanAmountError && (
+                    <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+                      {showLoanAmountError}
+                    </Text>
+                  )}
+
+                  {/* Running EMI */}
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: theme.colors.onSurface, marginBottom: 8, marginTop: 8 }}>
+                    Running EMI (Optional)
+                  </Text>
+                  <View style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1.5,
+                    borderColor: theme.colors.outline,
+                    borderRadius: 12,
+                    backgroundColor: theme.colors.surface,
+                    paddingHorizontal: 12,
+                    marginBottom: 8,
+                  }}>
+                    <FontAwesome5 name="rupee-sign" size={18} color={theme.colors.onSurfaceVariant} />
+                    <TextInput
+                      value={loan.runningEmi || ""}
+                      onChangeText={(emi) => updateLoanRecordField(index, "runningEmi", emi)}
+                      onBlur={() => setTouched((t) => ({ ...t, [`${loanErrPrefix}.runningEmi`]: true }))}
+                      placeholder="Enter running EMI"
+                      placeholderTextColor={theme.colors.onSurfaceVariant}
+                      keyboardType="numeric"
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        paddingHorizontal: 10,
+                        color: theme.colors.onSurface,
+                        fontSize: 15,
+                      }}
+                    />
+                  </View>
+                  {!!showRunningEmiError && (
+                    <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+                      {showRunningEmiError}
+                    </Text>
+                  )}
+                </>
+              )}
             </View>
-          </TouchableOpacity>
+          );
+        })}
 
-          {!!showWhichLoanError && (
-            <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
-              {showWhichLoanError}
-            </Text>
-          )}
-
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "600",
-              color: theme.colors.onSurface,
-              marginBottom: 8,
-            }}
-          >
-            Running Loan Amount*
-          </Text>
-
-          <View
+        {/* Add Another Loan Record Button */}
+        {canAddAnotherLoan && (
+          <TouchableOpacity
+            onPress={appendLoanRecord}
+            activeOpacity={0.85}
             style={{
               flexDirection: "row",
               alignItems: "center",
-              borderWidth: 1.5,
-              borderColor: theme.colors.outline,
+              justifyContent: "center",
+              paddingVertical: 12,
               borderRadius: 12,
-              backgroundColor: theme.colors.surface,
-              paddingHorizontal: 12,
-              marginBottom: 8,
+              borderWidth: 1.5,
+              borderColor: theme.colors.primary,
+              borderStyle: "dashed",
+              backgroundColor: theme.colors.primaryContainer + "10",
+              marginTop: 4,
+              marginBottom: 16,
             }}
           >
-            <FontAwesome5
-              name="rupee-sign"
-              size={18}
-              color={theme.colors.onSurfaceVariant}
-            />
-            <TextInput
-              value={value.runningLoanAmount || ""}
-              onChangeText={setRunningLoanAmount}
-              onBlur={() =>
-                setTouched((t) => ({ ...t, runningLoanAmount: true }))
-              }
-              placeholder="Enter running loan amount"
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              keyboardType="numeric"
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                paddingHorizontal: 10,
-                color: theme.colors.onSurface,
-                fontSize: 15,
-              }}
-            />
-          </View>
-
-          {!!showRunningLoanAmountError && (
-            <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
-              {showRunningLoanAmountError}
+            <Feather name="plus" size={16} color={theme.dark ? "#FFFFFF" : theme.colors.primary} style={{ marginRight: 6 }} />
+            <Text style={{ color: theme.dark ? "#FFFFFF" : theme.colors.primary, fontWeight: "700", fontSize: 14 }}>
+              Add Another Loan Record
             </Text>
-          )}
-        </>
-      )}
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* ✅ NEW: Case Type */}
       <Text
@@ -924,43 +1046,203 @@ export default function Step0LoanDetails({
           borderRadius: 12,
           padding: 12,
           backgroundColor: theme.colors.surface,
-          gap: 10,
         }}
       >
-        {PROVIDERS.map((p) => {
-          const checked = value.selectedProviders.includes(p);
-          return (
-            <TouchableOpacity
-              key={p}
-              onPress={() => toggleProvider(p)}
-              activeOpacity={0.8}
-              style={{ flexDirection: "row", alignItems: "center" }}
-            >
-              <View
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 4,
-                  borderWidth: 1.5,
-                  borderColor: checked
-                    ? theme.colors.primary
-                    : theme.colors.outline,
-                  backgroundColor: checked
-                    ? theme.colors.primary
-                    : "transparent",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 10,
-                }}
-              >
-                {checked && <Feather name="check" size={14} color="#000" />}
-              </View>
-              <Text style={{ color: theme.colors.onSurface, flex: 1 }}>
-                {p}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {/* Let F2 Fintech decide */}
+        <TouchableOpacity
+          onPress={() => toggleProvider("Let F2 Fintech decide.")}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 10,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.colors.outlineVariant,
+          }}
+        >
+          <View
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 4,
+              borderWidth: 1.5,
+              borderColor: value.selectedProviders.includes("Let F2 Fintech decide.")
+                ? theme.colors.primary
+                : theme.colors.outline,
+              backgroundColor: value.selectedProviders.includes("Let F2 Fintech decide.")
+                ? theme.colors.primary
+                : "transparent",
+              justifyContent: "center",
+              alignItems: "center",
+              marginRight: 10,
+            }}
+          >
+            {value.selectedProviders.includes("Let F2 Fintech decide.") && (
+              <Feather name="check" size={14} color="#000" />
+            )}
+          </View>
+          <Text style={{ color: theme.colors.onSurface, flex: 1, fontWeight: "600" }}>
+            Let F2 Fintech decide.
+          </Text>
+        </TouchableOpacity>
+
+        {/* Bank Category */}
+        <View style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.outlineVariant }}>
+          <TouchableOpacity
+            onPress={() => setBankSectionExpanded(!bankSectionExpanded)}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingVertical: 10,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Feather name="home" size={16} color={theme.colors.primary} style={{ marginRight: 8 }} />
+              <Text style={{ color: theme.colors.onSurface, fontWeight: "700" }}>Bank</Text>
+            </View>
+            <Feather
+              name={bankSectionExpanded ? "chevron-up" : "chevron-down"}
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </TouchableOpacity>
+
+          {bankSectionExpanded && (
+            <View style={{ paddingLeft: 12, paddingBottom: 10, gap: 10 }}>
+              {BANKS.map((p) => {
+                const checked = value.selectedProviders.includes(p);
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    onPress={() => toggleProvider(p)}
+                    activeOpacity={0.8}
+                    style={{ flexDirection: "row", alignItems: "center", paddingVertical: 4 }}
+                  >
+                    <View
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 4,
+                        borderWidth: 1.5,
+                        borderColor: checked
+                          ? theme.colors.primary
+                          : theme.colors.outline,
+                        backgroundColor: checked
+                          ? theme.colors.primary
+                          : "transparent",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginRight: 10,
+                      }}
+                    >
+                      {checked && <Feather name="check" size={14} color="#000" />}
+                    </View>
+                    <Text style={{ color: theme.colors.onSurface }}>{p}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        {/* NBFC Category */}
+        <View style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.outlineVariant }}>
+          <TouchableOpacity
+            onPress={() => setNbfcSectionExpanded(!nbfcSectionExpanded)}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingVertical: 10,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Feather name="shield" size={16} color={theme.colors.primary} style={{ marginRight: 8 }} />
+              <Text style={{ color: theme.colors.onSurface, fontWeight: "700" }}>NBFC</Text>
+            </View>
+            <Feather
+              name={nbfcSectionExpanded ? "chevron-up" : "chevron-down"}
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </TouchableOpacity>
+
+          {nbfcSectionExpanded && (
+            <View style={{ paddingLeft: 12, paddingBottom: 10, gap: 10 }}>
+              {NBFCS.map((p) => {
+                const checked = value.selectedProviders.includes(p);
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    onPress={() => toggleProvider(p)}
+                    activeOpacity={0.8}
+                    style={{ flexDirection: "row", alignItems: "center", paddingVertical: 4 }}
+                  >
+                    <View
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 4,
+                        borderWidth: 1.5,
+                        borderColor: checked
+                          ? theme.colors.primary
+                          : theme.colors.outline,
+                        backgroundColor: checked
+                          ? theme.colors.primary
+                          : "transparent",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginRight: 10,
+                      }}
+                    >
+                      {checked && <Feather name="check" size={14} color="#000" />}
+                    </View>
+                    <Text style={{ color: theme.colors.onSurface }}>{p}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        {/* Others */}
+        <TouchableOpacity
+          onPress={() => toggleProvider("Others")}
+          activeOpacity={0.8}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 10,
+          }}
+        >
+          <View
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 4,
+              borderWidth: 1.5,
+              borderColor: value.selectedProviders.includes("Others")
+                ? theme.colors.primary
+                : theme.colors.outline,
+              backgroundColor: value.selectedProviders.includes("Others")
+                ? theme.colors.primary
+                : "transparent",
+              justifyContent: "center",
+              alignItems: "center",
+              marginRight: 10,
+            }}
+          >
+            {value.selectedProviders.includes("Others") && (
+              <Feather name="check" size={14} color="#000" />
+            )}
+          </View>
+          <Text style={{ color: theme.colors.onSurface, flex: 1, fontWeight: "600" }}>
+            Others
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {!!showProvidersError && (
@@ -1613,7 +1895,9 @@ export default function Step0LoanDetails({
               <TouchableOpacity
                 onPress={() => {
                   setRunningLoanModalOpen(false);
-                  setTouched((t) => ({ ...t, hasRunningLoans: true }));
+                  if (activeExistingLoanIndex !== null) {
+                    setTouched((t) => ({ ...t, [`existingLoans.${activeExistingLoanIndex}.hasRunningLoans`]: true }));
+                  }
                 }}
                 style={{ padding: 6 }}
               >
@@ -1627,7 +1911,9 @@ export default function Step0LoanDetails({
                 onPress={() => {
                   setHasRunningLoans(opt);
                   setRunningLoanModalOpen(false);
-                  setTouched((t) => ({ ...t, hasRunningLoans: true }));
+                  if (activeExistingLoanIndex !== null) {
+                    setTouched((t) => ({ ...t, [`existingLoans.${activeExistingLoanIndex}.hasRunningLoans`]: true }));
+                  }
                 }}
                 style={{
                   paddingVertical: 14,
@@ -1682,7 +1968,9 @@ export default function Step0LoanDetails({
               <TouchableOpacity
                 onPress={() => {
                   setWhichLoanModalOpen(false);
-                  setTouched((t) => ({ ...t, whichLoan: true }));
+                  if (activeExistingLoanIndex !== null) {
+                    setTouched((t) => ({ ...t, [`existingLoans.${activeExistingLoanIndex}.whichLoan`]: true }));
+                  }
                 }}
                 style={{ padding: 6 }}
               >
@@ -1706,7 +1994,9 @@ export default function Step0LoanDetails({
                   onPress={() => {
                     setWhichLoan(x.value);
                     setWhichLoanModalOpen(false);
-                    setTouched((t) => ({ ...t, whichLoan: true }));
+                    if (activeExistingLoanIndex !== null) {
+                      setTouched((t) => ({ ...t, [`existingLoans.${activeExistingLoanIndex}.whichLoan`]: true }));
+                    }
                   }}
                   style={{
                     paddingVertical: 14,
@@ -1736,7 +2026,9 @@ export default function Step0LoanDetails({
                   onPress={() => {
                     setWhichLoan(x.value);
                     setWhichLoanModalOpen(false);
-                    setTouched((t) => ({ ...t, whichLoan: true }));
+                    if (activeExistingLoanIndex !== null) {
+                      setTouched((t) => ({ ...t, [`existingLoans.${activeExistingLoanIndex}.whichLoan`]: true }));
+                    }
                   }}
                   style={{
                     paddingVertical: 14,

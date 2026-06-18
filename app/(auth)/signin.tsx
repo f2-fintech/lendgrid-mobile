@@ -195,7 +195,7 @@ export default function SignIn() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={() => setActiveTab("oms")}
               style={{
                 flex: 1,
@@ -230,7 +230,7 @@ export default function SignIn() {
               >
                 OMS Staff
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* ── Render active form ── */}

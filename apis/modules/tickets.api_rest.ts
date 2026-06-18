@@ -46,6 +46,8 @@ export function fetchTickets(params: {
   aggregatorMemberId?: string;
   appliedBy?: string;
   companyId?: string | number;
+  startDate?: string;
+  endDate?: string;
 }) {
   const companyId = params.companyId ? String(params.companyId) : undefined;
   const isNumericUserId = params.userId && /^\d+$/.test(String(params.userId));
@@ -60,20 +62,28 @@ export function fetchTickets(params: {
     ...(params.appliedBy ? { appliedBy: params.appliedBy } : {}),
     ...(params.aggregatorMemberId ? { aggregatorMemberId: params.aggregatorMemberId } : {}),
     ...((params.userId && !isNumericUserId) ? { aggregatorMemberId: String(params.userId) } : {}),
+    ...(companyId
+      ? companyId === "all"
+        ? { _cid: companyId }
+        : { _cid: companyId, companyId }
+      : {}),
+    ...(params.startDate ? { startDate: params.startDate } : {}),
+    ...(params.endDate ? { endDate: params.endDate } : {}),
   };
 
   if (__DEV__) {
     console.log("[Tickets API] fetchTickets", {
       path,
       params: queryParams,
-      companyIdHeader: companyId,
+      companyIdHeader: companyId === "all" ? undefined : companyId,
+      allCompanies: companyId === "all",
     });
   }
 
   return restRequest<RestEnvelope<TicketsPage>>(path, {
     method: "GET",
     params: queryParams,
-    config: companyId
+    config: companyId && companyId !== "all"
       ? {
           headers: {
             companyid: companyId,

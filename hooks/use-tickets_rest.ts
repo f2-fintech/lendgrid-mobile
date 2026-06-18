@@ -11,6 +11,8 @@ type UseTicketsProps = {
   userId?: string | number;
   appliedBy?: string;
   companyId?: string | number;
+  startDate?: string;
+  endDate?: string;
   enabled?: boolean;
 };
 
@@ -22,6 +24,8 @@ export function useTickets({
   userId,
   appliedBy,
   companyId,
+  startDate,
+  endDate,
   enabled = true,
 }: UseTicketsProps) {
   return useQuery<RestEnvelope<TicketsPage>, Error, TicketsPage>({
@@ -34,6 +38,8 @@ export function useTickets({
       userId,
       appliedBy,
       companyId,
+      startDate,
+      endDate,
     ],
     queryFn: () =>
       fetchTickets({
@@ -44,6 +50,8 @@ export function useTickets({
         userId,
         appliedBy,
         companyId,
+        startDate,
+        endDate,
       }),
     enabled,
     // unwrap { statusCode, message, data } -> just data

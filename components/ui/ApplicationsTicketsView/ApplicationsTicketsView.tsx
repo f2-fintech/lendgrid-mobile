@@ -14,18 +14,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  UIManager,
   View,
 } from "react-native";
 import PagerView from "react-native-pager-view";
-import { ActivityIndicator } from "react-native-paper";
-
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { ActivityIndicator, TouchableRipple } from "react-native-paper";
+import dayjs from "dayjs";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 type Props = {
   theme: any;
@@ -64,6 +58,10 @@ type Props = {
   lockedTab?: "applications" | "tickets";
   hasSelectedCompany?: boolean;
   notificationTicketId?: string;
+  startDate?: string;
+  setStartDate?: (d?: string) => void;
+  endDate?: string;
+  setEndDate?: (d?: string) => void;
 };
 
 // -------------------- Helpers --------------------
@@ -689,6 +687,7 @@ function AppTicketCard({
   );
 }
 
+
 export default function ApplicationsTicketsView(props: Props) {
   const {
     theme,
@@ -724,6 +723,10 @@ export default function ApplicationsTicketsView(props: Props) {
     lockedTab,
     hasSelectedCompany = false,
     notificationTicketId,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
   } = props;
   const [createWarning, setCreateWarning] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -732,6 +735,279 @@ export default function ApplicationsTicketsView(props: Props) {
 
   const statColors = getStatsCardColors(theme);
   const surfacePalette = getSurfacePalette(theme);
+
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [tempRange, setTempRange] = useState<{
+    startDate: Date | undefined;
+    endDate: Date | undefined;
+  }>({
+    startDate: undefined,
+    endDate: undefined,
+  });
+
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+
+  useEffect(() => {
+    if (datePickerOpen) {
+      setTempRange({
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+      });
+    } else {
+      setShowStartPicker(false);
+      setShowEndPicker(false);
+    }
+  }, [datePickerOpen, startDate, endDate]);
+
+  const dateRangeLabel = useMemo(() => {
+    if (startDate) {
+      const startFmt = dayjs(startDate).format("MMM DD");
+      if (endDate) {
+        const endFmt = dayjs(endDate).format("MMM DD");
+        return `${startFmt} - ${endFmt}`;
+      }
+      return startFmt;
+    }
+    return "Filter with Dates";
+  }, [startDate, endDate]);
+
+  const hasActiveDateFilter = !!startDate;
+
+  const handleClearDates = () => {
+    if (setStartDate) setStartDate(undefined);
+    if (setEndDate) setEndDate(undefined);
+  };
+
+  const modalStyles = useMemo(() => {
+    const isDark = !!theme.dark;
+    return {
+      backdrop: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        justifyContent: "center" as const,
+        alignItems: "center" as const,
+        padding: 20,
+      },
+      pressableBackdrop: {
+        position: "absolute" as const,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      },
+      modalContainer: {
+        width: "100%",
+        maxWidth: 340,
+        backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+        borderRadius: 20,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.08)",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 6,
+      },
+      header: {
+        flexDirection: "row" as const,
+        justifyContent: "space-between" as const,
+        alignItems: "center" as const,
+        marginBottom: 20,
+      },
+      title: {
+        fontSize: 18,
+        fontWeight: "800" as const,
+        color: theme.colors.onSurface,
+      },
+      inputsContainer: {
+        gap: 12,
+        marginBottom: 24,
+      },
+      dateInputCard: {
+        flexDirection: "row" as const,
+        alignItems: "center" as const,
+        padding: 14,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(15,23,42,0.12)",
+        backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(15,23,42,0.02)",
+        gap: 12,
+      },
+      inputLabel: {
+        fontSize: 11,
+        color: theme.colors.onSurfaceVariant,
+        fontWeight: "600" as const,
+        marginBottom: 2,
+      },
+      inputValue: {
+        fontSize: 14,
+        color: theme.colors.onSurface,
+        fontWeight: "700" as const,
+      },
+      footer: {
+        flexDirection: "row" as const,
+        justifyContent: "flex-end" as const,
+        alignItems: "center" as const,
+        gap: 12,
+      },
+      clearButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(15,23,42,0.15)",
+        alignItems: "center" as const,
+        justifyContent: "center" as const,
+      },
+      clearButtonText: {
+        fontSize: 14,
+        fontWeight: "700" as const,
+        color: theme.colors.onSurfaceVariant,
+      },
+      applyButton: {
+        flex: 1,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        backgroundColor: theme.colors.primary,
+        alignItems: "center" as const,
+        justifyContent: "center" as const,
+      },
+      applyButtonText: {
+        fontSize: 14,
+        fontWeight: "700" as const,
+        color: theme.colors.onPrimary,
+      },
+    };
+  }, [theme]);
+
+  const renderDatePickerPanel = () => {
+    return (
+      <>
+        <Modal
+          visible={datePickerOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDatePickerOpen(false)}
+        >
+          <View style={modalStyles.backdrop}>
+            <Pressable style={modalStyles.pressableBackdrop} onPress={() => setDatePickerOpen(false)} />
+            <View style={modalStyles.modalContainer}>
+              <View style={modalStyles.header}>
+                <Text style={modalStyles.title}>Filter with Dates</Text>
+                <TouchableOpacity onPress={() => setDatePickerOpen(false)}>
+                  <Feather name="x" size={20} color={theme.colors.onSurface} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={modalStyles.inputsContainer}>
+                <TouchableOpacity
+                  style={modalStyles.dateInputCard}
+                  onPress={() => setShowStartPicker(true)}
+                  activeOpacity={0.82}
+                >
+                  <Feather name="calendar" size={18} color={theme.colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={modalStyles.inputLabel}>Start Date</Text>
+                    <Text style={modalStyles.inputValue}>
+                      {tempRange.startDate ? dayjs(tempRange.startDate).format("DD MMM YYYY") : "Select Start Date"}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={theme.colors.onSurfaceVariant} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={modalStyles.dateInputCard}
+                  onPress={() => setShowEndPicker(true)}
+                  activeOpacity={0.82}
+                >
+                  <Feather name="calendar" size={18} color={theme.colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={modalStyles.inputLabel}>End Date</Text>
+                    <Text style={modalStyles.inputValue}>
+                      {tempRange.endDate ? dayjs(tempRange.endDate).format("DD MMM YYYY") : "Select End Date"}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={theme.colors.onSurfaceVariant} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={modalStyles.footer}>
+                <TouchableOpacity
+                  style={modalStyles.clearButton}
+                  onPress={() => {
+                    setTempRange({ startDate: undefined, endDate: undefined });
+                  }}
+                  activeOpacity={0.82}
+                >
+                  <Text style={modalStyles.clearButtonText}>Reset</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={modalStyles.applyButton}
+                  onPress={() => {
+                    if (setStartDate) {
+                      setStartDate(
+                        tempRange.startDate
+                          ? dayjs(tempRange.startDate).format("YYYY-MM-DD 00:00:00")
+                          : undefined
+                      );
+                    }
+                    if (setEndDate) {
+                      setEndDate(
+                        tempRange.endDate
+                          ? dayjs(tempRange.endDate).format("YYYY-MM-DD 23:59:59")
+                          : undefined
+                      );
+                    }
+                    setDatePickerOpen(false);
+                  }}
+                  activeOpacity={0.82}
+                >
+                  <Text style={modalStyles.applyButtonText}>Apply Filter</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* Start Date Picker (Native) */}
+          {showStartPicker && (
+            <DateTimePicker
+              value={tempRange.startDate || new Date()}
+              mode="date"
+              display="default"
+              maximumDate={tempRange.endDate || new Date()}
+              onChange={(event, date) => {
+                setShowStartPicker(false);
+                if (event.type === "set" && date) {
+                  setTempRange(prev => ({ ...prev, startDate: date }));
+                }
+              }}
+            />
+          )}
+
+          {/* End Date Picker (Native) */}
+          {showEndPicker && (
+            <DateTimePicker
+              value={tempRange.endDate || new Date()}
+              mode="date"
+              display="default"
+              minimumDate={tempRange.startDate}
+              maximumDate={new Date()}
+              onChange={(event, date) => {
+                setShowEndPicker(false);
+                if (event.type === "set" && date) {
+                  setTempRange(prev => ({ ...prev, endDate: date }));
+                }
+              }}
+            />
+          )}
+        </Modal>
+      </>
+    );
+  };
 
   const applications = useMemo(
     () => appsData?.results ?? [],
@@ -1651,12 +1927,67 @@ export default function ApplicationsTicketsView(props: Props) {
           backgroundColor: theme.colors.background,
           paddingVertical: 8,
           zIndex: 10,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
         }}
       >
-        <Text style={styles.cardTitle}>Tickets Overview</Text>
-        <Text style={styles.cardSubtitle}>
-          Track and manage all loan tickets
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>Tickets Overview</Text>
+          <Text style={styles.cardSubtitle}>
+            Track and manage all loan tickets
+          </Text>
+        </View>
+
+        {/* Dynamic Date Filter Button */}
+        <TouchableRipple
+          onPress={() => setDatePickerOpen(true)}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: hasActiveDateFilter
+              ? theme.colors.primary
+              : surfacePalette.controlBorder,
+            backgroundColor: hasActiveDateFilter
+              ? `${theme.colors.primary}12`
+              : surfacePalette.control,
+            gap: 6,
+            overflow: "hidden",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Feather
+              name="calendar"
+              size={16}
+              color={hasActiveDateFilter ? theme.colors.primary : theme.colors.onSurfaceVariant}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: hasActiveDateFilter ? theme.colors.primary : theme.colors.onSurfaceVariant,
+              }}
+            >
+              {dateRangeLabel}
+            </Text>
+            {hasActiveDateFilter && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleClearDates();
+                }}
+                hitSlop={8}
+              >
+                <Feather name="x" size={14} color={theme.colors.primary} style={{ marginLeft: 2 }} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableRipple>
       </View>
 
       <View
@@ -1794,6 +2125,7 @@ export default function ApplicationsTicketsView(props: Props) {
         {renderSearchFab(showCreateButton)}
         {showCreateButton ? renderCreateFab() : null}
         {renderSearchPanel()}
+        {renderDatePickerPanel()}
       </View>
     );
   }
@@ -1907,6 +2239,7 @@ export default function ApplicationsTicketsView(props: Props) {
       {renderSearchFab(activeTab === "applications")}
       {activeTab === "applications" ? renderCreateFab() : null}
       {renderSearchPanel()}
+      {renderDatePickerPanel()}
     </View>
   );
 }

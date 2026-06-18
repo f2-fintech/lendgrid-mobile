@@ -84,6 +84,12 @@ export default {
         },
       ],
       ["expo-web-browser"],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow LendGrid to access your camera to capture document images."
+        }
+      ],
     ],
 
     experiments: {

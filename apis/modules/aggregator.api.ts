@@ -182,6 +182,7 @@ export const aggregatorApi = {
             contact
             role
             status
+            photoUrl
           }
         }
       }

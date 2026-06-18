@@ -94,6 +94,9 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   const [appsRowsPerPageInput, setAppsRowsPerPageInput] = useState("10");
   const [ticketsRowsPerPageInput, setTicketsRowsPerPageInput] = useState("10");
 
+  const [startDate, setStartDate] = useState<string | undefined>(undefined);
+  const [endDate, setEndDate] = useState<string | undefined>(undefined);
+
   const [userType, setUserType] = useState<string | undefined>(undefined);
   const [salesUserId, setSalesUserId] = useState<string | undefined>(undefined);
   const [authSource, setAuthSource] = useState<string | undefined>(undefined);
@@ -281,8 +284,12 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       ? salesUserId
       : undefined;
   const applicationsCompanyId =
-    isOmsSales && normalizedSalesUserId ? "all" : selectedCompanyId;
-  const viewLockedTab = lockedTab ?? (isOmsSales ? "applications" : undefined);
+    isOmsSales && normalizedSalesUserId
+      ? (selectedCompanyId || "all")
+      : selectedCompanyId;
+  const viewLockedTab =
+    lockedTab ??
+    (isOmsSales || isAggregatorMember ? "applications" : undefined);
 
   useEffect(() => {
     if (authLoaded && isOmsSales && viewLockedTab !== "tickets") {
@@ -448,6 +455,11 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     return () => clearTimeout(handler);
   }, [search, debouncedSearch]);
 
+  // Reset tickets pagination on date range changes
+  useEffect(() => {
+    setTicketsPage(1);
+  }, [startDate, endDate]);
+
   const appsQuery = useCustomerApplications({
     page: appsPage,
     limit: appsRowsPerPage,
@@ -469,7 +481,9 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
         ? salesUserId
         : undefined,
     appliedBy: (isOmsSales || isAggregatorMember) ? "sales" : undefined,
-    companyId: isOmsSales ? undefined : applicationsCompanyId,
+    companyId: applicationsCompanyId,
+    startDate,
+    endDate,
     enabled:
       activeTab === "tickets" &&
       authLoaded &&
@@ -560,6 +574,10 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
           notificationTicketId={
             shouldOpenNotificationTicket ? notificationTicketId : undefined
           }
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
         />
       </View>
     </KeyboardAvoidingView>
