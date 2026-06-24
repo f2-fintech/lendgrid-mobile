@@ -9,6 +9,7 @@ import {
   signUpApi,
   updateUserApi,
   registerUserApi,
+  requestAccountDeletionApi,
   type LoginResponse,
   type SignUpResponse,
 } from "@/apis/modules/auth.api";
@@ -117,3 +118,12 @@ export const useRegisterUser = () => {
     },
   });
 };
+
+/**
+ * REQUEST ACCOUNT DELETION
+ */
+export const useRequestDeletion = () =>
+  useMutation({
+    mutationFn: requestAccountDeletionApi,
+  });
+

@@ -11,6 +11,7 @@ export default function AuthLayout() {
       <Stack.Screen name="signin" />
       <Stack.Screen name="signup" />
       <Stack.Screen name="oms-forgot-password" />
+      <Stack.Screen name="delete-account" />
     </Stack>
   );
 }
