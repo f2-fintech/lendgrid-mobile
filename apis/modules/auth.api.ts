@@ -395,3 +395,24 @@ export const registerUserApi = async (payload: {
     },
   }).then((d) => d.createUser);
 };
+
+// Request Account Deletion
+export const requestAccountDeletionApi = async (payload: {
+  email: string;
+  password: string;
+  reason?: string;
+}) => {
+  const query = `
+    mutation RequestAccountDeletion($email: String!, $password: String!, $reason: String) {
+      requestAccountDeletion(email: $email, password: $password, reason: $reason) {
+        success
+        message
+      }
+    }
+  `;
+
+  return gqlRequest<{
+    requestAccountDeletion: { success: boolean; message: string };
+  }>(query, payload).then((d) => d.requestAccountDeletion);
+};
+

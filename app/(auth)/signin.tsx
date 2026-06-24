@@ -613,6 +613,22 @@ function UserLoginForm({
           </Text>
         </Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => router.push("/delete-account")}
+        style={{ marginTop: 14, alignSelf: "center" }}
+      >
+        <Text
+          style={{
+            color: isDark ? "#A0AEC0" : "#718096",
+            fontSize: 13,
+            textDecorationLine: "underline",
+            fontWeight: "600",
+          }}
+        >
+          Request Account Deletion
+        </Text>
+      </TouchableOpacity>
     </>
   );
 }
