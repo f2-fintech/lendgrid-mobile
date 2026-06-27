@@ -4,6 +4,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -71,14 +72,21 @@ export const CommissionHistory = ({
             ? "application/pdf"
             : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-          await IntentLauncher.startActivityAsync(
-            "android.intent.action.VIEW",
-            {
-              data: fileUri,
-              flags: 268435456,
-              type: mimeType,
-            },
-          );
+          if (Platform.OS === "android") {
+            await IntentLauncher.startActivityAsync(
+              "android.intent.action.VIEW",
+              {
+                data: fileUri,
+                flags: 268435456,
+                type: mimeType,
+              },
+            );
+          } else {
+            await Sharing.shareAsync(fileUri, {
+              dialogTitle: `Open Commission Report`,
+              mimeType,
+            });
+          }
         } catch (err) {
           console.log("Direct open failed, using share fallback", err);
           await Sharing.shareAsync(fileUri, {

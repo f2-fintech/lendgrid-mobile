@@ -1,9 +1,13 @@
+import Constants from "expo-constants";
 import { clearPushTokenApi, updatePushTokenApi } from "@/apis/modules/auth.api";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-const EXPO_PROJECT_ID = "16608c42-65bc-47d0-9cca-f5158e848475";
+const EXPO_PROJECT_ID =
+  Constants.expoConfig?.extra?.eas?.projectId ??
+  Constants.easConfig?.projectId ??
+  "3cf91ffe-266c-441e-a633-c3f0f25e3b50";
 
 export async function registerForPushNotificationsAsync() {
   if (!Device.isDevice) {
