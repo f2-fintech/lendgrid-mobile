@@ -17,6 +17,10 @@ export default {
       // CRITICAL: Point to your Firebase config file for system notifications
       googleServicesFile:
         process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
+      blockedPermissions: [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
+      ],
       intentFilters: [
         {
           action: "VIEW",
@@ -33,6 +37,7 @@ export default {
               pathPrefix: "/signup",
             },
           ],
+          category: ["DEFAULT", "BROWSABLE"],
         },
       ],
       adaptiveIcon: {
