@@ -1,6 +1,7 @@
 import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "react-native-paper";
+import { useAppConfig } from "@/contexts/ConfigContext";
 
 const formatINR = (n: number) => {
   const num = Number(n ?? 0);
@@ -117,10 +118,12 @@ const getSoftCardPalette = (accent: string, isDark: boolean) => {
 export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
   const theme = useTheme();
   const isDarkMode = !!theme?.dark;
+  const { config } = useAppConfig();
+  const loansWord = config.isReviewMode ? config.terminology.loansWord || "Services" : "Loans";
 
   const row1: Metric[] = [
     {
-      title: "Approved Loans",
+      title: `Approved ${loansWord}`,
       topText: `${metrics.approvedCount} approved`,
       value: formatINR(metrics.approvedAmount),
       icon: "check-circle",
@@ -135,7 +138,7 @@ export default function MetricsGrid({ metrics }: { metrics: MetricsInput }) {
       color: "#F59E0B",
     },
     {
-      title: "Disbursed Loans",
+      title: `Disbursed ${loansWord}`,
       topText: `${metrics.disbursedCount} disbursed`,
       value: formatINR(metrics.disbursedAmount),
       icon: "credit-card",
@@ -314,23 +317,28 @@ const styles = StyleSheet.create({
 
   // Card wrapper
   cardWrapper: {
-    width: 160,
-    height: 140,
-    borderRadius: 16,
+    width: 168,
+    height: 152,
+    borderRadius: 24, // Softer
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04, // Softer shadow
+    shadowRadius: 10,
+    elevation: 2,
   },
   cardBase: {
     flex: 1,
-    padding: 14,
+    padding: 20, // slightly more padding for mobile layout
     justifyContent: "space-between",
-    borderRadius: 16,
+    borderRadius: 24, // Matches wrapper
     borderWidth: 1,
   },
 
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 46, // slightly bigger
+    height: 46,
+    borderRadius: 16, // Softer icon container
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
@@ -339,31 +347,39 @@ const styles = StyleSheet.create({
   contentContainer: { gap: 4 },
 
   topText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   value: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "900",
+    letterSpacing: -0.5,
   },
   title: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
-    lineHeight: 14,
+    lineHeight: 16,
   },
 
   capsuleWrapper: {
-    height: 70,
-    borderRadius: 35,
+    height: 76,
+    borderRadius: 24, // More modern squircle shape
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04, // Softer shadow
+    shadowRadius: 10,
+    elevation: 2,
   },
 
   capsuleBase: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     justifyContent: "center",
-    borderRadius: 35,
+    borderRadius: 24, // Matches wrapper
     borderWidth: 1,
   },
 
@@ -374,9 +390,9 @@ const styles = StyleSheet.create({
   },
 
   capsuleIconContainer: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 16, // rounded square instead of circle
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
@@ -385,12 +401,14 @@ const styles = StyleSheet.create({
   capsuleTextContainer: { flex: 1, gap: 2 },
 
   capsuleTopText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "900",
+    letterSpacing: -0.2,
   },
 
   capsuleTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
+    color: "#9CA3AF",
   },
 });

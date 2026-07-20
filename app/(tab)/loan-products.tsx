@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useAppConfig } from "@/contexts/ConfigContext";
 import {
   Alert,
   Dimensions,
@@ -550,13 +551,27 @@ function ZeptoProductCard({
 export default function LoanProductsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { config } = useAppConfig();
   const [selectedProduct, setSelectedProduct] = useState<LoanProduct | null>(
     null,
   );
 
-  const unsecuredProducts = LOAN_PRODUCTS.filter((p) => p.type === "unsecured");
-  const securedProducts = LOAN_PRODUCTS.filter((p) => p.type === "secured");
-  const professionalProducts = LOAN_PRODUCTS.filter(
+  const dynamicProducts = useMemo(() => {
+    if (!config.isReviewMode) return LOAN_PRODUCTS;
+    const loanReplacement = config.terminology.loanWord;
+    const creditReplacement = config.terminology.creditWord;
+    return LOAN_PRODUCTS.map(p => ({
+      ...p,
+      title: p.title.replace(/Loan/g, loanReplacement).replace(/LOAN/g, loanReplacement.toUpperCase()),
+      subtitle: p.subtitle.replace(/Loan/g, loanReplacement),
+      tags: p.tags.map(t => t.replace(/Loan/g, loanReplacement)),
+      eligibility: p.eligibility.map(e => e.replace(/CIBIL/g, creditReplacement)),
+    }));
+  }, [config]);
+
+  const unsecuredProducts = dynamicProducts.filter((p) => p.type === "unsecured");
+  const securedProducts = dynamicProducts.filter((p) => p.type === "secured");
+  const professionalProducts = dynamicProducts.filter(
     (p) => p.type === "professional",
   );
 
@@ -1065,7 +1080,7 @@ export default function LoanProductsScreen() {
                 <Text
                   style={[styles.applyBtnText, { color: colors.onPrimary }]}
                 >
-                  Verify Eligibility Instantly
+                  Verify {config.isReviewMode ? config.terminology.eligibilityWord : 'Eligibility'} Instantly
                 </Text>
                 <Feather
                   name="arrow-right"

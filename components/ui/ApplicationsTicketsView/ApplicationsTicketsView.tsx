@@ -1364,7 +1364,7 @@ export default function ApplicationsTicketsView(props: Props) {
         style={[
           styles.searchFab,
           {
-            bottom: withCreateButton ? 82 : 22,
+            bottom: withCreateButton ? 164 : 100,
             backgroundColor: theme.dark ? "#111827" : "#FFFFFF",
             borderColor: surfacePalette.controlBorder,
             shadowColor: theme.colors.primary,

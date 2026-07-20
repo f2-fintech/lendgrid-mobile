@@ -164,11 +164,11 @@ export default function Step4AdditionalDetails({
         style={{
           flexDirection: "row",
           alignItems: "center",
-          borderWidth: 1.5,
-          borderColor: errorFor(key) ? "#EF4444" : theme.colors.outline,
-          borderRadius: 12,
-          backgroundColor: theme.colors.surface,
-          paddingHorizontal: 12,
+          paddingHorizontal: 16,
+          borderWidth: errorFor(key) ? 1 : 0,
+          borderColor: errorFor(key) ? "#EF4444" : "transparent",
+          borderRadius: 16,
+          backgroundColor: theme.colors.surfaceVariant,
         }}
       >
         <Text style={{ color: theme.colors.onSurfaceVariant, marginRight: 8 }}>

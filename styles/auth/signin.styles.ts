@@ -2,12 +2,13 @@ import { StyleSheet } from "react-native";
 
 export const signInStyles = StyleSheet.create({
   container: {
-    backgroundColor: "#0c0c0c",
     flex: 1,
   },
   inner: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 32,
     justifyContent: "center",
   },
   label: {
@@ -18,43 +19,42 @@ export const signInStyles = StyleSheet.create({
     fontWeight: "500",
   },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    color: "#000",
-    paddingHorizontal: 15,
-    paddingVertical: 14,
-    fontSize: 14,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    fontSize: 15,
     marginBottom: 12,
   },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1b1b1b",
-    borderRadius: 10,
-    marginBottom: 20,
+    borderRadius: 14,
+    marginBottom: 6,
   },
   eyeIcon: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
   },
   signInButton: {
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 8,
   },
   signInText: {
     color: "#FFD600",
     fontWeight: "700",
     fontSize: 16,
+    letterSpacing: 0.3,
   },
   footerText: {
     textAlign: "center",
     color: "#ccc",
-    marginTop: 25,
+    marginTop: 24,
     fontSize: 14,
   },
   signUpText: {
     color: "#FFD600",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });

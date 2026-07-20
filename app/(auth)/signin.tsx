@@ -4,12 +4,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Buffer } from "buffer";
 import { useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   Image,
   StatusBar,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -33,15 +35,10 @@ import {
   unregisterPushTokenForCurrentUser,
 } from "@/lib/utils/pushSession";
 import { signInSchema, SignInSchemaType } from "@/lib/validators/signin.schema";
-import { signInStyles } from "@/styles/auth/signin.styles";
 import { COLORS } from "@/styles/theme/tokens";
-import * as WebBrowser from "expo-web-browser";
 
-// ─── Brand color (matches logo blue exactly) ──────────────────────────────────
+// ─── Brand Colors ─────────────────────────────────────────────────────────────
 const BRAND = COLORS.primary;
-const BRAND_DARK = COLORS.primary;
-const BRAND_BG = "#EEF0FD";
-const BRAND_BORDER = "#B0B8F0";
 
 // ─── OMS Staff Schema ─────────────────────────────────────────────────────────
 const omsSignInSchema = z.object({
@@ -74,11 +71,9 @@ type Tab = "user" | "oms";
 export default function SignIn() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("user");
-
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const theme = useTheme();
-
   const isDark = theme.dark;
 
   const showError = (msg: string) => {
@@ -86,16 +81,28 @@ export default function SignIn() {
     setSnackbarVisible(true);
   };
 
+  // ─── Dynamic colors based on mode ─────────────────────────────────────────
+  const bg = isDark ? "#0D1117" : "#F5F6FA";
+  const cardBg = isDark ? "#161B27" : "#FFFFFF";
+  const inputBg = isDark ? "#1C2333" : "#F0F2F8";
+  const inputBorder = isDark ? "#2D3748" : "#E2E6F0";
+  const inputText = isDark ? "#E8EAF0" : "#1A1D2E";
+  const placeholderText = isDark ? "#4A5568" : "#9DA3B4";
+  const labelText = isDark ? "#8B95A9" : "#6B7280";
+  const dividerColor = isDark ? "#2D3748" : "#E5E7EB";
+  // Soft accent for dark mode text links — avoids harsh electric blue on dark bg
+  const accent = isDark ? "#818CF8" : BRAND;
+
   return (
     <>
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.colors.background}
+        backgroundColor={bg}
         translucent={false}
       />
 
       <KeyboardAwareScrollView
-        style={{ flex: 1, backgroundColor: theme.colors.background }}
+        style={{ flex: 1, backgroundColor: bg }}
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -104,145 +111,194 @@ export default function SignIn() {
         extraScrollHeight={20}
         extraHeight={120}
       >
-        <View style={signInStyles.inner}>
+        <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40, justifyContent: "center" }}>
+
           {/* ── Theme Toggle ── */}
-          <View
-            style={{
-              position: "absolute",
-              top: 50,
-              right: 20,
-              zIndex: 999,
-            }}
-          >
+          <View style={{ position: "absolute", top: 50, right: 24, zIndex: 999 }}>
             <ThemeToggleBtn />
           </View>
 
-          {/* ── Logo ── */}
-          <View
-            style={{
-              justifyContent: "center",
-              alignItems: "center",
-              marginBottom: 20,
-            }}
-          >
-            <Image
-              source={
-                isDark
-                  ? require("@/assets/images/logo.png")
-                  : require("@/assets/images/logo_blue.png")
-              }
-              style={{ width: 130, height: 130, marginBottom: 0 }}
-              resizeMode="contain"
-            />
-            <Text
+          {/* ── Logo Section ── */}
+          <View style={{ alignItems: "center", marginBottom: 36, marginTop: 60 }}>
+            <View
               style={{
-                color: isDark ? BRAND_DARK : BRAND,
-                fontWeight: "800",
-                fontSize: 36,
-                marginTop: -25,
+                width: 90,
+                height: 90,
+                borderRadius: 28,
+                backgroundColor: isDark ? "#1C2333" : "#EEF2FF",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 16,
+                shadowColor: BRAND,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: isDark ? 0.4 : 0.15,
+                shadowRadius: 20,
+                elevation: 10,
               }}
             >
-              LendGrid
+              <Image
+                source={
+                  isDark
+                    ? require("@/assets/images/logo.png")
+                    : require("@/assets/images/logo_blue.png")
+                }
+                style={{ width: 60, height: 60 }}
+                resizeMode="contain"
+              />
+            </View>
+            <Text
+              style={{
+                fontSize: 28,
+                fontWeight: "800",
+                color: isDark ? "#FFFFFF" : "#1A1D2E",
+                letterSpacing: -0.5,
+                marginBottom: 6,
+              }}
+            >
+              Welcome back
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: labelText,
+                fontWeight: "400",
+              }}
+            >
+              Sign in to your LendGrid account
             </Text>
           </View>
 
-          {/* ── Tab Switcher ── */}
+          {/* ── Card ── */}
           <View
             style={{
-              flexDirection: "row",
-              backgroundColor: isDark ? theme.colors.background : BRAND_BG,
-              borderRadius: 12,
-              padding: 4,
-              marginBottom: 24,
-              borderWidth: 1,
-              borderColor: isDark ? "#2A3A5C" : BRAND_BORDER,
+              backgroundColor: cardBg,
+              borderRadius: 28,
+              padding: 24,
+              shadowColor: isDark ? "#000000" : "#6366F1",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDark ? 0.5 : 0.08,
+              shadowRadius: 20,
+              elevation: 8,
+              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? "#2D3748" : "transparent",
             }}
           >
-            <TouchableOpacity
-              onPress={() => setActiveTab("user")}
+            {/* ── Tab Switcher ── */}
+            <View
               style={{
-                flex: 1,
                 flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                paddingVertical: 11,
-                borderRadius: 9,
-                backgroundColor:
-                  activeTab === "user"
-                    ? isDark
-                      ? "#2A3A5C"
-                      : BRAND
-                    : "transparent",
+                backgroundColor: isDark ? "#0D1117" : "#ECEEF8",
+                borderRadius: 50,
+                padding: 3,
+                marginBottom: 20,
+                alignSelf: "center",
+                width: "100%",
               }}
             >
-              <Ionicons
-                name="person-outline"
-                size={15}
-                color={
-                  activeTab === "user" ? "#FFFFFF" : isDark ? "#888" : BRAND
-                }
-              />
-              <Text
+              {/* User Login Tab */}
+              <TouchableOpacity
+                onPress={() => setActiveTab("user")}
+                activeOpacity={0.8}
                 style={{
-                  color:
-                    activeTab === "user" ? "#FFFFFF" : isDark ? "#888" : BRAND,
-                  fontWeight: "600",
-                  fontSize: 14,
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  paddingVertical: 8,
+                  borderRadius: 50,
+                  backgroundColor:
+                    activeTab === "user" ? BRAND : "transparent",
+                  shadowColor: activeTab === "user" ? BRAND : "transparent",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 6,
+                  elevation: activeTab === "user" ? 3 : 0,
                 }}
               >
-                User Login
-              </Text>
-            </TouchableOpacity>
+                <Ionicons
+                  name={activeTab === "user" ? "person" : "person-outline"}
+                  size={13}
+                  color={activeTab === "user" ? "#FFFFFF" : labelText}
+                />
+                <Text
+                  style={{
+                    color: activeTab === "user" ? "#FFFFFF" : labelText,
+                    fontWeight: activeTab === "user" ? "700" : "500",
+                    fontSize: 12,
+                    letterSpacing: 0.2,
+                  }}
+                >
+                  Partner Login
+                </Text>
+              </TouchableOpacity>
 
-            {/* <TouchableOpacity
-              onPress={() => setActiveTab("oms")}
-              style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                paddingVertical: 11,
-                borderRadius: 9,
-                backgroundColor:
-                  activeTab === "oms"
-                    ? isDark
-                      ? BRAND_DARK
-                      : BRAND
-                    : "transparent",
-              }}
-            >
-              <Ionicons
-                name="people-outline"
-                size={15}
-                color={
-                  activeTab === "oms" ? "#FFFFFF" : isDark ? "#888" : BRAND
-                }
-              />
-              <Text
+              {/* OMS Staff Tab */}
+              <TouchableOpacity
+                onPress={() => setActiveTab("oms")}
+                activeOpacity={0.8}
                 style={{
-                  color:
-                    activeTab === "oms" ? "#FFFFFF" : isDark ? "#888" : BRAND,
-                  fontWeight: "600",
-                  fontSize: 14,
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  paddingVertical: 8,
+                  borderRadius: 50,
+                  backgroundColor:
+                    activeTab === "oms" ? BRAND : "transparent",
+                  shadowColor: activeTab === "oms" ? BRAND : "transparent",
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 6,
+                  elevation: activeTab === "oms" ? 3 : 0,
                 }}
               >
-                OMS Staff
-              </Text>
-            </TouchableOpacity> */}
+                <Ionicons
+                  name={activeTab === "oms" ? "briefcase" : "briefcase-outline"}
+                  size={13}
+                  color={activeTab === "oms" ? "#FFFFFF" : labelText}
+                />
+                <Text
+                  style={{
+                    color: activeTab === "oms" ? "#FFFFFF" : labelText,
+                    fontWeight: activeTab === "oms" ? "700" : "500",
+                    fontSize: 12,
+                    letterSpacing: 0.2,
+                  }}
+                >
+                  Staff Login
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* ── Form ── */}
+            {activeTab === "user" ? (
+              <UserLoginForm
+                router={router}
+                showError={showError}
+                isDark={isDark}
+                inputBg={inputBg}
+                inputBorder={inputBorder}
+                inputText={inputText}
+                placeholderText={placeholderText}
+                labelText={labelText}
+                dividerColor={dividerColor}
+                accent={accent}
+              />
+            ) : (
+              <OmsStaffLoginForm
+                showError={showError}
+                isDark={isDark}
+                inputBg={inputBg}
+                inputBorder={inputBorder}
+                inputText={inputText}
+                placeholderText={placeholderText}
+                labelText={labelText}
+                accent={accent}
+              />
+            )}
           </View>
-
-          {/* ── Render active form ── */}
-          {activeTab === "user" ? (
-            <UserLoginForm
-              router={router}
-              showError={showError}
-              isDark={isDark}
-            />
-          ) : (
-            <OmsStaffLoginForm showError={showError} isDark={isDark} />
-          )}
         </View>
       </KeyboardAwareScrollView>
 
@@ -250,9 +306,9 @@ export default function SignIn() {
       <View
         style={{
           position: "absolute",
-          top: 150,
+          top: 120,
           left: 20,
-          right: 0,
+          right: 20,
           alignItems: "center",
           zIndex: 999,
         }}
@@ -262,16 +318,18 @@ export default function SignIn() {
           onDismiss={() => setSnackbarVisible(false)}
           duration={2800}
           style={{
-            backgroundColor: "#FFD600",
-            width: "90%",
-            borderRadius: 8,
+            backgroundColor: isDark ? "#2D1B1B" : "#FEF2F2",
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: isDark ? "#7F1D1D" : "#FECACA",
           }}
         >
-          <Text
-            style={{ color: "#000", fontWeight: "600", textAlign: "center" }}
-          >
-            {snackbarMessage}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons name="alert-circle" size={16} color={isDark ? "#FC8181" : "#EF4444"} />
+            <Text style={{ color: isDark ? "#FC8181" : "#DC2626", fontWeight: "600", fontSize: 13, flex: 1 }}>
+              {snackbarMessage}
+            </Text>
+          </View>
         </Snackbar>
       </View>
     </>
@@ -279,44 +337,31 @@ export default function SignIn() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SHARED: Beautiful field label with icon
+// SHARED: Field Label
 // ─────────────────────────────────────────────────────────────────────────────
 function FieldLabel({
   label,
-  icon,
   isDark,
+  labelText,
 }: {
   label: string;
-  icon: string;
   isDark: boolean;
+  labelText: string;
 }) {
   return (
-    <View
+    <Text
       style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        marginBottom: 7,
+        color: labelText,
+        fontSize: 12,
+        fontWeight: "600",
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        marginBottom: 8,
         marginTop: 4,
       }}
     >
-      <Ionicons
-        name={icon as any}
-        size={13}
-        color={isDark ? BRAND_DARK : BRAND}
-      />
-      <Text
-        style={{
-          color: isDark ? BRAND_DARK : BRAND,
-          fontSize: 12,
-          fontWeight: "600",
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-        }}
-      >
-        {label}
-      </Text>
-    </View>
+      {label}
+    </Text>
   );
 }
 
@@ -327,10 +372,24 @@ function UserLoginForm({
   router,
   showError,
   isDark,
+  inputBg,
+  inputBorder,
+  inputText,
+  placeholderText,
+  labelText,
+  dividerColor,
+  accent,
 }: {
   router: ReturnType<typeof useRouter>;
   showError: (msg: string) => void;
   isDark: boolean;
+  inputBg: string;
+  inputBorder: string;
+  inputText: string;
+  placeholderText: string;
+  labelText: string;
+  dividerColor: string;
+  accent: string;
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const { mutateAsync: login, isPending } = useLogin();
@@ -444,68 +503,84 @@ function UserLoginForm({
     }
   };
 
+  // Shared container style for all inputs (Android Material filled style)
+  const fieldContainer = {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: inputBg,
+    borderRadius: 20,
+    marginBottom: 4,
+    minHeight: 56,
+    overflow: "hidden" as const,
+  };
+
+  const fieldTextStyle = {
+    flex: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 0,
+    fontSize: 15,
+    color: inputText,
+    height: 56,
+  };
+
+  const fieldIconBtn = {
+    width: 48,
+    height: 56,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  };
+
   return (
     <>
-      <FieldLabel label="Email Address" icon="mail-outline" isDark={isDark} />
-      <TextInput
-        placeholder="Enter your email"
-        placeholderTextColor={isDark ? "#64748B" : "#9CA3AF"}
-        onChangeText={(text) => setValue("email", text)}
-        style={[
-          signInStyles.input,
-          {
-            backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-            borderColor: isDark ? "#334155" : "#D1D5DB",
-            borderWidth: 1.5,
-            color: isDark ? "#F8FAFC" : "#111827",
-            borderRadius: 10,
-          },
-        ]}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+      {/* Email */}
+      <FieldLabel label="Email Address" isDark={isDark} labelText={labelText} />
+      <View style={fieldContainer}>
+        <TextInput
+          placeholder="you@company.com"
+          placeholderTextColor={placeholderText}
+          onChangeText={(text) => setValue("email", text)}
+          style={fieldTextStyle}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <View style={fieldIconBtn}>
+          <Ionicons name="mail-outline" size={18} color={placeholderText} />
+        </View>
+      </View>
       {errors.email && (
-        <Text style={{ color: "#D94F43", marginBottom: 10, fontSize: 12 }}>
-          {errors.email.message}
-        </Text>
+        <Text style={styles.errorText}>{errors.email.message}</Text>
       )}
 
-      <FieldLabel label="Password" icon="lock-closed-outline" isDark={isDark} />
-      <View style={signInStyles.passwordContainer}>
+      {/* Spacer */}
+      <View style={{ height: 14 }} />
+
+      {/* Password */}
+      <FieldLabel label="Password" isDark={isDark} labelText={labelText} />
+      <View style={fieldContainer}>
         <TextInput
           placeholder="Enter your password"
-          placeholderTextColor={isDark ? "#64748B" : "#9CA3AF"}
+          placeholderTextColor={placeholderText}
           secureTextEntry={!showPassword}
           onChangeText={(text) => setValue("password", text)}
-          style={[
-            signInStyles.input,
-            { flex: 1, marginBottom: 0 },
-            {
-              backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-              borderColor: isDark ? "#334155" : "#D1D5DB",
-              borderWidth: 1.5,
-              color: isDark ? "#F8FAFC" : "#111827",
-              borderRadius: 10,
-            },
-          ]}
+          style={fieldTextStyle}
         />
         <TouchableOpacity
           onPress={() => setShowPassword(!showPassword)}
-          style={signInStyles.eyeIcon}
+          style={fieldIconBtn}
+          activeOpacity={0.6}
         >
           <Ionicons
-            name={showPassword ? "eye-off" : "eye"}
-            size={22}
-            color={isDark ? "#888" : BRAND}
+            name={showPassword ? "eye-off-outline" : "eye-outline"}
+            size={20}
+            color={showPassword ? accent : placeholderText}
           />
         </TouchableOpacity>
       </View>
       {errors.password && (
-        <Text style={{ color: "#D94F43", marginBottom: 10, fontSize: 12 }}>
-          {errors.password.message}
-        </Text>
+        <Text style={styles.errorText}>{errors.password.message}</Text>
       )}
 
+      {/* Forgot Password */}
       <TouchableOpacity
         onPress={async () => {
           const forgotPasswordUrl = process.env.EXPO_PUBLIC_FORGOT_PASSWORD_URL;
@@ -523,11 +598,11 @@ function UserLoginForm({
             showError("Could not open the browser");
           }
         }}
-        style={{ alignSelf: "flex-end", marginTop: 6, marginBottom: 15 }}
+        style={{ alignSelf: "flex-end", marginTop: 10, marginBottom: 20 }}
       >
         <Text
           style={{
-            color: isDark ? "#FFD600" : BRAND,
+            color: accent,
             fontSize: 13,
             fontWeight: "600",
           }}
@@ -536,7 +611,8 @@ function UserLoginForm({
         </Text>
       </TouchableOpacity>
 
-      <View style={{ marginTop: 14, marginBottom: 8, alignItems: "center" }}>
+      {/* Captcha */}
+      <View style={{ marginBottom: 8, alignItems: "center" }}>
         <TurnstileCaptcha
           theme={isDark ? "dark" : "light"}
           refreshKey={captchaRefreshKey}
@@ -545,7 +621,7 @@ function UserLoginForm({
         {!captchaToken && (
           <Text
             style={{
-              color: isDark ? "#666" : "#8A9EC0",
+              color: labelText,
               fontSize: 12,
               marginTop: 6,
             }}
@@ -555,17 +631,20 @@ function UserLoginForm({
         )}
       </View>
 
+      {/* Sign In Button */}
       <TouchableOpacity
         style={[
-          signInStyles.signInButton,
-          !isDark && {
+          {
             backgroundColor: BRAND,
-            borderRadius: 12,
+            borderRadius: 20,
+            paddingVertical: 16,
+            alignItems: "center",
+            marginTop: 12,
             shadowColor: BRAND,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 6,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+            elevation: 8,
           },
           (isPending || !captchaToken) && { opacity: 0.6 },
         ]}
@@ -573,57 +652,59 @@ function UserLoginForm({
         onPress={handleSubmit(onSubmit)}
       >
         {isPending ? (
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <ActivityIndicator
-              size="small"
-              color={isDark ? "#FFD600" : "#FFFFFF"}
-            />
-            <Text
-              style={{
-                color: isDark ? "#FFD600" : "#FFFFFF",
-                marginLeft: 8,
-                fontSize: 16,
-                fontWeight: "600",
-              }}
-            >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <ActivityIndicator size="small" color="#FFFFFF" />
+            <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700" }}>
               Signing in...
             </Text>
           </View>
         ) : (
-          <Text
-            style={[signInStyles.signInText, !isDark && { color: "#FFFFFF" }]}
-          >
-            Sign In ➜
+          <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700", letterSpacing: 0.3 }}>
+            Sign In
           </Text>
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push("/signup")}>
-        <Text
-          style={[signInStyles.footerText, !isDark && { color: "#5A6A8A" }]}
-        >
-          Don&apos;t have an account?{" "}
-          <Text
-            style={[
-              signInStyles.signUpText,
-              !isDark && { color: BRAND, fontWeight: "700" },
-            ]}
-          >
-            Sign up
-          </Text>
-        </Text>
-      </TouchableOpacity>
+      {/* Divider */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 24, gap: 12 }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: dividerColor }} />
+        <Text style={{ color: labelText, fontSize: 12, fontWeight: "500" }}>OR</Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: dividerColor }} />
+      </View>
 
+      {/* Sign Up Link */}
       <TouchableOpacity
-        onPress={() => router.push("/delete-account")}
-        style={{ marginTop: 14, alignSelf: "center" }}
+        onPress={() => router.push("/signup")}
+        style={{
+          borderWidth: 1.5,
+          borderColor: isDark ? "#2D3748" : "#E2E6F0",
+          borderRadius: 20,
+          paddingVertical: 14,
+          alignItems: "center",
+        }}
       >
         <Text
           style={{
-            color: isDark ? "#A0AEC0" : "#718096",
-            fontSize: 13,
-            textDecorationLine: "underline",
+            color: isDark ? "#E8EAF0" : "#1A1D2E",
+            fontSize: 14,
             fontWeight: "600",
+          }}
+        >
+          Don&apos;t have an account?{" "}
+          <Text style={{ color: accent, fontWeight: "700" }}>Sign up</Text>
+        </Text>
+      </TouchableOpacity>
+
+      {/* Delete Account */}
+      <TouchableOpacity
+        onPress={() => router.push("/delete-account")}
+        style={{ marginTop: 20, alignSelf: "center" }}
+      >
+        <Text
+          style={{
+            color: labelText,
+            fontSize: 12,
+            textDecorationLine: "underline",
           }}
         >
           Request Account Deletion
@@ -639,9 +720,21 @@ function UserLoginForm({
 function OmsStaffLoginForm({
   showError,
   isDark,
+  inputBg,
+  inputBorder,
+  inputText,
+  placeholderText,
+  labelText,
+  accent,
 }: {
   showError: (msg: string) => void;
   isDark: boolean;
+  inputBg: string;
+  inputBorder: string;
+  inputText: string;
+  placeholderText: string;
+  labelText: string;
+  accent: string;
 }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -663,130 +756,138 @@ function OmsStaffLoginForm({
     );
   };
 
+  const fieldContainer = {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: inputBg,
+    borderRadius: 20,
+    marginBottom: 4,
+    minHeight: 56,
+    overflow: "hidden" as const,
+  };
+
+  const fieldTextStyle = {
+    flex: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 0,
+    fontSize: 15,
+    color: inputText,
+    height: 56,
+  };
+
+  const fieldIconBtn = {
+    width: 48,
+    height: 56,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  };
+
   return (
     <>
-      {/* ── OMS Badge ── */}
+      {/* OMS Badge */}
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: isDark ? "#1A2340" : BRAND_BG,
-          borderColor: isDark ? "#2A3A5C" : BRAND_BORDER,
-          borderWidth: 1,
+          backgroundColor: isDark ? "#1A2340" : "#EEF2FF",
           borderRadius: 20,
-          paddingHorizontal: 12,
-          paddingVertical: 5,
+          paddingHorizontal: 14,
+          paddingVertical: 6,
           alignSelf: "center",
           marginBottom: 20,
           gap: 6,
+          borderWidth: 1,
+          borderColor: isDark ? "#2D3748" : "#C7D2FE",
         }}
       >
         <Ionicons
           name="shield-checkmark"
           size={14}
-          color={isDark ? BRAND_DARK : BRAND}
+          color={BRAND}
         />
         <Text
           style={{
-            color: isDark ? BRAND_DARK : BRAND,
+            color: BRAND,
             fontSize: 12,
-            fontWeight: "600",
-            letterSpacing: 0.4,
+            fontWeight: "700",
+            letterSpacing: 0.6,
           }}
         >
           OMS STAFF ACCESS
         </Text>
       </View>
 
-      {/* ── Work Email ── */}
-      <FieldLabel label="Work Email" icon="mail-outline" isDark={isDark} />
-      <TextInput
-        placeholder="Enter your work email"
-        placeholderTextColor={isDark ? "#64748B" : "#9CA3AF"}
-        onChangeText={(text) => setValue("workEmail", text)}
-        style={[
-          signInStyles.input,
-          {
-            backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-            borderColor: isDark ? "#334155" : "#D1D5DB",
-            borderWidth: 1.5,
-            color: isDark ? "#F8FAFC" : "#111827",
-            borderRadius: 10,
-          },
-        ]}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+      {/* Work Email */}
+      <FieldLabel label="Work Email" isDark={isDark} labelText={labelText} />
+      <View style={fieldContainer}>
+        <TextInput
+          placeholder="Enter your work email"
+          placeholderTextColor={placeholderText}
+          onChangeText={(text) => setValue("workEmail", text)}
+          style={fieldTextStyle}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <View style={fieldIconBtn}>
+          <Ionicons name="mail-outline" size={18} color={placeholderText} />
+        </View>
+      </View>
       {errors.workEmail && (
-        <Text style={{ color: "#D94F43", marginBottom: 10, fontSize: 12 }}>
-          {errors.workEmail.message}
-        </Text>
+        <Text style={styles.errorText}>{errors.workEmail.message}</Text>
       )}
 
-      {/* ── Password ── */}
-      <FieldLabel label="Password" icon="lock-closed-outline" isDark={isDark} />
-      <View style={signInStyles.passwordContainer}>
+      <View style={{ height: 14 }} />
+
+      {/* Password */}
+      <FieldLabel label="Password" isDark={isDark} labelText={labelText} />
+      <View style={fieldContainer}>
         <TextInput
           placeholder="Enter your OMS password"
-          placeholderTextColor={isDark ? "#64748B" : "#9CA3AF"}
+          placeholderTextColor={placeholderText}
           secureTextEntry={!showPassword}
           onChangeText={(text) => setValue("password", text)}
-          style={[
-            signInStyles.input,
-            { flex: 1, marginBottom: 0 },
-            {
-              backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-              borderColor: isDark ? "#334155" : "#D1D5DB",
-              borderWidth: 1.5,
-              color: isDark ? "#F8FAFC" : "#111827",
-              borderRadius: 10,
-            },
-          ]}
+          style={fieldTextStyle}
         />
         <TouchableOpacity
           onPress={() => setShowPassword(!showPassword)}
-          style={signInStyles.eyeIcon}
+          style={fieldIconBtn}
+          activeOpacity={0.6}
         >
           <Ionicons
-            name={showPassword ? "eye-off" : "eye"}
-            size={22}
-            color={isDark ? "#888" : BRAND}
+            name={showPassword ? "eye-off-outline" : "eye-outline"}
+            size={20}
+            color={showPassword ? accent : placeholderText}
           />
         </TouchableOpacity>
       </View>
       {errors.password && (
-        <Text style={{ color: "#D94F43", marginBottom: 10, fontSize: 12 }}>
-          {errors.password.message}
-        </Text>
+        <Text style={styles.errorText}>{errors.password.message}</Text>
       )}
 
-      {/* ── Sign In Button ── */}
+      {/* Forgot Password */}
       <TouchableOpacity
         onPress={() => router.push("/oms-forgot-password")}
-        style={{ alignSelf: "flex-end", marginTop: 6, marginBottom: 15 }}
+        style={{ alignSelf: "flex-end", marginTop: 10, marginBottom: 20 }}
       >
-        <Text
-          style={{
-            color: isDark ? "#FFD600" : BRAND,
-            fontSize: 13,
-            fontWeight: "600",
-          }}
-        >
+        <Text style={{ color: accent, fontSize: 13, fontWeight: "600" }}>
           Forgot Password?
         </Text>
       </TouchableOpacity>
 
+      {/* Sign In Button */}
       <TouchableOpacity
         style={[
-          signInStyles.signInButton,
-          !isDark && {
+          {
             backgroundColor: BRAND,
-            borderRadius: 12,
+            borderRadius: 20,
+            paddingVertical: 16,
+            alignItems: "center",
+            marginTop: 4,
             shadowColor: BRAND,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 6,
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+            elevation: 8,
           },
           isPending && { opacity: 0.6 },
         ]}
@@ -794,53 +895,42 @@ function OmsStaffLoginForm({
         onPress={handleSubmit(onSubmit)}
       >
         {isPending ? (
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <ActivityIndicator
-              size="small"
-              color={isDark ? "#FFD600" : "#FFFFFF"}
-            />
-            <Text
-              style={{
-                color: isDark ? "#FFD600" : "#FFFFFF",
-                marginLeft: 8,
-                fontSize: 16,
-                fontWeight: "600",
-              }}
-            >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <ActivityIndicator size="small" color="#FFFFFF" />
+            <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700" }}>
               Signing in...
             </Text>
           </View>
         ) : (
-          <Text
-            style={[signInStyles.signInText, !isDark && { color: "#FFFFFF" }]}
-          >
-            Sign In as OMS Staff ➜
+          <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700", letterSpacing: 0.3 }}>
+            Sign In as OMS Staff
           </Text>
         )}
       </TouchableOpacity>
 
-      {/* ── Info Note ── */}
+      {/* Info Note */}
       <View
         style={{
-          backgroundColor: isDark ? "#1A2340" : BRAND_BG,
-          borderColor: isDark ? "#2A3A5C" : BRAND_BORDER,
-          borderWidth: 1,
-          borderRadius: 10,
-          padding: 12,
-          marginTop: 16,
+          backgroundColor: isDark ? "#1C2333" : "#F0F2F8",
+          borderRadius: 12,
+          padding: 14,
+          marginTop: 20,
           flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
+          alignItems: "flex-start",
+          gap: 10,
+          borderWidth: 1,
+          borderColor: isDark ? "#2D3748" : "#E2E6F0",
         }}
       >
         <Ionicons
           name="information-circle-outline"
           size={16}
-          color={isDark ? "#888" : BRAND}
+          color={labelText}
+          style={{ marginTop: 1 }}
         />
         <Text
           style={{
-            color: isDark ? "#888" : "#3A4A6A",
+            color: labelText,
             fontSize: 12,
             flex: 1,
             lineHeight: 18,
@@ -853,3 +943,13 @@ function OmsStaffLoginForm({
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  errorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 4,
+    marginLeft: 4,
+  },
+});

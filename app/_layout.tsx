@@ -25,6 +25,7 @@ import { useAppDispatch } from "@/hooks/lightDark";
 import { syncPushTokenForCurrentUser } from "@/lib/utils/pushSession";
 import { decodeJwt } from "@/lib/utils/utils";
 import { setTheme } from "@/redux/features/themeSlice";
+import { ConfigProvider } from "@/contexts/ConfigContext";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => {
@@ -300,16 +301,18 @@ export default function RootLayout() {
   }
 
   return (
-    <ApolloProvider client={apolloClient}>
-      <QueryClientProvider client={queryClient}>
-        <AppProviders>
-          <RootNavigation
-            persistedTheme={persistedTheme}
-            colorScheme={colorScheme}
-            onReady={handleNavigationReady}
-          />
-        </AppProviders>
-      </QueryClientProvider>
-    </ApolloProvider>
+    <ConfigProvider>
+      <ApolloProvider client={apolloClient}>
+        <QueryClientProvider client={queryClient}>
+          <AppProviders>
+            <RootNavigation
+              persistedTheme={persistedTheme}
+              colorScheme={colorScheme}
+              onReady={handleNavigationReady}
+            />
+          </AppProviders>
+        </QueryClientProvider>
+      </ApolloProvider>
+    </ConfigProvider>
   );
 }

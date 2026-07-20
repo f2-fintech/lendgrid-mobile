@@ -491,8 +491,8 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
         onPress={back}
         style={{
           flex: 1,
-          padding: 14,
-          borderRadius: 14,
+          paddingVertical: 14,
+          borderRadius: 999,
           borderWidth: 1,
           borderColor: theme.colors.outline,
           backgroundColor: theme.colors.surface,
@@ -510,12 +510,17 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
           disabled={!canGoNext}
           style={{
             flex: 1,
-            padding: 14,
-            borderRadius: 14,
+            paddingVertical: 14,
+            borderRadius: 999,
             backgroundColor: canGoNext
               ? theme.colors.primary
-              : theme.colors.onSurfaceVariant,
+              : theme.colors.surfaceVariant,
             alignItems: "center",
+            shadowColor: canGoNext ? theme.colors.primary : "transparent",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: canGoNext ? 4 : 0,
           }}
         >
           <Text
@@ -533,12 +538,17 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
           disabled={!canSubmit}
           style={{
             flex: 1,
-            padding: 14,
-            borderRadius: 14,
+            paddingVertical: 14,
+            borderRadius: 999,
             backgroundColor: canSubmit
               ? theme.colors.primary
-              : theme.colors.onSurfaceVariant,
+              : theme.colors.surfaceVariant,
             alignItems: "center",
+            shadowColor: canSubmit ? theme.colors.primary : "transparent",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: canSubmit ? 4 : 0,
           }}
         >
           {isSubmitting ? (
@@ -646,7 +656,18 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
         )}
       </ScrollView>
 
-      <View style={{ padding: 20 }}>{renderFooter()}</View>
+      <View
+        style={{
+          paddingHorizontal: 20,
+          paddingTop: 16,
+          paddingBottom: 24,
+          backgroundColor: theme.colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.outlineVariant,
+        }}
+      >
+        {renderFooter()}
+      </View>
     </KeyboardAvoidingView>
   );
 }

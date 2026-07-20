@@ -19,9 +19,7 @@ import { useSignUp } from "@/hooks/useAuth";
 import { signUpSchema, SignUpSchemaType } from "@/lib/validators/signup.schema";
 import { COLORS } from "@/styles/theme/tokens";
 
-// ─── Brand colors for light mode ──────────────────────────────────────────────
 const BRAND = COLORS.primary;
-const BRAND_BORDER = "#B0B8F0";
 
 export default function SignUp() {
   const router = useRouter();
@@ -40,8 +38,16 @@ export default function SignUp() {
 
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarType, setSnackbarType] = useState<"error" | "success">("error");
 
   const showError = (msg: string) => {
+    setSnackbarType("error");
+    setSnackbarMessage(msg);
+    setSnackbarVisible(true);
+  };
+
+  const showSuccess = (msg: string) => {
+    setSnackbarType("success");
     setSnackbarMessage(msg);
     setSnackbarVisible(true);
   };
@@ -61,7 +67,6 @@ export default function SignUp() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaRefreshKey, setCaptchaRefreshKey] = useState(0);
 
@@ -71,7 +76,6 @@ export default function SignUp() {
   const referralCodeFromParams = readParam(params.ref).trim();
   const parentCompanyNameFromParams = readParam(params.c_name).trim();
 
-  // Load initial referral info from deep link parameters
   useEffect(() => {
     if (referralCodeFromParams) {
       setFormData((prev) => ({
@@ -84,10 +88,8 @@ export default function SignUp() {
     }
   }, [referralCodeFromParams, parentCompanyNameFromParams]);
 
-  // Dynamically derive if this is a referral signup based on the state
   const isReferralSignup = Boolean(formData.referralCode);
 
-  // Keep role synchronized with the presence of referralCode
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
@@ -142,9 +144,7 @@ export default function SignUp() {
       const response = await signUp(payload);
 
       if (response?.success) {
-        setSnackbarMessage("Account created successfully!");
-        setSnackbarVisible(true);
-
+        showSuccess("Account created successfully!");
         setTimeout(() => {
           router.replace("/signin");
         }, 1200);
@@ -162,490 +162,479 @@ export default function SignUp() {
     }
   };
 
+  // ─── Dynamic theme colors ────────────────────────────────────────────────
+  const bg = isDark ? "#0D1117" : "#F5F6FA";
+  const cardBg = isDark ? "#161B27" : "#FFFFFF";
+  const inputBg = isDark ? "#1C2333" : "#F0F2F8";
+  const inputBorder = isDark ? "#2D3748" : "#E2E6F0";
+  const inputText = isDark ? "#E8EAF0" : "#1A1D2E";
+  const placeholderText = isDark ? "#4A5568" : "#9DA3B4";
+  const labelText = isDark ? "#8B95A9" : "#6B7280";
+
+  const inputStyle = {
+    backgroundColor: inputBg,
+    borderColor: inputBorder,
+    borderWidth: 1.5,
+    borderRadius: 14,
+    color: inputText,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+  };
+
   return (
-    <View
-      style={[
-        styles.screen,
-        !isDark && { backgroundColor: theme.colors.background },
-      ]}
-    >
+    <View style={{ flex: 1, backgroundColor: bg }}>
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor={isDark ? "#0F1729" : theme.colors.background}
+        backgroundColor={bg}
         translucent={false}
       />
 
-      {/* Back button in foreground (overlay) */}
+      {/* Back button */}
       <TouchableOpacity
         onPress={() => router.back()}
-        style={styles.backOverlay}
+        style={{
+          position: "absolute",
+          top: 44,
+          left: 20,
+          zIndex: 9999,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 4,
+          padding: 8,
+        }}
       >
-        <Text style={[styles.backText, !isDark && { color: BRAND }]}>
-          ← Back
+        <Ionicons
+          name="chevron-back"
+          size={20}
+          color={isDark ? "#8B95A9" : "#6B7280"}
+        />
+        <Text style={{ color: isDark ? "#8B95A9" : "#6B7280", fontSize: 14, fontWeight: "600" }}>
+          Back
         </Text>
       </TouchableOpacity>
 
       <KeyboardAwareScrollView
         ref={scrollRef}
-        style={[
-          styles.screen,
-          !isDark && { backgroundColor: theme.colors.background },
-        ]}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
         enableOnAndroid
         keyboardShouldPersistTaps="handled"
         extraScrollHeight={24}
         extraHeight={120}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.inner}>
-          {/* ── Logo ── */}
-          <View style={styles.brandWrap}>
-            <Image
-              source={
-                isDark
-                  ? require("@/assets/images/logo.png")
-                  : require("@/assets/images/logo_blue.png")
-              }
-              style={styles.brandLogo}
-              resizeMode="contain"
-            />
-            <Text style={[styles.brandText, !isDark && { color: BRAND }]}>
-              LendGrid
+        <View style={{ paddingHorizontal: 24, paddingTop: 96, paddingBottom: 32 }}>
+
+          {/* ── Header ── */}
+          <View style={{ alignItems: "center", marginBottom: 32 }}>
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 22,
+                backgroundColor: isDark ? "#1C2333" : "#EEF2FF",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 14,
+                shadowColor: BRAND,
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: isDark ? 0.3 : 0.1,
+                shadowRadius: 16,
+                elevation: 8,
+              }}
+            >
+              <Image
+                source={
+                  isDark
+                    ? require("@/assets/images/logo.png")
+                    : require("@/assets/images/logo_blue.png")
+                }
+                style={{ width: 48, height: 48 }}
+                resizeMode="contain"
+              />
+            </View>
+            <Text
+              style={{
+                fontSize: 26,
+                fontWeight: "800",
+                color: isDark ? "#FFFFFF" : "#1A1D2E",
+                letterSpacing: -0.5,
+                marginBottom: 6,
+              }}
+            >
+              Create Account
+            </Text>
+            <Text style={{ fontSize: 14, color: labelText }}>
+              {isReferralSignup
+                ? "You're joining via referral link"
+                : "Start your journey with LendGrid"}
             </Text>
           </View>
 
-          <Text style={[styles.subtitle, !isDark && { color: "#5A6A8A" }]}>
-            Create your account to get started
-          </Text>
-
-          {/* Referral Code */}
-          <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-            Referral Code (Optional)
-          </Text>
-          <TextInput
-            placeholder="Enter referral code"
-            placeholderTextColor={isDark ? "#999" : "#AABACF"}
-            style={[
-              styles.input,
-              !isDark && {
-                backgroundColor: "#F5F7FF",
-                borderColor: BRAND_BORDER,
-                borderWidth: 1.5,
-                color: "#0D1B3E",
-                borderRadius: 10,
-              },
-            ]}
-            value={formData.referralCode}
-            onChangeText={(v) => handleChange("referralCode", v)}
-          />
-
-          {isReferralSignup ? (
-            formData.parentCompanyName ? (
-              <>
-                <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-                  Referred By Company
+          {/* ── Referral Banner ── */}
+          {isReferralSignup && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: isDark ? "#1A2340" : "#EEF2FF",
+                borderRadius: 14,
+                padding: 14,
+                marginBottom: 20,
+                gap: 10,
+                borderWidth: 1,
+                borderColor: isDark ? "#2D3748" : "#C7D2FE",
+              }}
+            >
+              <Ionicons name="gift-outline" size={18} color={BRAND} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: BRAND, fontSize: 13, fontWeight: "700" }}>
+                  Referral Signup
                 </Text>
-                <TextInput
-                  editable={false}
-                  placeholder="Parent company"
-                  placeholderTextColor={isDark ? "#999" : "#AABACF"}
-                  style={[
-                    styles.input,
-                    styles.disabledInput,
-                    !isDark && {
-                      backgroundColor: "#EEF0FD",
-                      borderColor: BRAND_BORDER,
-                      borderWidth: 1.5,
-                      color: BRAND,
-                      borderRadius: 10,
-                    },
-                  ]}
-                  value={formData.parentCompanyName}
-                />
-              </>
-            ) : null
-          ) : (
-            <>
-              <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-                Company Name
-              </Text>
-              <TextInput
-                placeholder="Your Company Ltd."
-                placeholderTextColor={isDark ? "#999" : "#AABACF"}
-                style={[
-                  styles.input,
-                  !isDark && {
-                    backgroundColor: "#F5F7FF",
-                    borderColor: BRAND_BORDER,
-                    borderWidth: 1.5,
-                    color: "#0D1B3E",
-                    borderRadius: 10,
-                  },
-                ]}
-                value={formData.companyName}
-                onChangeText={(v) => handleChange("companyName", v)}
-              />
-              {errors.companyName ? (
-                <Text style={styles.error}>{errors.companyName}</Text>
-              ) : null}
-            </>
+                {formData.parentCompanyName ? (
+                  <Text style={{ color: labelText, fontSize: 12, marginTop: 2 }}>
+                    Referred by: {formData.parentCompanyName}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
           )}
 
-          {/*  Full Name + Phone */}
-          <View style={styles.row}>
-            <View style={styles.colLeft}>
-              <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-                Full Name
-              </Text>
-              <TextInput
-                placeholder="John Doe"
-                placeholderTextColor={isDark ? "#999" : "#AABACF"}
-                style={[
-                  styles.input,
-                  !isDark && {
-                    backgroundColor: "#F5F7FF",
-                    borderColor: BRAND_BORDER,
-                    borderWidth: 1.5,
-                    color: "#0D1B3E",
-                    borderRadius: 10,
-                  },
-                ]}
-                value={formData.fullName}
-                onChangeText={(v) => handleChange("fullName", v)}
-              />
-              {errors.fullName ? (
-                <Text style={styles.error}>{errors.fullName}</Text>
-              ) : null}
-            </View>
-
-            <View style={styles.colRight}>
-              <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-                Phone Number
-              </Text>
-              <TextInput
-                placeholder="9876543210"
-                placeholderTextColor={isDark ? "#999" : "#AABACF"}
-                keyboardType="phone-pad"
-                style={[
-                  styles.input,
-                  !isDark && {
-                    backgroundColor: "#F5F7FF",
-                    borderColor: BRAND_BORDER,
-                    borderWidth: 1.5,
-                    color: "#0D1B3E",
-                    borderRadius: 10,
-                  },
-                ]}
-                value={formData.contact}
-                onChangeText={(v) => handleChange("contact", v)}
-              />
-              {errors.contact ? (
-                <Text style={styles.error}>{errors.contact}</Text>
-              ) : null}
-            </View>
-          </View>
-
-          {/*  Email */}
-          <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-            Email Address
-          </Text>
-          <TextInput
-            placeholder="john@company.com"
-            placeholderTextColor={isDark ? "#999" : "#AABACF"}
-            keyboardType="email-address"
-            style={[
-              styles.input,
-              !isDark && {
-                backgroundColor: "#F5F7FF",
-                borderColor: BRAND_BORDER,
-                borderWidth: 1.5,
-                color: "#0D1B3E",
-                borderRadius: 10,
-              },
-            ]}
-            value={formData.email}
-            onChangeText={(v) => handleChange("email", v)}
-            autoCapitalize="none"
-          />
-          {errors.email ? (
-            <Text style={styles.error}>{errors.email}</Text>
-          ) : null}
-
-          {/*  Password */}
-          <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-            Password
-          </Text>
+          {/* ── Form Card ── */}
           <View
-            style={[
-              styles.passwordContainer,
-              !isDark && {
-                backgroundColor: "#F5F7FF",
-                borderColor: BRAND_BORDER,
-                borderWidth: 1.5,
-                borderRadius: 14,
-              },
-            ]}
+            style={{
+              backgroundColor: cardBg,
+              borderRadius: 24,
+              padding: 22,
+              shadowColor: isDark ? "#000000" : "#6366F1",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDark ? 0.5 : 0.08,
+              shadowRadius: 20,
+              elevation: 8,
+              borderWidth: isDark ? 1 : 0,
+              borderColor: isDark ? "#2D3748" : "transparent",
+            }}
           >
+            {/* ── Referral Code ── */}
+            <FieldLabel label="Referral Code (Optional)" labelText={labelText} />
             <TextInput
-              placeholder="Create password"
-              placeholderTextColor={isDark ? "#999" : "#AABACF"}
-              secureTextEntry={!showPassword}
-              style={[styles.passwordInput, !isDark && { color: "#0D1B3E" }]}
-              value={formData.password}
-              onChangeText={(v) => handleChange("password", v)}
+              placeholder="Enter referral code"
+              placeholderTextColor={placeholderText}
+              style={inputStyle}
+              value={formData.referralCode}
+              onChangeText={(v) => handleChange("referralCode", v)}
             />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.eyeIcon}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color={isDark ? "#999" : BRAND}
-              />
-            </TouchableOpacity>
-          </View>
-          {errors.password ? (
-            <Text style={styles.error}>{errors.password}</Text>
-          ) : null}
 
-          {/*  Confirm Password */}
-          <Text style={[styles.label, !isDark && { color: "#0D1B3E" }]}>
-            Confirm Password
-          </Text>
-          <View
-            style={[
-              styles.passwordContainer,
-              !isDark && {
-                backgroundColor: "#F5F7FF",
-                borderColor: BRAND_BORDER,
-                borderWidth: 1.5,
-                borderRadius: 14,
-              },
-            ]}
-          >
-            <TextInput
-              placeholder="Confirm password"
-              placeholderTextColor={isDark ? "#999" : "#AABACF"}
-              secureTextEntry={!showConfirmPassword}
-              style={[styles.passwordInput, !isDark && { color: "#0D1B3E" }]}
-              value={formData.confirmPassword}
-              onChangeText={(v) => handleChange("confirmPassword", v)}
-            />
-            <TouchableOpacity
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              style={styles.eyeIcon}
-            >
-              <Ionicons
-                name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                size={20}
-                color={isDark ? "#999" : BRAND}
-              />
-            </TouchableOpacity>
-          </View>
-          {errors.confirmPassword ? (
-            <Text style={styles.error}>{errors.confirmPassword}</Text>
-          ) : null}
+            <View style={{ height: 16 }} />
 
-          {/*  CAPTCHA */}
-          <View style={styles.captchaWrap}>
-            <TurnstileCaptcha
-              theme={isDark ? "dark" : "light"}
-              refreshKey={captchaRefreshKey}
-              onToken={(t) => setCaptchaToken(t)}
-            />
-            {!captchaToken ? (
-              <Text
-                style={[styles.captchaHint, !isDark && { color: "#8A9EC0" }]}
-              >
-                Please complete verification to continue
-              </Text>
-            ) : null}
-          </View>
-
-          {/* Button */}
-          <TouchableOpacity
-            style={[
-              styles.signUpButton,
-              !isDark && {
-                backgroundColor: BRAND,
-                borderRadius: 12,
-                shadowColor: BRAND,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 6,
-              },
-              (isPending || !captchaToken) && { opacity: 0.6 },
-            ]}
-            disabled={isPending || !captchaToken}
-            onPress={handleSubmit}
-          >
-            {isPending ? (
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <ActivityIndicator
-                  size="small"
-                  color={isDark ? "#FFD600" : "#FFFFFF"}
-                />
-                <Text
-                  style={[styles.loadingText, !isDark && { color: "#FFFFFF" }]}
-                >
-                  Creating account...
-                </Text>
-              </View>
+            {/* ── Company Name ── */}
+            {isReferralSignup ? (
+              formData.parentCompanyName ? (
+                <>
+                  <FieldLabel label="Referred By Company" labelText={labelText} />
+                  <TextInput
+                    editable={false}
+                    style={[inputStyle, { opacity: 0.7, color: BRAND, fontWeight: "700" }]}
+                    value={formData.parentCompanyName}
+                  />
+                  <View style={{ height: 16 }} />
+                </>
+              ) : null
             ) : (
-              <Text
-                style={[
-                  styles.signUpButtonText,
-                  !isDark && { color: "#FFFFFF" },
-                ]}
-              >
-                Create Account
-              </Text>
+              <>
+                <FieldLabel label="Company Name" labelText={labelText} />
+                <TextInput
+                  placeholder="Your Company Ltd."
+                  placeholderTextColor={placeholderText}
+                  style={inputStyle}
+                  value={formData.companyName}
+                  onChangeText={(v) => handleChange("companyName", v)}
+                />
+                {errors.companyName ? (
+                  <Text style={styles.errorText}>{errors.companyName}</Text>
+                ) : null}
+                <View style={{ height: 16 }} />
+              </>
             )}
-          </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/signin")}>
-            <Text style={[styles.footerText, !isDark && { color: "#5A6A8A" }]}>
-              Already have an account?{" "}
-              <Text
-                style={[
-                  styles.signInLink,
-                  !isDark && { color: BRAND, fontWeight: "700" },
-                ]}
+            {/* ── Full Name + Phone (2 cols) ── */}
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <FieldLabel label="Full Name" labelText={labelText} />
+                <TextInput
+                  placeholder="John Doe"
+                  placeholderTextColor={placeholderText}
+                  style={inputStyle}
+                  value={formData.fullName}
+                  onChangeText={(v) => handleChange("fullName", v)}
+                />
+                {errors.fullName ? (
+                  <Text style={styles.errorText}>{errors.fullName}</Text>
+                ) : null}
+              </View>
+              <View style={{ flex: 1 }}>
+                <FieldLabel label="Phone" labelText={labelText} />
+                <TextInput
+                  placeholder="9876543210"
+                  placeholderTextColor={placeholderText}
+                  keyboardType="phone-pad"
+                  style={inputStyle}
+                  value={formData.contact}
+                  onChangeText={(v) => handleChange("contact", v)}
+                />
+                {errors.contact ? (
+                  <Text style={styles.errorText}>{errors.contact}</Text>
+                ) : null}
+              </View>
+            </View>
+
+            <View style={{ height: 16 }} />
+
+            {/* ── Email ── */}
+            <FieldLabel label="Email Address" labelText={labelText} />
+            <TextInput
+              placeholder="john@company.com"
+              placeholderTextColor={placeholderText}
+              keyboardType="email-address"
+              style={inputStyle}
+              value={formData.email}
+              onChangeText={(v) => handleChange("email", v)}
+              autoCapitalize="none"
+            />
+            {errors.email ? (
+              <Text style={styles.errorText}>{errors.email}</Text>
+            ) : null}
+
+            <View style={{ height: 16 }} />
+
+            {/* ── Password ── */}
+            <FieldLabel label="Password" labelText={labelText} />
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: inputBg,
+                borderColor: inputBorder,
+                borderWidth: 1.5,
+                borderRadius: 14,
+              }}
+            >
+              <TextInput
+                placeholder="Create password"
+                placeholderTextColor={placeholderText}
+                secureTextEntry={!showPassword}
+                style={{
+                  flex: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  fontSize: 15,
+                  color: inputText,
+                }}
+                value={formData.password}
+                onChangeText={(v) => handleChange("password", v)}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={{ paddingHorizontal: 14, paddingVertical: 4 }}
               >
-                Sign in
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={labelText}
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.password ? (
+              <Text style={styles.errorText}>{errors.password}</Text>
+            ) : null}
+
+            <View style={{ height: 16 }} />
+
+            {/* ── Confirm Password ── */}
+            <FieldLabel label="Confirm Password" labelText={labelText} />
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: inputBg,
+                borderColor: inputBorder,
+                borderWidth: 1.5,
+                borderRadius: 14,
+              }}
+            >
+              <TextInput
+                placeholder="Confirm password"
+                placeholderTextColor={placeholderText}
+                secureTextEntry={!showConfirmPassword}
+                style={{
+                  flex: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                  fontSize: 15,
+                  color: inputText,
+                }}
+                value={formData.confirmPassword}
+                onChangeText={(v) => handleChange("confirmPassword", v)}
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{ paddingHorizontal: 14, paddingVertical: 4 }}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color={labelText}
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.confirmPassword ? (
+              <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+            ) : null}
+
+            {/* ── CAPTCHA ── */}
+            <View style={{ marginTop: 20, alignItems: "center" }}>
+              <TurnstileCaptcha
+                theme={isDark ? "dark" : "light"}
+                refreshKey={captchaRefreshKey}
+                onToken={(t) => setCaptchaToken(t)}
+              />
+              {!captchaToken ? (
+                <Text style={{ color: labelText, fontSize: 12, marginTop: 6 }}>
+                  Please complete verification to continue
+                </Text>
+              ) : null}
+            </View>
+
+            {/* ── Create Account Button ── */}
+            <TouchableOpacity
+              style={[
+                {
+                  backgroundColor: BRAND,
+                  borderRadius: 14,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                  marginTop: 20,
+                  shadowColor: BRAND,
+                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 12,
+                  elevation: 8,
+                },
+                (isPending || !captchaToken) && { opacity: 0.6 },
+              ]}
+              disabled={isPending || !captchaToken}
+              onPress={handleSubmit}
+            >
+              {isPending ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700" }}>
+                    Creating account...
+                  </Text>
+                </View>
+              ) : (
+                <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700", letterSpacing: 0.3 }}>
+                  Create Account
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {/* ── Sign In Link ── */}
+            <TouchableOpacity
+              onPress={() => router.push("/signin")}
+              style={{ marginTop: 20, alignItems: "center" }}
+            >
+              <Text style={{ color: labelText, fontSize: 14 }}>
+                Already have an account?{" "}
+                <Text style={{ color: BRAND, fontWeight: "700" }}>Sign in</Text>
               </Text>
-            </Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAwareScrollView>
 
-      {/* Snackbar */}
-      <View style={styles.snackbarWrap}>
+      {/* ── Snackbar ── */}
+      <View
+        style={{
+          position: "absolute",
+          top: 120,
+          left: 20,
+          right: 20,
+          alignItems: "center",
+          zIndex: 999,
+        }}
+      >
         <Snackbar
           visible={snackbarVisible}
           onDismiss={() => setSnackbarVisible(false)}
           duration={2800}
-          style={styles.snackbar}
+          style={{
+            backgroundColor:
+              snackbarType === "success"
+                ? isDark ? "#14532D" : "#F0FDF4"
+                : isDark ? "#2D1B1B" : "#FEF2F2",
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor:
+              snackbarType === "success"
+                ? isDark ? "#166534" : "#BBF7D0"
+                : isDark ? "#7F1D1D" : "#FECACA",
+          }}
         >
-          <Text style={styles.snackbarText}>{snackbarMessage}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Ionicons
+              name={snackbarType === "success" ? "checkmark-circle" : "alert-circle"}
+              size={16}
+              color={
+                snackbarType === "success"
+                  ? isDark ? "#4ADE80" : "#16A34A"
+                  : isDark ? "#FC8181" : "#EF4444"
+              }
+            />
+            <Text
+              style={{
+                color:
+                  snackbarType === "success"
+                    ? isDark ? "#4ADE80" : "#15803D"
+                    : isDark ? "#FC8181" : "#DC2626",
+                fontWeight: "600",
+                fontSize: 13,
+                flex: 1,
+              }}
+            >
+              {snackbarMessage}
+            </Text>
+          </View>
         </Snackbar>
       </View>
     </View>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// STYLES — original dark-mode styles preserved exactly, light overrides inline
-// ─────────────────────────────────────────────────────────────────────────────
+function FieldLabel({ label, labelText }: { label: string; labelText: string }) {
+  return (
+    <Text
+      style={{
+        color: labelText,
+        fontSize: 12,
+        fontWeight: "600",
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        marginBottom: 8,
+      }}
+    >
+      {label}
+    </Text>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#0F1729" },
-  scrollContent: { flexGrow: 1, paddingBottom: 80 },
-  inner: { padding: 20, paddingTop: 18 },
-
-  backOverlay: {
-    position: "absolute",
-    top: 35,
-    left: 10,
-    zIndex: 9999,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+  errorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 4,
+    marginLeft: 4,
   },
-  backText: { color: "#FFD600", fontSize: 14, fontWeight: "700" },
-
-  brandWrap: {
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  brandLogo: { width: 120, height: 120, marginBottom: 0 },
-  brandText: {
-    color: "#4c7dff",
-    fontWeight: "800",
-    fontSize: 34,
-    marginTop: -24,
-  },
-
-  subtitle: {
-    color: "#A7B3C7",
-    textAlign: "center",
-    marginBottom: 10,
-    fontSize: 14,
-  },
-
-  label: {
-    color: "#fff",
-    fontSize: 14,
-    marginBottom: 6,
-    fontWeight: "700",
-    marginTop: 10,
-  },
-
-  row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  colLeft: { flex: 1 },
-  colRight: { flex: 1 },
-
-  input: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    color: "#000",
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
-  },
-  disabledInput: {
-    color: "#FFD600",
-    fontWeight: "800",
-    opacity: 1,
-  },
-
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingVertical: 11,
-    color: "#000",
-    fontSize: 14,
-  },
-  eyeIcon: { paddingLeft: 8, paddingVertical: 6 },
-
-  error: { color: "#ff4d4d", fontSize: 12, marginTop: 4 },
-
-  captchaWrap: { marginTop: 12, alignItems: "center" },
-  captchaHint: { color: "#888", fontSize: 12, marginTop: 6 },
-
-  signUpButton: { paddingVertical: 12, alignItems: "center", marginTop: 12 },
-  signUpButtonText: { color: "#FFD600", fontWeight: "800", fontSize: 16 },
-  loadingText: {
-    color: "#FFD600",
-    marginLeft: 8,
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  footerText: {
-    textAlign: "center",
-    color: "#ccc",
-    marginTop: 8,
-    fontSize: 14,
-  },
-  signInLink: { color: "#FFD600", fontWeight: "700" },
-
-  snackbarWrap: {
-    position: "absolute",
-    top: 130,
-    left: 20,
-    right: 0,
-    alignItems: "center",
-    zIndex: 999,
-  },
-  snackbar: { backgroundColor: "#FFD600", width: "90%", borderRadius: 8 },
-  snackbarText: { color: "#000", fontWeight: "700", textAlign: "center" },
 });

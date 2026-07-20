@@ -187,11 +187,11 @@ export default function Step1BasicDetails({
           flexDirection: "row",
           alignItems: "center",
           gap: 10,
-          paddingHorizontal: 12,
-          borderWidth: 1.5,
-          borderColor: errorFor(key) ? "#EF4444" : theme.colors.outline,
-          borderRadius: 12,
-          backgroundColor: theme.colors.surface,
+          paddingHorizontal: 16,
+          borderWidth: errorFor(key) ? 1 : 0,
+          borderColor: errorFor(key) ? "#EF4444" : "transparent",
+          borderRadius: 16,
+          backgroundColor: theme.colors.surfaceVariant,
         }}
       >
         <Feather
@@ -238,14 +238,14 @@ export default function Step1BasicDetails({
         }}
         activeOpacity={0.85}
         style={{
-          padding: 14,
-          borderWidth: 1.5,
-          borderColor: errorFor(key) ? "#EF4444" : theme.colors.outline,
-          borderRadius: 12,
-          backgroundColor: theme.colors.surface,
+          padding: 16,
+          borderWidth: errorFor(key) ? 1 : 0,
+          borderColor: errorFor(key) ? "#EF4444" : "transparent",
+          borderRadius: 16,
+          backgroundColor: theme.colors.surfaceVariant,
           flexDirection: "row",
           alignItems: "center",
-          gap: 10,
+          gap: 12,
         }}
       >
         <Feather

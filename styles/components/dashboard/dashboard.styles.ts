@@ -24,20 +24,35 @@ export const dashboardStyles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    padding: 20,
+    alignItems: "center", // Align center for new avatar/greeting layout
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 16,
   },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+  },
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#374151",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 4,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#9CA3AF",
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    maxWidth: 200,
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    color: "#FFFFFF",
   },
   headerActions: {
     flexDirection: "row",
@@ -45,24 +60,36 @@ export const dashboardStyles = StyleSheet.create({
     gap: 8,
   },
   themeToggleButton: {
-    padding: 10,
-    borderRadius: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22, // Full circle for mobile
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, // Softer shadow
+    shadowRadius: 8,
+    elevation: 2,
   },
   dateButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#374151",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 12, // Taller touch target
+    borderRadius: 20, // More rounded
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   dateButtonText: {
     color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "500",
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
   exportButton: {
     backgroundColor: "#374151",
@@ -70,19 +97,19 @@ export const dashboardStyles = StyleSheet.create({
     borderRadius: 8,
   },
   metricsScroll: {
-    marginHorizontal: 20,
+    marginHorizontal: 16, // slightly less margin for more scrolling space
   },
   metricsContainer: {
     paddingVertical: 8,
     gap: 12,
   },
   metricCard: {
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 24, // Softer edges
+    padding: 20,
     width: 160,
-    borderWidth: 1,
+    borderWidth: 1, // Will be overridden in component conditionally
     borderColor: "#374151",
-    minHeight: 100,
+    minHeight: 110,
   },
   metricContent: {
     flexDirection: "row",
@@ -124,26 +151,33 @@ export const dashboardStyles = StyleSheet.create({
   },
   chartCard: {
     backgroundColor: "rgba(31, 41, 55, 0.5)",
-    margin: 20,
+    marginHorizontal: 0,
     marginVertical: 16,
-    borderRadius: 12,
+    borderRadius: 24, // Softer edges
     borderWidth: 1,
     borderColor: "#374151",
-    padding: 16,
+    padding: 24,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05, // Softer shadows
+    shadowRadius: 16,
+    elevation: 3,
   },
   chartHeader: {
     alignSelf: "flex-start",
     marginBottom: 16,
   },
   chartTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.3,
     color: "#FFFFFF",
     marginBottom: 4,
   },
   chartSubtitle: {
     fontSize: 14,
+    fontWeight: "500",
     color: "#9CA3AF",
   },
   chart: {
@@ -161,19 +195,20 @@ export const dashboardStyles = StyleSheet.create({
   searchSection: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   searchContainer: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#1F2937",
-    borderRadius: 8,
+    borderRadius: 24, // Pill shape
     borderWidth: 1,
     borderColor: "#374151",
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    height: 52, // Taller touch target
   },
   searchIcon: {
     marginRight: 8,
@@ -189,23 +224,28 @@ export const dashboardStyles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#374151",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
+    height: 52, // Match search input height
+    borderRadius: 26, // Pill shape
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   filterButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "700",
   },
   filterContainer: {
     backgroundColor: "rgba(31, 41, 55, 0.5)",
     marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 8,
+    marginBottom: 20,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#374151",
-    padding: 12,
+    padding: 16,
     gap: 12,
   },
   filterSection: {
@@ -218,13 +258,16 @@ export const dashboardStyles = StyleSheet.create({
   },
   filterOptions: {
     flexDirection: "row",
-    gap: 8,
+    gap: 10,
+    paddingVertical: 4,
   },
   filterOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20, // Pill shape
     backgroundColor: "#374151",
+    borderWidth: 1,
+    borderColor: "transparent",
   },
   filterOptionActive: {
     backgroundColor: "#F59E0B",
@@ -235,59 +278,67 @@ export const dashboardStyles = StyleSheet.create({
   },
   filterOptionTextActive: {
     color: "#1F2937",
-    fontWeight: "500",
+    fontWeight: "700",
   },
   applicationsSection: {
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.3,
     color: "#FFFFFF",
   },
   resultsCount: {
     fontSize: 14,
+    fontWeight: "600",
     color: "#9CA3AF",
   },
   applicationItem: {
     backgroundColor: "rgba(31, 41, 55, 0.5)",
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 20,
+    borderWidth: 1, // Will be overridden in component conditionally
     borderColor: "#374151",
     padding: 16,
     marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03, // Extra soft shadow
+    shadowRadius: 10,
+    elevation: 2,
+    flexDirection: "row",
+    alignItems: "center",
   },
   applicationHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
+    flex: 1,
+    justifyContent: "center",
+    gap: 4,
   },
   appId: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "800",
     color: "#FFFFFF",
+    letterSpacing: -0.3,
   },
   lenderName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#9CA3AF",
   },
   loanType: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#9CA3AF",
-    marginBottom: 12,
   },
-  applicationDetails: {
-    gap: 8,
+  applicationRight: {
+    alignItems: "flex-end",
+    gap: 6,
   },
   detailItem: {
     flexDirection: "row",
@@ -304,9 +355,19 @@ export const dashboardStyles = StyleSheet.create({
     fontWeight: "500",
   },
   commissionValue: {
-    fontSize: 12,
-    color: "#F59E0B",
-    fontWeight: "600",
+    fontSize: 16,
+    color: "#10B981", // More positive color
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  itemIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: "rgba(37, 99, 235, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
   },
   badge: {
     paddingHorizontal: 8,

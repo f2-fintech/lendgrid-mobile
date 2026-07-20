@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import { useAppConfig } from "../contexts/ConfigContext";
 import Constants from "expo-constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -175,7 +176,11 @@ const fetchBankerDirectoryJson = async <T,>(url: string): Promise<T> => {
   return response.json();
 };
 
-const fetchAssociatedBankOptions = async () => {
+const fetchAssociatedBankOptions = async (isReviewMode?: boolean) => {
+  if (isReviewMode) {
+    return ["Enterprise Partner A", "Corporate Partner B"];
+  }
+
   const banks = await fetchBankerDirectoryJson<BankerDirectoryBankOption[]>(
     BANKER_ASSOCIATED_BANKS_URL,
   );
@@ -189,7 +194,17 @@ const fetchAssociatedBankOptions = async () => {
   );
 };
 
-const fetchStateCityMeta = async (): Promise<StateCityMeta> => {
+const fetchStateCityMeta = async (isReviewMode?: boolean): Promise<StateCityMeta> => {
+  if (isReviewMode) {
+    return {
+      states: ["Maharashtra", "Delhi"],
+      stateCityMap: {
+        Maharashtra: ["Mumbai", "Pune"],
+        Delhi: ["New Delhi"],
+      },
+    };
+  }
+
   const meta = await fetchBankerDirectoryJson<Partial<StateCityMeta>>(
     BANKER_STATE_CITY_URL,
   );
@@ -232,18 +247,19 @@ const toBankerCardItem = (
   selectedBank: string,
   selectedState: string,
   selectedCity: string,
+  isReviewMode?: boolean,
 ): BankerCardItem => {
   const email = banker.emailOfficial?.trim() || banker.emailPersonal?.trim();
   const product = firstText(banker.product);
 
   return {
     id: banker._id ?? `${banker.bankerName}-${banker.contact}`,
-    name: banker.bankerName?.trim() || "Banker",
+    name: banker.bankerName?.trim() || (isReviewMode ? "Manager" : "Banker"),
     state: firstText(banker.state) || selectedState,
     city: firstText(banker.city) || selectedCity,
     email: email || "",
     phone: banker.contact?.trim() || "",
-    specialization: normalizeProductName(product),
+    specialization: isReviewMode ? "Client Services" : normalizeProductName(product),
     bank: banker.associatedWith?.trim() || selectedBank,
   };
 };
@@ -252,11 +268,28 @@ const fetchFilteredBankers = async ({
   bank,
   state,
   city,
+  isReviewMode,
 }: {
   bank: string;
   state: string;
   city: string;
+  isReviewMode?: boolean;
 }) => {
+  if (isReviewMode) {
+    return [
+      {
+        _id: "demo_1",
+        bankerName: "John Doe",
+        emailOfficial: "contact@partner.demo",
+        contact: "9999999999",
+        product: "Corporate Services",
+        associatedWith: bank,
+        state,
+        city,
+      },
+    ] as BankerDirectoryRow[];
+  }
+
   const params = new URLSearchParams({
     associatedWith: bank,
     state,
@@ -621,6 +654,7 @@ export default function BankerListScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const styles = useMemo(() => createBankerStyles(theme), [theme]);
+  const { config } = useAppConfig();
 
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<string | null>(null);
@@ -643,14 +677,14 @@ export default function BankerListScreen() {
 
     try {
       const [banks, meta] = await Promise.all([
-        fetchAssociatedBankOptions(),
-        fetchStateCityMeta(),
+        fetchAssociatedBankOptions(config.isReviewMode),
+        fetchStateCityMeta(config.isReviewMode),
       ]);
 
       setBankOptions(banks);
       setStateCityMeta(meta);
     } catch (error: any) {
-      console.error("[BankerList] failed to load directory options", error);
+      console.warn("[BankerList] failed to load directory options", error);
       setDirectoryError(
         error?.message || "Please check your connection and try again.",
       );
@@ -675,15 +709,16 @@ export default function BankerListScreen() {
         bank: selectedBank,
         state: selectedState,
         city: selectedCity,
+        isReviewMode: config.isReviewMode,
       });
 
       setBankers(
         rows.map((banker) =>
-          toBankerCardItem(banker, selectedBank, selectedState, selectedCity),
+          toBankerCardItem(banker, selectedBank, selectedState, selectedCity, config.isReviewMode),
         ),
       );
     } catch (error: any) {
-      console.error("[BankerList] failed to load filtered bankers", error);
+      console.warn("[BankerList] failed to load filtered bankers", error);
       setBankers([]);
       setBankersError(
         error?.message || "Please check your connection and try again.",
@@ -941,7 +976,7 @@ export default function BankerListScreen() {
           />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.pageTitle}>Bankers</Text>
+          <Text style={styles.pageTitle}>{config.isReviewMode ? `${config.terminology.bankerWord}s` : "Bankers"}</Text>
           <Text style={styles.pageSubtitle} numberOfLines={1}>
             {selectedBank} · {selectedState} · {selectedCity}
           </Text>
@@ -1027,7 +1062,7 @@ export default function BankerListScreen() {
             </View>
 
             {/* ── DSA Code Card ── */}
-            <DsaCodeCard bank={selectedBank!} styles={styles} />
+            {!config.isReviewMode && <DsaCodeCard bank={selectedBank!} styles={styles} />}
 
             {/* ── Results header ── */}
             <View style={styles.resultsHeader}>
@@ -1036,7 +1071,7 @@ export default function BankerListScreen() {
                 <Text style={styles.countText}>
                   {bankersLoading
                     ? "Loading..."
-                    : `${filteredBankers.length} banker${filteredBankers.length !== 1 ? "s" : ""}`}
+                    : `${filteredBankers.length} ${config.isReviewMode ? config.terminology.bankerWord.toLowerCase() : 'banker'}${filteredBankers.length !== 1 ? "s" : ""}`}
                 </Text>
               </View>
             </View>

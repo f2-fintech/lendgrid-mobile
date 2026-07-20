@@ -23,7 +23,7 @@ import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HorizontalStepper, { StepConfig } from "./Verticalstepper";
-
+import { useAppConfig } from "@/contexts/ConfigContext";
 import { Feather } from "@expo/vector-icons";
 import Step0LoanDetails, { Step0Values } from "./steps/Step_0_LoanDetails";
 import Step1BasicDetails, { Step1Values } from "./steps/Step_1_BasicDetails";
@@ -769,7 +769,27 @@ export default function MultiStepApplicationForm({
     }
   }, [step, step1Valid, createCustomerEarly]);
 
-  // ==================== INSTANT UPLOAD ====================
+  // ==========================================
+  // CONFIG CONTEXT
+  // ==========================================
+  const { config } = useAppConfig();
+
+  // ==========================================
+  // DYNAMIC STEPS
+  // ==========================================
+  const dynamicSteps = STEPS.map((step) => {
+    if (step.id === "loan-details") {
+      return {
+        ...step,
+        title: config.isReviewMode ? `${config.terminology.loanWord} Details` : "Loan Details",
+      };
+    }
+    return step;
+  });
+
+  // ==========================================
+  // STATE & REFS
+  // ==========================================
   const uploadFileInstantly = useCallback(
     async (file: PickedFile, docType: string) => {
       if (!file?.uri) return;
@@ -1242,8 +1262,7 @@ export default function MultiStepApplicationForm({
       );
 
       if (pendingStep2Files.length > 0) {
-        setStage("Uploading loan documents");
-        setIsUploading(true);
+        setStage(config.isReviewMode ? `Uploading ${config.terminology.loanWord.toLowerCase()} documents` : "Uploading loan documents");
 
         for (const file of pendingStep2Files) {
           const docType = getStep2DocumentType(file);
@@ -1450,10 +1469,10 @@ export default function MultiStepApplicationForm({
       keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
     >
       <HorizontalStepper
-        steps={STEPS}
+        steps={dynamicSteps}
         currentStep={step}
-        maxStepAllowed={maxStepAllowed}
         skippedSteps={skipped}
+        maxStepAllowed={maxStepAllowed}
         onStepPress={(index) => {
           if (index <= step) return setStep(index);
           if (index <= maxStepAllowed) setStep(index);
@@ -1467,75 +1486,93 @@ export default function MultiStepApplicationForm({
           style={{
             marginHorizontal: 16,
             marginTop: 12,
-            borderRadius: 14,
-            padding: 12,
+            borderRadius: 16,
+            overflow: "hidden",
             borderWidth: 1,
-            borderColor: submitStatus.docUploadFailed ? "#EF4444" : "#22C55E",
+            borderColor: submitStatus.docUploadFailed
+              ? "rgba(239,68,68,0.25)"
+              : "rgba(34,197,94,0.25)",
             backgroundColor: submitStatus.docUploadFailed
-              ? "rgba(239,68,68,0.08)"
-              : "rgba(34,197,94,0.08)",
+              ? "rgba(239,68,68,0.06)"
+              : "rgba(34,197,94,0.06)",
           }}
         >
-          <Text
+          {/* Colored accent strip */}
+          <View
             style={{
-              color: theme.colors.onSurface,
-              fontWeight: "800",
-              marginBottom: 4,
+              height: 4,
+              backgroundColor: submitStatus.docUploadFailed ? "#EF4444" : "#22C55E",
             }}
-          >
-            {submitStatus.docUploadFailed
-              ? "Action Required"
-              : submitStatus.docsUploaded
-                ? "Success"
-                : "Status"}
-          </Text>
+          />
+          <View style={{ padding: 14 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Feather
+                name={submitStatus.docUploadFailed ? "alert-circle" : submitStatus.docsUploaded ? "check-circle" : "clock"}
+                size={18}
+                color={submitStatus.docUploadFailed ? "#EF4444" : "#22C55E"}
+              />
+              <Text
+                style={{
+                  color: submitStatus.docUploadFailed ? "#EF4444" : "#22C55E",
+                  fontWeight: "800",
+                  fontSize: 14,
+                }}
+              >
+                {submitStatus.docUploadFailed
+                  ? "Action Required"
+                  : submitStatus.docsUploaded
+                  ? "Application Submitted"
+                  : "Processing…"}
+              </Text>
+            </View>
 
-          {submitStatus.docUploadFailed && (
-            <>
+            {submitStatus.docUploadFailed && (
+              <>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13, lineHeight: 18 }}>
+                  Upload failed — application was created. Please retry.
+                </Text>
+                {!!submitStatus.docUploadError && (
+                  <Text
+                    style={{
+                      color: theme.colors.onSurfaceVariant,
+                      fontSize: 12,
+                      lineHeight: 18,
+                      marginTop: 4,
+                      opacity: 0.8,
+                    }}
+                  >
+                    {submitStatus.docUploadError}
+                  </Text>
+                )}
+              </>
+            )}
+
+            {!!submitStatus.lastStage && (
               <Text
                 style={{
                   color: theme.colors.onSurfaceVariant,
-                  marginBottom: 6,
+                  marginTop: 4,
+                  fontSize: 12,
+                  opacity: 0.75,
                 }}
               >
-                ❌ Upload Failed (Application is created)
+                {submitStatus.lastStage}
               </Text>
-              {!!submitStatus.docUploadError && (
-                <Text
-                  style={{
-                    color: theme.colors.onSurfaceVariant,
-                    lineHeight: 18,
-                  }}
-                >
-                  {submitStatus.docUploadError}
-                </Text>
-              )}
-            </>
-          )}
+            )}
 
-          {!!submitStatus.lastStage && (
-            <Text
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                marginTop: 6,
-                fontSize: 12,
-              }}
-            >
-              {submitStatus.lastStage}
-            </Text>
-          )}
-
-          {!!customerId && (
-            <Text
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                marginTop: 6,
-                fontSize: 12,
-              }}
-            >
-              Customer ID: {customerId}
-            </Text>
-          )}
+            {!!customerId && (
+              <Text
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  marginTop: 4,
+                  fontSize: 11,
+                  opacity: 0.65,
+                }}
+              >
+                Customer ID: {customerId}
+              </Text>
+            )}
+          </View>
         </View>
       )}
 
@@ -1606,27 +1643,46 @@ export default function MultiStepApplicationForm({
             activeOpacity={0.85}
             style={{
               marginTop: 16,
-              paddingVertical: 14,
-              borderRadius: 12,
+              paddingVertical: 15,
+              borderRadius: 14,
               backgroundColor:
                 currentStepHasPendingDocs && !isUploading
                   ? theme.colors.secondary
                   : theme.colors.surfaceVariant,
               alignItems: "center",
               justifyContent: "center",
+              flexDirection: "row",
+              gap: 8,
+              shadowColor:
+                currentStepHasPendingDocs && !isUploading
+                  ? theme.colors.secondary
+                  : "transparent",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: currentStepHasPendingDocs && !isUploading ? 4 : 0,
             }}
           >
+            <Feather
+              name={isUploading ? "loader" : "upload-cloud"}
+              size={16}
+              color={
+                currentStepHasPendingDocs && !isUploading
+                  ? "#FFFFFF"
+                  : theme.colors.onSurfaceVariant
+              }
+            />
             <Text
               style={{
                 color:
                   currentStepHasPendingDocs && !isUploading
                     ? "#FFFFFF"
                     : theme.colors.onSurfaceVariant,
-                fontWeight: "900",
+                fontWeight: "800",
                 fontSize: 14,
               }}
             >
-              {isUploading ? "Uploading..." : "Upload All Document"}
+              {isUploading ? "Uploading…" : "Upload All Documents"}
             </Text>
           </TouchableOpacity>
         )}
@@ -1642,7 +1698,7 @@ export default function MultiStepApplicationForm({
             bottom: 0,
             justifyContent: "center",
             alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.6)",
+            backgroundColor: "rgba(0,0,0,0.65)",
             opacity: overlayOpacity,
           }}
           pointerEvents="box-none"
@@ -1656,36 +1712,48 @@ export default function MultiStepApplicationForm({
               opacity: cardOpacity,
               transform: [{ scale: cardScale }],
               backgroundColor: theme.colors.surface,
-              borderRadius: 24,
-              paddingVertical: 40,
+              borderRadius: 28,
+              paddingVertical: 44,
               paddingHorizontal: 32,
-              width: "85%",
+              width: "88%",
               maxWidth: 360,
               alignItems: "center",
-              elevation: 20,
+              elevation: 24,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.3,
+              shadowRadius: 24,
+              // Top accent strip
+              borderTopWidth: 4,
+              borderTopColor: "#00C853",
             }}
           >
-            {/* Icon Section */}
+            {/* ── Circle icon ── */}
             <Animated.View
               style={{
-                width: 100,
-                height: 100,
-                borderRadius: 50,
+                width: 96,
+                height: 96,
+                borderRadius: 48,
                 backgroundColor: "#00C853",
                 justifyContent: "center",
                 alignItems: "center",
-                marginBottom: 24,
+                marginBottom: 20,
                 transform: [{ scale: circleScale }],
+                shadowColor: "#00C853",
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.45,
+                shadowRadius: 12,
+                elevation: 8,
               }}
             >
               <Animated.View
                 style={{
                   position: "absolute",
-                  width: 100,
-                  height: 100,
-                  borderRadius: 50,
+                  width: 96,
+                  height: 96,
+                  borderRadius: 48,
                   backgroundColor: "#00C853",
-                  opacity: 0.3,
+                  opacity: 0.25,
                   transform: [{ scale: pulseAnim }],
                 }}
               />
@@ -1697,7 +1765,7 @@ export default function MultiStepApplicationForm({
                   ],
                 }}
               >
-                <Feather name="check" size={48} color="#FFFFFF" />
+                <Feather name="check" size={46} color="#FFFFFF" />
               </Animated.View>
             </Animated.View>
 
@@ -1707,96 +1775,132 @@ export default function MultiStepApplicationForm({
                 fontWeight: "900",
                 fontSize: 22,
                 textAlign: "center",
-                marginBottom: 4,
+                marginBottom: 6,
               }}
             >
               Application Submitted!
             </Text>
 
-            {/* --- NEW APPLICATION NUMBER SECTION --- */}
+            {/* Application number badge */}
             {applicationNo && (
               <View
                 style={{
-                  backgroundColor: theme.colors.secondaryContainer,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                  marginBottom: 16,
+                  backgroundColor: `${theme.colors.primary}18`,
+                  borderWidth: 1,
+                  borderColor: `${theme.colors.primary}30`,
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 12,
+                  marginBottom: 14,
                   marginTop: 4,
+                  alignItems: "center",
                 }}
               >
                 <Text
                   style={{
-                    color: theme.colors.onSecondaryContainer,
+                    color: theme.colors.onSurfaceVariant,
+                    fontSize: 10,
                     fontWeight: "700",
-                    fontSize: 13,
-                    letterSpacing: 1,
+                    letterSpacing: 0.8,
+                    textTransform: "uppercase",
+                    marginBottom: 2,
                   }}
                 >
-                  Application Number is: {applicationNo}
+                  Application No.
+                </Text>
+                <Text
+                  style={{
+                    color: theme.colors.primary,
+                    fontWeight: "900",
+                    fontSize: 15,
+                    letterSpacing: 1.5,
+                  }}
+                >
+                  {applicationNo}
                 </Text>
               </View>
             )}
-            {/* --------------------------------------- */}
 
             <Text
               style={{
                 color: theme.colors.onSurfaceVariant,
                 fontSize: 14,
                 textAlign: "center",
-                lineHeight: 20,
+                lineHeight: 22,
               }}
             >
-              Your loan application has been successfully submitted for
-              processing.
+              Your {config.isReviewMode ? config.terminology.loanWord.toLowerCase() : "loan"} application has been
+              successfully submitted for processing.
             </Text>
 
+            {/* Bottom accent bar */}
             <View
               style={{
                 marginTop: 24,
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: theme.colors.primary,
+                flexDirection: "row",
+                gap: 4,
               }}
-            />
+            >
+              {[1, 2, 3].map((n) => (
+                <View
+                  key={n}
+                  style={{
+                    height: 4,
+                    width: n === 2 ? 28 : 12,
+                    borderRadius: 2,
+                    backgroundColor:
+                      n === 2 ? theme.colors.primary : `${theme.colors.primary}40`,
+                  }}
+                />
+              ))}
+            </View>
           </Animated.View>
         </Animated.View>
       )}
 
+      {/* ── Footer action buttons ───────────────────────────── */}
       <View
         style={{
           position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
-          paddingTop: 16,
+          paddingTop: 14,
           paddingHorizontal: 16,
           paddingBottom: 16 + insets.bottom,
           flexDirection: "row",
-          gap: 12,
+          gap: 10,
           backgroundColor: theme.colors.surface,
           borderTopWidth: 1,
           borderTopColor: theme.colors.outlineVariant,
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 8,
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 12,
         }}
       >
+        {/* Back / Cancel */}
         <TouchableOpacity
           onPress={back}
           style={{
             flex: 1,
-            paddingVertical: 14,
-            borderRadius: 12,
+            paddingVertical: 15,
+            borderRadius: 14,
             borderWidth: 1.5,
             borderColor: theme.colors.outline,
             alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "row",
+            gap: 6,
             backgroundColor: theme.colors.surface,
           }}
         >
+          <Feather
+            name={step === 0 ? "x" : "chevron-left"}
+            size={16}
+            color={theme.colors.onSurface}
+          />
           <Text
             style={{
               color: theme.colors.onSurface,
@@ -1809,24 +1913,33 @@ export default function MultiStepApplicationForm({
         </TouchableOpacity>
 
         {step === 4 ? (
+          /* Submit */
           <TouchableOpacity
             onPress={submit}
             disabled={!canSubmit}
             style={{
-              flex: 1,
-              paddingVertical: 14,
-              borderRadius: 12,
+              flex: 2,
+              paddingVertical: 15,
+              borderRadius: 14,
               backgroundColor: canSubmit
                 ? theme.colors.primary
                 : theme.colors.surfaceVariant,
               alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "row",
+              gap: 6,
               shadowColor: canSubmit ? theme.colors.primary : "transparent",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: canSubmit ? 4 : 0,
+              shadowOffset: { width: 0, height: 5 },
+              shadowOpacity: 0.4,
+              shadowRadius: 10,
+              elevation: canSubmit ? 6 : 0,
             }}
           >
+            <Feather
+              name={isSubmitting || isUploading ? "loader" : "send"}
+              size={16}
+              color={canSubmit ? "#FFFFFF" : theme.colors.onSurfaceVariant}
+            />
             <Text
               style={{
                 color: canSubmit ? "#FFFFFF" : theme.colors.onSurfaceVariant,
@@ -1837,33 +1950,34 @@ export default function MultiStepApplicationForm({
             >
               {isSubmitting || isUploading
                 ? isUploading
-                  ? "Uploading Docs..."
-                  : "Submitting..."
+                  ? "Uploading…"
+                  : "Submitting…"
                 : "Submit Application"}
             </Text>
           </TouchableOpacity>
         ) : (
           <>
+            {/* Skip button (steps 2 & 3) */}
             {(step === 2 || step === 3) && (
               <TouchableOpacity
                 onPress={skipThisStep}
                 activeOpacity={0.85}
                 style={{
-                  paddingVertical: 14,
-                  paddingHorizontal: 14,
-                  borderRadius: 12,
+                  paddingVertical: 15,
+                  paddingHorizontal: 20,
+                  borderRadius: 14,
                   borderWidth: 1.5,
                   borderColor: theme.colors.tertiaryContainer,
                   alignItems: "center",
                   justifyContent: "center",
-                  backgroundColor: theme.colors.tertiaryContainer,
+                  backgroundColor: `${theme.colors.tertiaryContainer}80`,
                 }}
               >
                 <Text
                   style={{
                     color: theme.colors.onTertiaryContainer,
-                    fontWeight: "900",
-                    fontSize: 15,
+                    fontWeight: "800",
+                    fontSize: 14,
                   }}
                 >
                   Skip
@@ -1871,22 +1985,26 @@ export default function MultiStepApplicationForm({
               </TouchableOpacity>
             )}
 
+            {/* Next */}
             <TouchableOpacity
               onPress={next}
               disabled={!canGoNext}
               style={{
                 flex: 1,
-                paddingVertical: 14,
-                borderRadius: 12,
+                paddingVertical: 15,
+                borderRadius: 14,
                 backgroundColor: canGoNext
                   ? theme.colors.primary
                   : theme.colors.surfaceVariant,
                 alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "row",
+                gap: 6,
                 shadowColor: canGoNext ? theme.colors.primary : "transparent",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: canGoNext ? 4 : 0,
+                shadowOffset: { width: 0, height: 5 },
+                shadowOpacity: 0.4,
+                shadowRadius: 10,
+                elevation: canGoNext ? 6 : 0,
               }}
             >
               <Text
@@ -1896,8 +2014,13 @@ export default function MultiStepApplicationForm({
                   fontSize: 15,
                 }}
               >
-                Go Next
+                Continue
               </Text>
+              <Feather
+                name="chevron-right"
+                size={16}
+                color={canGoNext ? "#FFFFFF" : theme.colors.onSurfaceVariant}
+              />
             </TouchableOpacity>
           </>
         )}

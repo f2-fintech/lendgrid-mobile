@@ -1,5 +1,4 @@
 import { Feather, FontAwesome, Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   Tabs,
   useFocusEffect,
@@ -14,14 +13,13 @@ import {
   Animated,
   Easing,
   Image,
-  Pressable,
   ScrollView,
   Share,
   StatusBar,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
-  View,
+  View
 } from "react-native";
 import { Button, Dialog, Portal, Text, useTheme } from "react-native-paper";
 
@@ -50,12 +48,11 @@ import {
 import {
   AppsHeaderRight,
   NotificationBtn,
-  NotificationsHeaderRight,
-  ThemeToggleBtn,
+  ThemeToggleBtn
 } from "@/components/common/AppHeader";
 import { decodeJwt } from "@/lib/utils/utils";
 
-type DrawerRoute =
+export type DrawerRoute =
   | "/profile"
   // | "/data"
   | "/invite"
@@ -76,7 +73,7 @@ type DrawerItem = {
   route: DrawerRoute;
 };
 
-const DRAWER_ITEMS: DrawerItem[] = [
+export const DRAWER_ITEMS: DrawerItem[] = [
   // { icon: "database", label: "Data", route: "/data" },
   {
     icon: "whatsapp",
@@ -131,6 +128,167 @@ const formatDisplayName = (value: string) =>
     .split(/\s+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
+
+const TabBarButton = ({ route, focused, opts, onPress, theme }: any) => {
+  const animatedValue = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(animatedValue, {
+      toValue: focused ? 1 : 0,
+      useNativeDriver: true,
+      friction: 5,
+      tension: 60,
+    }).start();
+  }, [focused, animatedValue]);
+
+  const translateY = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -16],
+  });
+
+  const scale = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 1],
+  });
+
+  const opacity = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
+  const textOpacity = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
+
+  const textTranslateY = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 10],
+  });
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+      }}
+    >
+      <Animated.View
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+          width: 56,
+          height: 56,
+          transform: [{ translateY }],
+        }}
+      >
+        <Animated.View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: theme.colors.primary,
+            borderRadius: 28,
+            shadowColor: theme.colors.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.4,
+            shadowRadius: 8,
+            elevation: 6,
+            opacity: opacity,
+            transform: [{ scale }],
+          }}
+        />
+        <Ionicons
+          name={focused ? opts?._iconName : (`${opts?._iconName}-outline` as any)}
+          size={focused ? 24 : 24}
+          color={focused ? "#fff" : theme.colors.onSurfaceVariant}
+        />
+      </Animated.View>
+      <Animated.Text
+        style={{
+          color: theme.colors.onSurfaceVariant,
+          fontSize: 10,
+          fontWeight: "600",
+          position: "absolute",
+          bottom: 6,
+          opacity: textOpacity,
+          transform: [{ translateY: textTranslateY }],
+        }}
+      >
+        {opts?._tabLabel}
+      </Animated.Text>
+    </TouchableOpacity>
+  );
+};
+
+const CustomTabBar = ({ state, descriptors, navigation, theme, isSales }: any) => {
+  const routes = state.routes.filter((r: any) => {
+    const opts = descriptors[r.key]?.options;
+    // A tab must have an icon assigned, must not be explicitly marked hidden,
+    // AND must not have href:null (href is the source of truth for whether the
+    // route is even reachable — checking only _isHidden let href:null screens
+    // like "notifications" sneak into the bar, and could let a role-hidden tab
+    // like dashboard/commissions/tickets show if the two flags ever disagreed).
+    return opts?._iconName && !opts?._isHidden && opts?.href !== null;
+  });
+
+  return (
+    <View
+      style={{
+        backgroundColor: 'transparent',
+      }}
+    >
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          left: 20,
+          right: 20,
+          height: 64,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-around',
+          backgroundColor: theme.colors.surface,
+          borderRadius: 32,
+          elevation: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.2,
+          shadowRadius: 20,
+          paddingHorizontal: 8,
+        }}
+      >
+        {routes.map((route: any, index: number) => {
+          const opts = descriptors[route.key]?.options;
+          const focused = state.index === state.routes.findIndex((r: any) => r.key === route.key);
+
+          return (
+            <TabBarButton
+              key={route.key}
+              route={route}
+              focused={focused}
+              opts={opts}
+              theme={theme}
+              onPress={() => {
+                const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(route.name);
+                }
+              }}
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
 
 export default function Layout() {
   const dispatch = useAppDispatch();
@@ -287,7 +445,7 @@ export default function Layout() {
           firstDefined(
             profile.username,
             (profile as any).firstName &&
-              `${(profile as any).firstName} ${(profile as any).lastName || ""}`,
+            `${(profile as any).firstName} ${(profile as any).lastName || ""}`,
             claims?.username,
             claims?.name,
             claims?.fullName,
@@ -439,9 +597,13 @@ export default function Layout() {
   const isSales = String(userType || "").toLowerCase() === "sales";
 
   useEffect(() => {
-    if (userType === undefined || !isSales || pathname !== "/invite") return;
+    if (userType === undefined) return;
 
-    router.replace("/applications");
+    if (isSales && (pathname === "/dashboard" || pathname === "/commissions" || pathname === "/invite" || pathname === "/")) {
+      router.replace("/applications");
+    } else if (!isSales && pathname === "/tickets") {
+      router.replace("/dashboard");
+    }
   }, [isSales, pathname, router, userType]);
 
   if (userType === undefined) {
@@ -533,20 +695,21 @@ export default function Layout() {
 
   // --- HEADER COMPONENTS ---
   const DashboardHeaderRight = () => (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-      <TouchableOpacity onPress={handleShare} activeOpacity={0.8}>
+    <View style={{ flexDirection: "row", alignItems: "center", marginRight: 4 }}>
+      <TouchableOpacity onPress={handleShare} activeOpacity={0.8} style={{ marginRight: 12 }}>
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: theme.colors.primary,
-            paddingHorizontal: 14,
-            paddingVertical: 6,
+            backgroundColor: theme.dark ? "rgba(99, 102, 241, 0.15)" : "rgba(99, 102, 241, 0.1)",
+            paddingHorizontal: 16,
+            height: 40,
             borderRadius: 20,
             gap: 6,
           }}
         >
-          <Feather name="share-2" size={18} color="#ffffff" />
+          <Feather name="share-2" size={16} color={theme.colors.primary} />
+          <Text style={{ color: theme.colors.primary, fontWeight: "600", fontSize: 13 }}>Share</Text>
         </View>
       </TouchableOpacity>
       <ThemeToggleBtn />
@@ -578,15 +741,6 @@ export default function Layout() {
     </TouchableOpacity>
   );
 
-  const SidebarBackButton = () => (
-    <TouchableOpacity
-      onPress={() => openDrawer(params.backTo || drawerOriginRoute || pathname)}
-      style={styles.sidebarBackButton}
-      activeOpacity={0.7}
-    >
-      <Ionicons name="chevron-back" size={29} color={theme.colors.primary} />
-    </TouchableOpacity>
-  );
 
   const handleDrawerBack = () => {
     const originRoute = drawerOriginRoute || params.backTo;
@@ -662,451 +816,6 @@ export default function Layout() {
       params: { backTo },
     } as any);
   };
-
-  const GlobalMenu = () => (
-    <TouchableOpacity
-      onPress={() => openDrawer()}
-      style={{
-        marginLeft: 14,
-        padding: 8,
-      }}
-      activeOpacity={0.8}
-    >
-      <Feather name="menu" size={24} color={theme.colors.onSurface} />
-    </TouchableOpacity>
-  );
-
-  const Drawer = () => (
-    <View
-      pointerEvents={drawerMounted ? "auto" : "none"}
-      style={styles.drawerOverlay}
-    >
-      <View style={styles.drawerRoot}>
-        <Pressable
-          style={[
-            styles.drawerBackdrop,
-            {
-              opacity: drawerMounted ? 1 : 0,
-              backgroundColor: theme.dark
-                ? "rgba(0,0,0,0.72)"
-                : "rgba(15,23,42,0.46)",
-            },
-          ]}
-          onPress={closeDrawer}
-        >
-          <View style={StyleSheet.absoluteFillObject} />
-        </Pressable>
-        <Animated.View
-          style={[
-            styles.drawerPanel,
-            {
-              width: drawerWidth,
-              paddingTop: insets.top + 4,
-              paddingBottom: insets.bottom + 18,
-              backgroundColor: theme.colors.surface,
-              borderRightColor: theme.colors.outlineVariant,
-              transform: [{ translateX: drawerTranslateX }],
-            },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={handleDrawerBack}
-            activeOpacity={0.72}
-            style={{
-              position: "absolute",
-              top: insets.top + 4,
-              left: 10,
-              minWidth: 44,
-              minHeight: 44,
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 10,
-            }}
-          >
-            <Ionicons
-              name="arrow-back"
-              size={26}
-              color={theme.colors.onSurface}
-            />
-          </TouchableOpacity>
-
-          <View style={[styles.drawerHeader, { marginTop: 10, alignItems: "center", paddingBottom: 16 }]}>
-              <View style={{ position: "relative" }}>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => setShowAvatarModal(true)}
-                  style={[
-                    styles.avatar,
-                    {
-                      backgroundColor: theme.colors.primaryContainer,
-                      width: 130,
-                      height: 130,
-                      borderRadius: 65,
-                      marginBottom: 8,
-                      alignSelf: "center",
-                    },
-                  ]}
-                >
-                  {storedProfile.photoUrl ? (
-                    <Image
-                      source={{ uri: storedProfile.photoUrl }}
-                      style={styles.avatarImage}
-                    />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.avatarText,
-                        {
-                          color: theme.colors.onPrimaryContainer,
-                          fontSize: 54,
-                        },
-                      ]}
-                    >
-                      {avatarInitial}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setShowAvatarModal(true)}
-                  style={{
-                    position: "absolute",
-                    bottom: 8,
-                    right: 8,
-                    backgroundColor: theme.colors.primary,
-                    width: 30,
-                    height: 30,
-                    borderRadius: 15,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderWidth: 1.5,
-                    borderColor: theme.colors.surface,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 2,
-                    elevation: 3,
-                  }}
-                >
-                  <Feather name="maximize-2" size={15} color="#ffffff" />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => navigateFromDrawer("/profile")}
-                style={{ alignItems: "center", width: "100%" }}
-              >
-                {showCompanyName ? (
-                  <Text
-                    numberOfLines={2}
-                    style={[
-                      styles.drawerCompany,
-                      {
-                        fontSize: 16,
-                        marginBottom: 4,
-                        color: theme.colors.primary,
-                      },
-                    ]}
-                  >
-                    {companyDisplayName}
-                  </Text>
-                ) : null}
-
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.drawerName,
-                    { fontSize: 18, color: theme.colors.onSurface },
-                  ]}
-                >
-                  {userDisplayName}
-                </Text>
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.drawerEmail,
-                    {
-                      fontSize: 12,
-                      marginTop: 0,
-                      color: theme.colors.onSurfaceVariant,
-                    },
-                  ]}
-                >
-                  {storedProfile.email}
-                </Text>
-                {roleLabel ? (
-                  <View
-                    style={[
-                      styles.roleCapsule,
-                      {
-                        backgroundColor: theme.colors.primaryContainer,
-                        marginTop: 6,
-                        minHeight: 22,
-                        paddingHorizontal: 10,
-                      },
-                    ]}
-                  >
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.roleCapsuleText,
-                        {
-                          color: theme.colors.onPrimaryContainer,
-                          fontSize: 10,
-                        },
-                      ]}
-                    >
-                      {roleLabel}
-                    </Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-            </View>
-
-          <View
-            style={[
-              styles.drawerDivider,
-              {
-                backgroundColor: theme.colors.outlineVariant,
-                marginTop: 6,
-                marginBottom: 8,
-              },
-            ]}
-          />
-
-          <View style={{ flex: 1, flexDirection: "row", position: "relative" }}>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={{ flex: 1 }}
-              contentContainerStyle={{ paddingBottom: 10 }}
-              scrollEventThrottle={16}
-              onScroll={Animated.event(
-                [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                { useNativeDriver: false }
-              )}
-              onContentSizeChange={(w, h) => setContentHeight(h || 1)}
-              onLayout={(e) => setVisibleHeight(e.nativeEvent.layout.height || 1)}
-            >
-              <View style={styles.drawerNav}>
-                {visibleDrawerItems.map((item) => {
-                  const active = pathname === item.route;
-                  return (
-                    <TouchableOpacity
-                      key={item.route}
-                      onPress={() => navigateFromDrawer(item.route)}
-                      activeOpacity={0.78}
-                      style={[
-                        styles.drawerItem,
-                        active && {
-                          backgroundColor: theme.colors.primary,
-                        },
-                      ]}
-                    >
-                      {item.iconFamily === "fontawesome" ? (
-                        <FontAwesome
-                          name={item.icon as keyof typeof FontAwesome.glyphMap}
-                          size={19}
-                          color={
-                            active
-                              ? theme.colors.onPrimary
-                              : theme.colors.onSurfaceVariant
-                          }
-                        />
-                      ) : (
-                        <Feather
-                          name={item.icon as keyof typeof Feather.glyphMap}
-                          size={19}
-                          color={
-                            active
-                              ? theme.colors.onPrimary
-                              : theme.colors.onSurfaceVariant
-                          }
-                        />
-                      )}
-                      <Text
-                        style={[
-                          styles.drawerItemText,
-                          {
-                            color: active
-                              ? theme.colors.onPrimary
-                              : theme.colors.onSurface,
-                          },
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </ScrollView>
-
-            {/* Custom visual scrollbar indicator visible in both light/dark modes */}
-            {contentHeight > visibleHeight && (
-              <View
-                style={{
-                  position: "absolute",
-                  right: -8,
-                  top: 0,
-                  bottom: 0,
-                  width: 4,
-                  backgroundColor: theme.dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-                  borderRadius: 2,
-                  overflow: "hidden",
-                }}
-              >
-                <Animated.View
-                  style={{
-                    width: "100%",
-                    borderRadius: 2,
-                    backgroundColor: theme.dark ? "rgba(255,255,255,0.22)" : "rgba(15,23,42,0.22)",
-                    height: visibleHeight * (visibleHeight / contentHeight),
-                    transform: [
-                      {
-                        translateY: scrollY.interpolate({
-                          inputRange: [0, contentHeight - visibleHeight],
-                          outputRange: [0, visibleHeight - visibleHeight * (visibleHeight / contentHeight)],
-                          extrapolate: "clamp",
-                        }),
-                      },
-                    ],
-                  }}
-                />
-              </View>
-            )}
-          </View>
-
-          <View style={styles.drawerFooter}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "100%",
-                position: "relative",
-                minHeight: 48,
-              }}
-            >
-              {/* Logo box centered in the row */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: theme.dark
-                    ? "rgba(255,255,255,0.08)"
-                    : "rgba(50,56,243,0.3)",
-                  overflow: "hidden",
-                  paddingHorizontal: 26,
-                  paddingVertical: 4,
-                  height: 52,
-                  position: "relative",
-                }}
-              >
-                <LinearGradient
-                  colors={
-                    theme.dark
-                      ? ["rgba(255,255,255,0.09)", "rgba(255,255,255,0.03)"]
-                      : ["rgba(255,255,255,0.98)", "rgba(232,240,255,0.92)"]
-                  }
-                  style={StyleSheet.absoluteFillObject}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                />
-                <Image
-                  source={
-                    theme.dark
-                      ? require("@/assets/images/logo.png")
-                      : require("@/assets/images/logo_blue.png")
-                  }
-                  style={{ width: 65, height: 65 }}
-                  resizeMode="contain"
-                />
-                <View
-                  style={{
-                    width: 1,
-                    height: 28,
-                    backgroundColor: theme.dark
-                      ? "rgba(255,255,255,0.15)"
-                      : "rgba(15,23,42,0.3)",
-                    borderRadius: 99,
-                  }}
-                />
-                <View
-                  style={{ flexDirection: "column", alignItems: "flex-start" }}
-                >
-                  <Text
-                    style={{
-                      color: theme.colors.primary,
-                      fontWeight: "900",
-                      fontSize: 16,
-                      lineHeight: 16,
-                    }}
-                  >
-                    LendGrid
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.dark
-                        ? "rgba(255,255,255,0.4)"
-                        : "rgba(15,23,42,0.65)",
-                      fontWeight: "700",
-                      fontSize: 8,
-                      letterSpacing: 1,
-                      textTransform: "uppercase",
-                      marginTop: 0,
-                    }}
-                  >
-                    {storedProfile.role === "aggregator_admin"
-                      ? "AGGREGATOR"
-                      : "AGENT NETWORK"}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Logout button shifted to the right corner, circular */}
-              <TouchableOpacity
-                onPress={() => {
-                  closeDrawer();
-                  setLogoutVisible(true);
-                }}
-                activeOpacity={0.82}
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: theme.colors.surfaceVariant,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderWidth: 1,
-                  borderColor: theme.colors.outlineVariant,
-                }}
-              >
-                <Feather
-                  name="log-out"
-                  size={18}
-                  color={theme.colors.onSurface}
-                />
-              </TouchableOpacity>
-            </View>
-            <Text
-              style={[
-                styles.versionText,
-                { color: theme.colors.onSurfaceVariant },
-              ]}
-            >
-              Version {appVersion}
-            </Text>
-          </View>
-        </Animated.View>
-      </View>
-    </View>
-  );
 
   return (
     <>
@@ -1237,37 +946,62 @@ export default function Layout() {
       </Portal>
       <View style={styles.appShell}>
         <Tabs
+          sceneContainerStyle={{ paddingBottom: 110 }}
           initialRouteName={isSales ? "applications" : "dashboard"}
           backBehavior="history"
           screenOptions={{
             headerShown: true,
-            headerStyle: { backgroundColor: theme.colors.background },
+            headerStyle: {
+              backgroundColor: theme.colors.background,
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+            headerTitleStyle: {
+              fontWeight: "800",
+              fontSize: 18,
+            },
             headerTintColor: theme.colors.onSurface,
-            tabBarStyle: { backgroundColor: theme.colors.surface },
-            headerLeft: () => <GlobalMenu />,
+            tabBarShowLabel: false,
+            tabBarStyle: { display: 'none' }, // Hidden — we use custom tabBar prop below
           }}
+          tabBar={(props) => <CustomTabBar {...props} theme={theme} isSales={isSales} />}
         >
           <Tabs.Screen
             name="dashboard"
             options={{
               title: "Dashboard",
-              href: isSales ? null : "/dashboard",
-              headerRight: () => <DashboardHeaderRight />,
-              tabBarIcon: ({ color, size }) => (
-                <Feather name="home" size={size} color={color} />
+              headerTitle: "",
+              headerLeft: () => (
+                <View>
+                  <Image
+                    source={require('@/assets/images/logo_blue_croped.png')}
+                    style={{
+                      width: 140,
+                      height: 44,
+                      resizeMode: "contain",
+                    }}
+                  />
+                </View>
               ),
-            }}
+              href: isSales ? null : "/dashboard",
+              _isHidden: isSales,
+              headerRight: () => <DashboardHeaderRight />,
+              _iconName: 'home',
+              _tabLabel: 'Home',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
           />
           <Tabs.Screen
             name="commissions"
             options={{
               title: "Commissions",
               href: isSales ? null : "/commissions",
+              _isHidden: isSales,
               headerRight: () => <CommissionsHeaderRight />,
-              tabBarIcon: ({ color }) => (
-                <FontAwesome name="money" size={24} color={color} />
-              ),
-            }}
+              _iconName: 'wallet',
+              _tabLabel: 'Commission',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
           />
           <Tabs.Screen
             name="applications"
@@ -1275,21 +1009,22 @@ export default function Layout() {
               title: "Applications",
               href: "/applications",
               headerRight: () => <AppsHeaderRight />,
-              tabBarIcon: ({ color, size }) => (
-                <Feather name="file-text" size={size} color={color} />
-              ),
-            }}
+              _iconName: 'document-text',
+              _tabLabel: 'Apps',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
           />
           <Tabs.Screen
             name="tickets"
             options={{
               title: "Tickets",
               href: isSales ? "/tickets" : null,
+              _isHidden: !isSales,
               headerRight: () => <AppsHeaderRight />,
-              tabBarIcon: ({ color, size }) => (
-                <Feather name="clipboard" size={size} color={color} />
-              ),
-            }}
+              _iconName: 'ticket',
+              _tabLabel: 'Tickets',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
           />
           <Tabs.Screen
             name="profile"
@@ -1297,10 +1032,10 @@ export default function Layout() {
               title: "Profile",
               href: "/profile",
               headerRight: () => <ProfileHeaderRight />,
-              tabBarIcon: ({ color }) => (
-                <FontAwesome name="user-circle-o" size={24} color={color} />
-              ),
-            }}
+              _iconName: 'person',
+              _tabLabel: 'Profile',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
           />
 
           <Tabs.Screen
@@ -1308,7 +1043,6 @@ export default function Layout() {
             options={{
               title: "Data",
               href: null,
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1319,7 +1053,6 @@ export default function Layout() {
               title: "Invite Agent",
               href: null,
               tabBarItemStyle: { display: "none" },
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1330,7 +1063,6 @@ export default function Layout() {
               title: "Team Management",
               href: null,
               tabBarItemStyle: { display: "none" },
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1340,7 +1072,6 @@ export default function Layout() {
             options={{
               title: "Training and Resources",
               href: null,
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1350,7 +1081,6 @@ export default function Layout() {
             options={{
               title: "SAAS Products",
               href: null,
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1360,7 +1090,6 @@ export default function Layout() {
             options={{
               title: "Loan Products",
               href: null,
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1370,7 +1099,6 @@ export default function Layout() {
             options={{
               title: "EMI Calculator",
               href: null,
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1380,7 +1108,6 @@ export default function Layout() {
             options={{
               title: "Banker Lists",
               href: null,
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1390,29 +1117,97 @@ export default function Layout() {
             options={{
               title: "Help Support",
               href: null,
-              headerLeft: () => <SidebarBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
 
-          <Tabs.Screen
+          {/* <Tabs.Screen
             name="notifications"
             options={{
               title: "Notifications",
               href: null,
               headerLeft: () => <NotificationsHeaderLeft />,
               headerRight: () => <NotificationsHeaderRight />,
-              tabBarIcon: ({ color, size }) => (
-                <Ionicons
-                  name="notifications-outline"
-                  size={size}
-                  color={color}
-                />
-              ),
-            }}
+              _iconName: 'bell',
+              _tabLabel: 'Alerts',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
+          /> */}
+          <Tabs.Screen
+            name="more"
+            options={{
+              title: "More",
+              headerTitle: "More Options",
+              headerRight: () => <ThemeToggleBtn />,
+              _iconName: 'grid',
+              _tabLabel: 'More',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
           />
         </Tabs>
-        <Drawer />
+
+        {drawerMounted && (
+          <Animated.View style={styles.drawerOverlay}>
+            <TouchableOpacity
+              style={styles.drawerBackdrop}
+              activeOpacity={1}
+              onPress={closeDrawer}
+            />
+            <Animated.View
+              style={[
+                styles.drawerPanel,
+                {
+                  width: drawerWidth,
+                  backgroundColor: theme.colors.surface,
+                  transform: [{ translateX: drawerTranslateX }]
+                }
+              ]}
+            >
+              <View style={[styles.drawerHeader, { marginTop: insets.top + 20 }]}>
+                <View style={[styles.avatar, { backgroundColor: `${theme.colors.primary}1A` }]}>
+                  <Text style={[styles.avatarText, { color: theme.colors.primary }]}>{avatarInitial}</Text>
+                </View>
+                <Text style={[styles.drawerName, { color: theme.colors.onSurface }]}>{userDisplayName}</Text>
+                {showCompanyName && (
+                  <Text style={[styles.drawerCompany, { color: theme.colors.primary }]}>{companyDisplayName}</Text>
+                )}
+                <Text style={[styles.drawerEmail, { color: theme.colors.onSurfaceVariant }]}>{storedProfile.email}</Text>
+                <View style={[styles.roleCapsule, { backgroundColor: `${theme.colors.primary}15` }]}>
+                  <Text style={[styles.roleCapsuleText, { color: theme.colors.primary }]}>{roleLabel}</Text>
+                </View>
+              </View>
+
+              <View style={[styles.drawerDivider, { backgroundColor: theme.colors.outline }]} />
+
+              <ScrollView style={styles.drawerNav} showsVerticalScrollIndicator={false}>
+                {visibleDrawerItems.map((item: any, index: number) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.drawerItem,
+                      { backgroundColor: pendingDrawerRoute === item.route ? `${theme.colors.primary}1A` : 'transparent' }
+                    ]}
+                    onPress={() => navigateFromDrawer(item.route)}
+                  >
+                    <Feather name={item.icon as any} size={20} color={pendingDrawerRoute === item.route ? theme.colors.primary : theme.colors.onSurfaceVariant} />
+                    <Text style={[styles.drawerItemText, { color: pendingDrawerRoute === item.route ? theme.colors.primary : theme.colors.onSurface }]}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={[styles.drawerFooter, { marginBottom: insets.bottom + 20 }]}>
+                <TouchableOpacity
+                  style={[styles.signOutButton, { backgroundColor: `${theme.colors.error}10` }]}
+                  onPress={() => setLogoutVisible(true)}
+                >
+                  <Feather name="log-out" size={18} color={theme.colors.error} />
+                  <Text style={[styles.signOutText, { color: theme.colors.error }]}>Sign Out</Text>
+                </TouchableOpacity>
+                <Text style={[styles.versionText, { color: theme.colors.onSurfaceVariant }]}>v{appVersion}</Text>
+              </View>
+            </Animated.View>
+          </Animated.View>
+        )}
       </View>
     </>
   );
@@ -1446,9 +1241,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     shadowColor: "#000",
     shadowOffset: { width: 6, height: 0 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.1,
     shadowRadius: 16,
-    elevation: 20,
+    elevation: 30,
+    borderTopRightRadius: 30,
+    borderBottomRightRadius: 30,
   },
   drawerBackButton: {
     alignSelf: "flex-start",
@@ -1463,13 +1260,13 @@ const styles = StyleSheet.create({
   },
   avatar: {
     alignSelf: "center",
-    width: 130,
-    height: 130,
-    borderRadius: 65,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   avatarImage: {
     width: "100%",
@@ -1520,12 +1317,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   drawerItem: {
-    minHeight: 42,
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    minHeight: 46,
+    borderRadius: 14,
+    paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
+    marginBottom: 6,
   },
   drawerItemText: {
     flex: 1,
@@ -1533,8 +1331,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   signOutButton: {
-    minHeight: 48,
-    borderRadius: 24,
+    minHeight: 52,
+    borderRadius: 16,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",

@@ -145,9 +145,9 @@ export default function CommissionHistoryList({
             {
               backgroundColor: theme.colors.surface,
               borderColor: theme.colors.outline,
-              marginHorizontal: 16,
+              marginHorizontal: 20,
               marginTop: 12,
-              borderRadius: 12,
+              borderRadius: 24,
               padding: 16,
             },
           ]}
@@ -208,7 +208,7 @@ export default function CommissionHistoryList({
             { color: theme.colors.onSurface },
           ]}
         >
-          Commission History
+          Recent Activity
         </Text>
 
         <Text
@@ -235,7 +235,7 @@ export default function CommissionHistoryList({
               { color: theme.colors.onSurface, marginTop: 16 },
             ]}
           >
-            No commission history found
+            No recent activity found
           </Text>
           <Text
             style={[

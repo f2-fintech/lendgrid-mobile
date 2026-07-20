@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import type { TextStyle, ViewStyle } from "react-native";
 import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Divider, Text, useTheme } from "react-native-paper";
+import { useAppConfig } from "@/contexts/ConfigContext";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -218,6 +219,7 @@ function FaqItem({
 export default function HelpSupportScreen() {
   const theme = useTheme();
   const { colors } = theme;
+  const { config } = useAppConfig();
 
   return (
     <ScrollView
@@ -292,38 +294,42 @@ export default function HelpSupportScreen() {
         ))}
       </View>
 
-      {/* ── FAQs ── */}
-      <Text
-        style={[
-          styles.sectionTitle,
-          { color: colors.onSurface, marginTop: 28 },
-        ]}
-      >
-        💬 Frequently Asked Questions
-      </Text>
-      <View
-        style={[
-          styles.faqBox,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.outlineVariant,
-          },
-        ]}
-      >
-        {FAQS.map((faq, i) => (
-          <FaqItem
-            key={faq.q}
-            item={faq}
-            isLast={i === FAQS.length - 1}
-            colors={colors}
-          />
-        ))}
-      </View>
+      {/* ── FAQs — hidden in review mode (contains loan-specific Q&A) ── */}
+      {!config.isReviewMode && (
+        <>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: colors.onSurface, marginTop: 28 },
+            ]}
+          >
+            💬 Frequently Asked Questions
+          </Text>
+          <View
+            style={[
+              styles.faqBox,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.outlineVariant,
+              },
+            ]}
+          >
+            {FAQS.map((faq, i) => (
+              <FaqItem
+                key={faq.q}
+                item={faq}
+                isLast={i === FAQS.length - 1}
+                colors={colors}
+              />
+            ))}
+          </View>
+        </>
+      )}
 
       {/* ── Footer note ── */}
       <Text style={[styles.footer, { color: colors.onSurfaceVariant }]}>
-        For urgent escalations, please have your Application ID or Loan
-        Reference Number ready before calling.
+        For urgent escalations, please have your Application ID or Reference
+        Number ready before calling.
       </Text>
     </ScrollView>
   );

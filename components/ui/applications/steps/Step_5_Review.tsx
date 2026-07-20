@@ -3,6 +3,7 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
 import { useState } from "react";
+import { useAppConfig } from "@/contexts/ConfigContext";
 import type { Step0Values } from "./Step_0_LoanDetails";
 import type { Step1Values } from "./Step_1_BasicDetails";
 import type { PickedFile } from "./Step_2_Statement";
@@ -26,6 +27,8 @@ export default function Step5Review({
 }: Props) {
   const theme = useTheme();
   const [showReviewInfo, setShowReviewInfo] = useState(true);
+  const { config } = useAppConfig();
+  const loanWord = config.isReviewMode ? config.terminology.loanWord : "Loan";
 
   const row = (label: string, value?: string) => (
     <View
@@ -131,10 +134,10 @@ export default function Step5Review({
           Application Summary
         </Text>
 
-        {row("Loan Amount", step0.loanAmount ? `₹${step0.loanAmount}` : "")}
-        {row("Loan Type", step0.loanType)}
+        {row(`${loanWord} Amount`, step0.loanAmount ? `₹${step0.loanAmount}` : "")}
+        {row(`${loanWord} Type`, step0.loanType ? step0.loanType.replace(/loan/gi, loanWord) : "")}
         {row("Tenure", step0.tenure)}
-        {row("Providers", (step0.selectedProviders || []).join(", "))}
+        {row(config.isReviewMode ? "Partners" : "Providers", (step0.selectedProviders || []).join(", "))}
 
         <View style={{ height: 10 }} />
 

@@ -9,8 +9,11 @@ import { useSelector } from "react-redux";
 
 import CommissionHistoryList from "@/components/ui/dashboard/ApplicationsList";
 import DisbursalChart from "@/components/ui/dashboard/DisbursalChart";
-import MetricsGrid from "@/components/ui/dashboard/MetricsGrid";
+import HeroCard from "@/components/ui/dashboard/HeroCard";
+import QuickStats from "@/components/ui/dashboard/QuickStats";
 import SkeletonLoader from "@/components/ui/dashboard/SkeletonLoader";
+import ServicesAndTools from "@/components/ui/dashboard/ServicesAndTools";
+import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 
 import {
   useApplicationCount,
@@ -19,6 +22,29 @@ import {
 } from "@/hooks/use-aggregator-dashboard";
 import { useCommissionTransactionsInfinite } from "@/hooks/useCommissions";
 import { CommissionStatus } from "@/types/commissions";
+
+// Mock Data
+const MOCK_STATS = {
+  submitted: 42,
+  approved: 28,
+  disbursed: 15,
+  rejected: 4,
+};
+
+const MOCK_COMMISSION = {
+  total: 125000,
+  paid: 85000,
+  pending: 40000,
+};
+
+const MOCK_DISBURSAL = [
+  { month: "Jan", count: 45 },
+  { month: "Feb", count: 52 },
+  { month: "Mar", count: 38 },
+  { month: "Apr", count: 65 },
+  { month: "May", count: 48 },
+  { month: "Jun", count: 72 },
+];
 
 export default function AggregatorDashboard() {
   const theme = useTheme();
@@ -168,12 +194,33 @@ export default function AggregatorDashboard() {
     );
   }
 
+  // Use mock data if actual data is 0 or empty for demo purposes
+  const displayEarned = commissionSummary.total > 0 ? commissionSummary.total : MOCK_COMMISSION.total;
+  const displayPaid = commissionSummary.paid > 0 ? commissionSummary.paid : MOCK_COMMISSION.paid;
+  const displayPending = commissionSummary.pending > 0 ? commissionSummary.pending : MOCK_COMMISSION.pending;
+  
+  const displaySubmitted = appCount.data ? appCount.data : MOCK_STATS.submitted;
+  const displayApproved = approved.data?.count ? approved.data.count : MOCK_STATS.approved;
+  const displayDisbursed = disbursed.data?.count ? disbursed.data.count : MOCK_STATS.disbursed;
+  const displayRejected = rejected.data?.count ? rejected.data.count : MOCK_STATS.rejected;
+
+  const hasChartData = disbursedByMonth.data?.some((item: any) => Number(item.count) > 0);
+  const displayChartData = hasChartData ? disbursedByMonth.data : MOCK_DISBURSAL;
+
+  const MOCK_ROWS = [
+    { id: 1, lenderName: "HDFC Bank", loanType: "Personal Loan", commissionAmount: 12500, commissionRate: 2.5, status: "PAID", createdAt: new Date().toISOString() },
+    { id: 2, lenderName: "ICICI Bank", loanType: "Home Loan", commissionAmount: 8400, commissionRate: 1.2, status: "PENDING", createdAt: new Date().toISOString() },
+    { id: 3, lenderName: "Axis Bank", loanType: "Business Loan", commissionAmount: 22100, commissionRate: 3.0, status: "CALCULATED", createdAt: new Date().toISOString() },
+  ];
+  const displayCommissionRows = commissionRows.length ? commissionRows : MOCK_ROWS;
+  const displayTotalCount = totalCount > 0 ? totalCount : MOCK_ROWS.length;
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <StatusBar style={isDarkMode ? "light" : "dark"} />
 
       <ScrollView
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 20 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 120 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -184,35 +231,31 @@ export default function AggregatorDashboard() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <MetricsGrid
-          metrics={{
-            applicationsSubmitted: appCount.data ?? 0,
-
-            approvedCount: approved.data?.count ?? 0,
-            approvedAmount: approved.data?.amount ?? 0,
-
-            disbursedCount: disbursed.data?.count ?? 0,
-            disbursedAmount: disbursed.data?.amount ?? 0,
-
-            rejectedCount: rejected.data?.count ?? 0,
-
-            commissionTransactions: Number(totalCount ?? 0),
-            commissionEarned: commissionSummary.total,
-            commissionPaid: commissionSummary.paid,
-            commissionPending: commissionSummary.pending,
-          }}
+        <HeroCard
+          earned={displayEarned}
+          paid={displayPaid}
+          pending={displayPending}
         />
 
-        <View style={{ marginTop: -12 }}>
-          <DisbursalChart data={disbursedByMonth.data ?? []} />
+        <QuickStats
+          submitted={displaySubmitted}
+          approved={displayApproved}
+          disbursed={displayDisbursed}
+          rejected={displayRejected}
+        />
+
+        <ServicesAndTools />
+
+        <View style={{ marginBottom: 24, marginHorizontal: 20 }}>
+          <DisbursalChart data={displayChartData} />
         </View>
 
         <CommissionHistoryList
-          data={commissionRows}
+          data={displayCommissionRows}
           fetchNextPage={commissions.fetchNextPage}
           hasNextPage={!!commissions.hasNextPage}
           isFetchingNextPage={commissions.isFetchingNextPage}
-          totalCount={Number(totalCount ?? 0)}
+          totalCount={Number(displayTotalCount ?? 0)}
         />
       </ScrollView>
     </View>

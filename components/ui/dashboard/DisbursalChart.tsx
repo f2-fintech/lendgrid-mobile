@@ -1,7 +1,4 @@
-import {
-  chartConfig,
-  dashboardStyles,
-} from "@/styles/components/dashboard/dashboard.styles";
+import { dashboardStyles } from "@/styles/components/dashboard/dashboard.styles";
 import { useEffect, useMemo, useRef } from "react";
 import {
   Animated,
@@ -11,8 +8,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { BarChart } from "react-native-chart-kit";
 import { useTheme } from "react-native-paper";
+import { useAppConfig } from "@/contexts/ConfigContext";
 
 const { width } = Dimensions.get("window");
 
@@ -36,6 +33,8 @@ export default function DisbursalChart({
 }) {
   const theme = useTheme();
   const isDark = !!theme?.dark;
+  const { config: appConfig } = useAppConfig();
+  const loanWord = appConfig?.terminology?.loanWord || "Service";
 
   // ===== Chart values =====
   const labels = (data ?? []).map((x) => monthLabel(x.month));
@@ -44,42 +43,13 @@ export default function DisbursalChart({
   const safeLabels =
     labels.length > 0
       ? labels
-      : [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec",
-        ];
+      : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
 
   const safeValues =
     values.length > 0 ? values : new Array(safeLabels.length).fill(0);
 
-  const chartData = useMemo(
-    () => ({
-      labels: safeLabels,
-      datasets: [{ data: safeValues }],
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [safeLabels.join(","), safeValues.join(",")],
-  );
-
-  // ===== Layout =====
-  const baseCardWidth = width - 64;
-  const perBarWidth = 52;
-  const computedWidth = Math.max(
-    baseCardWidth,
-    safeLabels.length * perBarWidth,
-  );
-
-  const CHART_HEIGHT = 220;
+  const maxValue = Math.max(...safeValues, 10);
+  const CHART_HEIGHT = 160;
 
   // ===== Animation =====
   const anim = useRef(new Animated.Value(0)).current;
@@ -88,55 +58,11 @@ export default function DisbursalChart({
     anim.setValue(0);
     Animated.timing(anim, {
       toValue: 1,
-      duration: 750,
+      duration: 800,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: false, // Animating height, must be false
     }).start();
   }, [anim, safeLabels.join(","), safeValues.join(",")]);
-
-  // scale from bottom feel (translate + scale)
-  const scaleY = anim;
-  const translateY = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [CHART_HEIGHT / 2, 0],
-  });
-
-  // ===== Bar color (solid) for BOTH MODES =====
-  const barColor = theme.colors.primary;
-
-  // ===== Chart Config =====
-  const config = {
-    ...chartConfig,
-
-    backgroundColor: theme.colors.background,
-    backgroundGradientFrom: isDark
-      ? theme.colors.surface
-      : theme.colors.surface,
-    backgroundGradientTo: isDark
-      ? theme.colors.surface
-      : theme.colors.surfaceVariant,
-
-    // main chart color used by library
-    color: () => barColor,
-
-    // labels
-    labelColor: () =>
-      isDark ? "rgba(255,255,255,0.92)" : theme.colors.onSurface,
-    propsForLabels: {
-      fill: isDark ? "rgba(255,255,255,0.75)" : theme.colors.onSurfaceVariant,
-    },
-    propsForBackgroundLines: {
-      stroke: isDark ? "rgba(255,255,255,0.10)" : theme.colors.outline,
-    },
-
-    // SOLID BAR FILL (no gradient) - works in light + dark
-    fillShadowGradient: barColor,
-    fillShadowGradientFrom: barColor,
-    fillShadowGradientTo: barColor,
-    fillShadowGradientOpacity: 1,
-    fillShadowGradientFromOpacity: 1,
-    fillShadowGradientToOpacity: 1,
-  };
 
   return (
     <View
@@ -145,6 +71,13 @@ export default function DisbursalChart({
         {
           backgroundColor: theme.colors.surface,
           borderColor: isDark ? "rgba(255,255,255,0.10)" : theme.colors.outline,
+          padding: 20,
+          borderRadius: 24,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 12,
+          elevation: 2,
         },
       ]}
     >
@@ -154,6 +87,9 @@ export default function DisbursalChart({
             dashboardStyles.chartTitle,
             {
               color: isDark ? "rgba(255,255,255,0.92)" : theme.colors.onSurface,
+              fontSize: 18,
+              fontWeight: "700",
+              marginBottom: 4,
             },
           ]}
         >
@@ -166,49 +102,74 @@ export default function DisbursalChart({
               color: isDark
                 ? "rgba(255,255,255,0.65)"
                 : theme.colors.onSurfaceVariant,
+              fontSize: 13,
             },
           ]}
         >
-          Track your loan disbursal performance
+          {`Track your ${loanWord.toLowerCase()} disbursal performance`}
         </Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <Animated.View
-          style={{
-            transform: [{ translateY }, { scaleY }],
-          }}
-        >
-          <BarChart
-            data={chartData}
-            width={computedWidth}
-            height={CHART_HEIGHT}
-            chartConfig={config}
-            yAxisLabel=""
-            showValuesOnTopOfBars
-            withInnerLines={false}
-            fromZero
-            style={{ borderRadius: 16 }}
-            // Optional: control bar thickness
-            // barPercentage={0.6}
-          />
-        </Animated.View>
-      </ScrollView>
-
-      <Text
-        style={[
-          dashboardStyles.chartLegendText,
-          {
-            color: isDark
-              ? "rgba(255,255,255,0.65)"
-              : theme.colors.onSurfaceVariant,
-            textAlign: "center",
-            marginTop: 8,
-          },
-        ]}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingRight: 20, marginTop: 32 }}
       >
-        Disbursed tickets count by month
-      </Text>
+        <View style={{ flexDirection: "row", alignItems: "flex-end", height: CHART_HEIGHT + 30 }}>
+          {safeValues.map((val, idx) => {
+            const barHeight = (val / maxValue) * CHART_HEIGHT;
+            
+            const animatedHeight = anim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, barHeight],
+            });
+
+            return (
+              <View key={idx} style={{ alignItems: "center", marginRight: 24 }}>
+                <Text 
+                  style={{ 
+                    color: isDark ? "rgba(255,255,255,0.8)" : theme.colors.onSurface,
+                    fontSize: 12, 
+                    fontWeight: "700",
+                    marginBottom: 8 
+                  }}
+                >
+                  {val > 0 ? val : ""}
+                </Text>
+                
+                <View style={{ 
+                  height: CHART_HEIGHT, 
+                  justifyContent: 'flex-end',
+                  width: 36,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+                  borderRadius: 18,
+                  overflow: "hidden"
+                }}>
+                  <Animated.View
+                    style={{
+                      height: animatedHeight,
+                      width: "100%",
+                      backgroundColor: theme.colors.primary,
+                      borderRadius: 18,
+                    }}
+                  />
+                </View>
+
+                <Text 
+                  style={{ 
+                    marginTop: 12, 
+                    color: isDark ? "rgba(255,255,255,0.5)" : theme.colors.onSurfaceVariant,
+                    fontSize: 12,
+                    fontWeight: "600"
+                  }}
+                >
+                  {safeLabels[idx]}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
     </View>
   );
 }

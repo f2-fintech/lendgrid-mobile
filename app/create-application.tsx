@@ -1,5 +1,6 @@
 import { AppsHeaderRight } from "@/components/common/AppHeader";
 import MultiStepApplicationForm from "@/components/ui/applications/MultiStepApplicationForm";
+import { useAppConfig } from "@/contexts/ConfigContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useLayoutEffect } from "react";
@@ -15,11 +16,12 @@ export default function CreateApplicationScreen() {
   }>();
   const navigation = useNavigation();
   const theme = useTheme();
+  const { config } = useAppConfig();
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: true,
-      title: "Create Application",
+      title: config.isReviewMode ? `Create ${config.terminology.loanWord}` : "Create Application",
 
       headerStyle: { backgroundColor: theme.colors.background },
       headerTintColor: theme.colors.onSurface,
@@ -41,7 +43,7 @@ export default function CreateApplicationScreen() {
 
       headerRight: () => <AppsHeaderRight />,
     });
-  }, [navigation, router, theme.colors.background, theme.colors.onSurface]);
+  }, [navigation, router, theme.colors.background, theme.colors.onSurface, config.isReviewMode, config.terminology.loanWord]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>

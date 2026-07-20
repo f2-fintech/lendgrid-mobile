@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useAppConfig } from "@/contexts/ConfigContext";
 import { Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useTheme } from "react-native-paper";
 
@@ -151,10 +152,10 @@ const getFieldKeys = (loanType: string, entityType?: string) => {
   return ["bankStatement"];
 };
 
-const titleFor = (loanType: string) => {
-  if (loanType === "personal loan") return "Personal Loan Documents";
-  if (loanType === "business loan") return "Business Loan Documents";
-  if (loanType === "professional loan") return "Professional Loan Documents";
+const titleFor = (loanType: string, loanWord: string) => {
+  if (loanType === "personal loan") return `Personal ${loanWord} Documents`;
+  if (loanType === "business loan") return `Business ${loanWord} Documents`;
+  if (loanType === "professional loan") return `Professional ${loanWord} Documents`;
   return "Statement Upload";
 };
 
@@ -169,6 +170,8 @@ export default function Step2Statement({
   businessEntityType,
 }: Props) {
   const theme = useTheme();
+  const { config } = useAppConfig();
+  const loanWord = config.isReviewMode ? config.terminology.loanWord : "Loan";
   const safeValue = value || emptyStep2Value;
   const fieldKeys = useMemo(
     () => getFieldKeys(loanType, businessEntityType),
@@ -282,12 +285,7 @@ export default function Step2Statement({
     return (
       <View
         style={{
-          borderWidth: 1,
-          borderColor: theme.colors.outlineVariant,
-          borderRadius: 14,
-          padding: 12,
-          backgroundColor: theme.colors.surface,
-          marginBottom: 12,
+          marginBottom: 16,
         }}
       >
         <Text style={{ color: theme.colors.onSurface, fontWeight: "800", marginBottom: 8 }}>
@@ -366,13 +364,13 @@ export default function Step2Statement({
             onPress={() => pickDoc(fieldKey, label)}
             activeOpacity={0.85}
             style={{
-              borderWidth: 1.5,
+              borderWidth: 2,
               borderStyle: "dashed",
-              borderColor: theme.colors.outline,
-              borderRadius: 12,
-              padding: 16,
+              borderColor: theme.colors.primary,
+              borderRadius: 16,
+              padding: 24,
               alignItems: "center",
-              backgroundColor: theme.colors.surfaceVariant,
+              backgroundColor: `${theme.colors.primary}10`,
             }}
           >
             <Feather name="upload-cloud" size={22} color={theme.colors.onSurfaceVariant} />
@@ -397,10 +395,7 @@ export default function Step2Statement({
         onPress={() => setPersonCountOpen(true)}
         style={{
           padding: 14,
-          borderWidth: 1.5,
-          borderColor: theme.colors.outline,
-          borderRadius: 12,
-          backgroundColor: theme.colors.surface,
+          borderRadius: 16, backgroundColor: theme.colors.surfaceVariant,
           marginBottom: 12,
           flexDirection: "row",
           alignItems: "center",
@@ -480,7 +475,7 @@ export default function Step2Statement({
       >
         <Feather name="file-text" size={18} color={theme.colors.onTertiaryContainer} />
         <Text style={{ flex: 1, color: theme.colors.onTertiaryContainer, lineHeight: 20 }}>
-          {titleFor(loanType)}
+          {titleFor(loanType, loanWord)}
           {loanType === "business loan" && businessEntityType
             ? ` for ${businessEntityType.replace(/_/g, " ")}`
             : ""}

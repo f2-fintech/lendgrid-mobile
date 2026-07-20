@@ -126,11 +126,11 @@ export default function Step3IdProof({
               height: 120,
               borderWidth: 2,
               borderStyle: "dashed",
-              borderColor: theme.colors.outlineVariant,
+              borderColor: theme.colors.primary,
               borderRadius: 16,
               justifyContent: "center",
               alignItems: "center",
-              backgroundColor: theme.colors.surfaceVariant,
+              backgroundColor: `${theme.colors.primary}10`,
             }}
           >
             <Feather
@@ -158,11 +158,11 @@ export default function Step3IdProof({
                 height: 120,
                 borderWidth: 2,
                 borderStyle: "dashed",
-                borderColor: theme.colors.outlineVariant,
+                borderColor: theme.colors.primary,
                 borderRadius: 16,
                 justifyContent: "center",
                 alignItems: "center",
-                backgroundColor: theme.colors.primaryContainer,
+                backgroundColor: `${theme.colors.primary}15`,
               }}
             >
               <Feather

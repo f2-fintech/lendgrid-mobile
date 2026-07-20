@@ -349,7 +349,7 @@ export const commissionsStyles = (theme: MD3Theme) =>
     createFabWrap: {
       position: "absolute",
       right: 18,
-      bottom: 22,
+      bottom: 100, // Moved up to clear bottom navigation
       alignItems: "center",
       justifyContent: "center",
       zIndex: 20,

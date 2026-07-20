@@ -21,12 +21,23 @@ export function ThemeToggleBtn() {
   };
 
   return (
-    <TouchableOpacity onPress={handleToggle} style={{ marginRight: 15 }}>
-      <Ionicons
-        name={mode === "dark" ? "sunny-outline" : "moon-outline"}
-        size={24}
-        color={theme.colors.onSurface}
-      />
+    <TouchableOpacity onPress={handleToggle} style={{ marginRight: 12 }}>
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Ionicons
+          name={mode === "dark" ? "sunny-outline" : "moon-outline"}
+          size={20}
+          color={theme.colors.onSurface}
+        />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -49,27 +60,37 @@ export function NotificationBtn() {
   return (
     <TouchableOpacity
       onPress={() => router.push("/notifications")}
-      style={{ marginRight: 10 }}
+      style={{ marginRight: 16 }}
       activeOpacity={0.8}
     >
-      <View style={{ position: "relative" }}>
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+          justifyContent: "center",
+          alignItems: "center",
+          position: "relative",
+        }}
+      >
         <Ionicons
           name="notifications-outline"
-          size={24}
+          size={20}
           color={theme.colors.onSurface}
         />
         {hasUnreadNotifications && (
           <View
             style={{
               position: "absolute",
-              top: -2,
-              right: -2,
-              width: 10,
-              height: 10,
-              borderRadius: 999,
+              top: 8,
+              right: 8,
+              width: 8,
+              height: 8,
+              borderRadius: 4,
               backgroundColor: "#EF4444",
-              borderWidth: 2,
-              borderColor: theme.colors.background,
+              borderWidth: 1.5,
+              borderColor: theme.dark ? "#1F2937" : "#FFFFFF",
               zIndex: 999,
               elevation: 10,
             }}

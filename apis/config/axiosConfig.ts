@@ -7,7 +7,7 @@ const extra = Constants.expoConfig?.extra as any;
 
 // GraphQL (Nest + Mongo)
 export const gqlApi = axios.create({
-  baseURL: extra?.API_URL, // EXPO_PUBLIC_API_URL = http://192.168.1.10:4000/graphql
+  baseURL: extra?.GRAPHQL_HTTP_URL,
   timeout: 20000,
   headers: {
     "Content-Type": "application/json",
