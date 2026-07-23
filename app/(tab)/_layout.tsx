@@ -709,7 +709,7 @@ export default function Layout() {
           }}
         >
           <Feather name="share-2" size={16} color={theme.colors.primary} />
-          <Text style={{ color: theme.colors.primary, fontWeight: "600", fontSize: 13 }}>Share</Text>
+          {/* <Text style={{ color: theme.colors.primary, fontWeight: "600", fontSize: 13 }}>Share</Text> */}
         </View>
       </TouchableOpacity>
       <ThemeToggleBtn />

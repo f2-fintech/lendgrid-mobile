@@ -175,25 +175,25 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
 
       const items = Array.isArray(results)
         ? results.map((item: any) => ({
-            id: Number(
-              item.id ?? item._id ?? item.companyId ?? item.company_id ?? 0,
-            ),
-            companyId:
-              item.companyId ?? item.company_id ?? item.companyId ?? item.id,
-            name:
-              item.name ||
-              item.company_name ||
-              item.displayName ||
-              String(item.id),
-          }))
+          id: Number(
+            item.id ?? item._id ?? item.companyId ?? item.company_id ?? 0,
+          ),
+          companyId:
+            item.companyId ?? item.company_id ?? item.companyId ?? item.id,
+          name:
+            item.name ||
+            item.company_name ||
+            item.displayName ||
+            String(item.id),
+        }))
         : [];
       setCompanies(items);
     } catch (error: any) {
       console.error("[ApplicationsScreen] failed to load companies", error);
       setCompaniesError(
         error?.response?.data?.message ||
-          error?.message ||
-          "Unable to load companies",
+        error?.message ||
+        "Unable to load companies",
       );
     } finally {
       setCompaniesLoading(false);
@@ -235,11 +235,11 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       setSalesUserId(
         normalizeStoredValue(
           storedUserId ??
-            decoded?.id ??
-            decoded?.userId ??
-            decoded?.sub ??
-            decoded?.salesUserId ??
-            decoded?.user_id,
+          decoded?.id ??
+          decoded?.userId ??
+          decoded?.sub ??
+          decoded?.salesUserId ??
+          decoded?.user_id,
         ),
       );
       setAuthSource(normalizedAuthSource);

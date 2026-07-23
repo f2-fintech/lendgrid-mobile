@@ -75,7 +75,8 @@
         "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://lendgrid.in/terms-of-service",
         "EXPO_PUBLIC_BANKER_DIRECTORY_URL": "https://banker.f2fintech.in/banker-directory",
         "EXPO_PUBLIC_BANKER_ASSOCIATED_BANKS_URL": "https://banker.f2fintech.in/banker-directory/associated-options",
-        "EXPO_PUBLIC_BANKER_STATE_CITY_URL": "https://banker.f2fintech.in/banker-directory/state-city-meta"
+        "EXPO_PUBLIC_BANKER_STATE_CITY_URL": "https://banker.f2fintech.in/banker-directory/state-city-meta",
+        "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1"
       }
     }
   },

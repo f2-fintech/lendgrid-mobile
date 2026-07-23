@@ -70,4 +70,17 @@ export const coreApi = axios.create({
 
     return config;
   });
+
+  instance.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      if (error?.response?.status === 401) {
+        console.warn("[AXIOS] 401 Unauthorized. Clearing token globally.");
+        await AsyncStorage.removeItem("token");
+        await AsyncStorage.removeItem("omsToken");
+        await AsyncStorage.removeItem("accessToken");
+      }
+      return Promise.reject(error);
+    }
+  );
 });

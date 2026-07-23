@@ -7,6 +7,7 @@ import {
   Observable,
   split,
 } from "@apollo/client";
+import { onError } from "@apollo/client/link/error";
 import { getMainDefinition } from "@apollo/client/utilities";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
@@ -155,6 +156,22 @@ const wsApolloLink = new ApolloLink((operation) => {
 // --------------------
 //  split: subscriptions => wsApolloLink, rest => http
 // --------------------
+const errorLink = onError(({ graphQLErrors, networkError }) => {
+  if (graphQLErrors) {
+    for (const err of graphQLErrors) {
+      if (err.extensions?.code === "UNAUTHENTICATED") {
+        console.warn("[GRAPHQL CLIENT] Unauthenticated error. Clearing token.");
+        // Clear token which will also dispose wsClient
+        setGraphqlAuthToken(null);
+        // Also clear from AsyncStorage
+        AsyncStorage.removeItem("token");
+        AsyncStorage.removeItem("omsToken");
+        AsyncStorage.removeItem("accessToken");
+      }
+    }
+  }
+});
+
 const link = split(
   ({ query }) => {
     const def = getMainDefinition(query);
@@ -163,7 +180,7 @@ const link = split(
     );
   },
   wsApolloLink,
-  authLink.concat(httpLink)
+  errorLink.concat(authLink.concat(httpLink))
 );
 
 // --------------------

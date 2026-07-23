@@ -15,6 +15,20 @@ const COLUMN_COUNT = 3;
 // Calculate item width accounting for padding on the sides
 const ITEM_WIDTH = (width - 40) / COLUMN_COUNT; 
 
+const PRIORITY_ORDER: Record<string, number> = {
+  "/create-application": 1,
+  "external-eligibility": 2,
+  "external-cibil-score": 3,
+  "/emi-calculator": 4,
+  "/loan-products": 5,
+  "/banker-list": 6,
+  "/saas-products": 7,
+  "/invite": 8,
+  "/team": 9,
+  "/training-resources": 10,
+  "/help-support": 11,
+};
+
 export default function ServicesAndTools() {
   const theme = useTheme();
   const isDark = !!theme?.dark;
@@ -43,6 +57,12 @@ export default function ServicesAndTools() {
       (item) => (item.route !== "/invite" && item.route !== "/team") || isAggregatorAdmin
     );
 
+    items.unshift({
+      icon: "plus-circle",
+      label: "Create Application",
+      route: "/create-application" as any,
+    });
+
     if (!config.showEmiCalculator) {
       items = items.filter(item => item.route !== "/emi-calculator");
     }
@@ -67,7 +87,12 @@ export default function ServicesAndTools() {
       });
     }
 
-    return items;
+    return items.sort((a, b) => {
+      const pA = PRIORITY_ORDER[a.route] || 99;
+      const pB = PRIORITY_ORDER[b.route] || 99;
+      if (pA !== pB) return pA - pB;
+      return a.label.localeCompare(b.label);
+    });
   }, [isAggregatorAdmin, config]);
 
   const openWebsite = async (url: string) => {

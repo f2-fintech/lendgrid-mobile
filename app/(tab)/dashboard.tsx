@@ -13,6 +13,7 @@ import HeroCard from "@/components/ui/dashboard/HeroCard";
 import QuickStats from "@/components/ui/dashboard/QuickStats";
 import SkeletonLoader from "@/components/ui/dashboard/SkeletonLoader";
 import ServicesAndTools from "@/components/ui/dashboard/ServicesAndTools";
+import LoanProductsSlider from "@/components/ui/dashboard/LoanProductsSlider";
 import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
 
 import {
@@ -22,35 +23,16 @@ import {
 } from "@/hooks/use-aggregator-dashboard";
 import { useCommissionTransactionsInfinite } from "@/hooks/useCommissions";
 import { CommissionStatus } from "@/types/commissions";
+import { useAppConfig } from "@/contexts/ConfigContext";
 
-// Mock Data
-const MOCK_STATS = {
-  submitted: 42,
-  approved: 28,
-  disbursed: 15,
-  rejected: 4,
-};
-
-const MOCK_COMMISSION = {
-  total: 125000,
-  paid: 85000,
-  pending: 40000,
-};
-
-const MOCK_DISBURSAL = [
-  { month: "Jan", count: 45 },
-  { month: "Feb", count: 52 },
-  { month: "Mar", count: 38 },
-  { month: "Apr", count: 65 },
-  { month: "May", count: 48 },
-  { month: "Jun", count: 72 },
-];
+// No Mock Data used anymore
 
 export default function AggregatorDashboard() {
   const theme = useTheme();
   const router = useRouter();
   const isDarkMode = useSelector((state: any) => state.theme.mode) === "dark";
   const isFocused = useIsFocused();
+  const { config } = useAppConfig();
 
   const [refreshing, setRefreshing] = useState(false);
   const year = new Date().getFullYear();
@@ -194,26 +176,19 @@ export default function AggregatorDashboard() {
     );
   }
 
-  // Use mock data if actual data is 0 or empty for demo purposes
-  const displayEarned = commissionSummary.total > 0 ? commissionSummary.total : MOCK_COMMISSION.total;
-  const displayPaid = commissionSummary.paid > 0 ? commissionSummary.paid : MOCK_COMMISSION.paid;
-  const displayPending = commissionSummary.pending > 0 ? commissionSummary.pending : MOCK_COMMISSION.pending;
+  const displayEarned = commissionSummary.total || 0;
+  const displayPaid = commissionSummary.paid || 0;
+  const displayPending = commissionSummary.pending || 0;
   
-  const displaySubmitted = appCount.data ? appCount.data : MOCK_STATS.submitted;
-  const displayApproved = approved.data?.count ? approved.data.count : MOCK_STATS.approved;
-  const displayDisbursed = disbursed.data?.count ? disbursed.data.count : MOCK_STATS.disbursed;
-  const displayRejected = rejected.data?.count ? rejected.data.count : MOCK_STATS.rejected;
+  const displaySubmitted = appCount.data || 0;
+  const displayApproved = approved.data?.count || 0;
+  const displayDisbursed = disbursed.data?.count || 0;
+  const displayRejected = rejected.data?.count || 0;
 
-  const hasChartData = disbursedByMonth.data?.some((item: any) => Number(item.count) > 0);
-  const displayChartData = hasChartData ? disbursedByMonth.data : MOCK_DISBURSAL;
+  const displayChartData = disbursedByMonth.data || [];
 
-  const MOCK_ROWS = [
-    { id: 1, lenderName: "HDFC Bank", loanType: "Personal Loan", commissionAmount: 12500, commissionRate: 2.5, status: "PAID", createdAt: new Date().toISOString() },
-    { id: 2, lenderName: "ICICI Bank", loanType: "Home Loan", commissionAmount: 8400, commissionRate: 1.2, status: "PENDING", createdAt: new Date().toISOString() },
-    { id: 3, lenderName: "Axis Bank", loanType: "Business Loan", commissionAmount: 22100, commissionRate: 3.0, status: "CALCULATED", createdAt: new Date().toISOString() },
-  ];
-  const displayCommissionRows = commissionRows.length ? commissionRows : MOCK_ROWS;
-  const displayTotalCount = totalCount > 0 ? totalCount : MOCK_ROWS.length;
+  const displayCommissionRows = commissionRows || [];
+  const displayTotalCount = totalCount || 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -231,6 +206,8 @@ export default function AggregatorDashboard() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {!config.isReviewMode && <LoanProductsSlider />}
+
         <HeroCard
           earned={displayEarned}
           paid={displayPaid}

@@ -10,6 +10,8 @@ export interface LoginResponse {
 export interface SignUpResponse {
   success: boolean;
   message: string;
+  companyId?: string;
+  companyName?: string;
   user: User;
 }
 
@@ -48,6 +50,8 @@ export const signUpApi = async (payload: any & { captchaToken: string }) => {
       createUser(createUserInput: $createUserInput) {
         success
         message
+        companyId
+        companyName
         user {
           _id
           username
@@ -83,63 +87,39 @@ export const getProfileApi = async () => {
 };
 
 export const getReferralCodeApi = async () => {
-  const inviteLinkQuery = `
-    query MyReferralInviteLink($source: String) {
-      myReferralInviteLink(source: $source) {
-        referralCode
-        companyName
-        onboardingLink
-        source
+  const profileQuery = `
+    query Profile {
+      profile {
+        profileId
       }
     }
   `;
 
-  try {
-    return await gqlRequest<{
-      myReferralInviteLink: {
-        referralCode?: string | null;
-        companyName?: string | null;
-        onboardingLink?: string | null;
-        source?: string | null;
-      };
-    }>(inviteLinkQuery, { source: "mobile" }).then(
-      (d) => d.myReferralInviteLink,
-    );
-  } catch {
-    const profileQuery = `
-      query Profile {
-        profile {
-          profileId
-        }
-      }
-    `;
+  const profile = await gqlRequest<{
+    profile: { profileId?: string | null };
+  }>(profileQuery).then((d) => d.profile);
 
-    const profile = await gqlRequest<{
-      profile: { profileId?: string | null };
-    }>(profileQuery).then((d) => d.profile);
-
-    if (!profile?.profileId) {
-      throw new Error("Aggregator profile not found for current user");
-    }
-
-    const referralQuery = `
-      query FindOneAggregatorReferral($id: ID!) {
-        findOneAggregatorProfile(id: $id) {
-          referralCode
-          companyName
-        }
-      }
-    `;
-
-    return gqlRequest<{
-      findOneAggregatorProfile: {
-        referralCode?: string | null;
-        companyName?: string | null;
-      };
-    }>(referralQuery, { id: profile.profileId }).then(
-      (d) => d.findOneAggregatorProfile,
-    );
+  if (!profile?.profileId) {
+    throw new Error("Aggregator profile not found for current user");
   }
+
+  const referralQuery = `
+    query FindOneAggregatorReferral($id: ID!) {
+      findOneAggregatorProfile(id: $id) {
+        referralCode
+        companyName
+      }
+    }
+  `;
+
+  return gqlRequest<{
+    findOneAggregatorProfile: {
+      referralCode?: string | null;
+      companyName?: string | null;
+    };
+  }>(referralQuery, { id: profile.profileId }).then(
+    (d) => d.findOneAggregatorProfile,
+  );
 };
 
 export const updateUserApi = async (payload: {

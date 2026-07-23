@@ -90,6 +90,27 @@ export function fetchTickets(params: {
           },
         }
       : undefined,
+  }).then((response) => {
+    // FRONTEND FILTERING: Fix backend bug where it returns tickets from other companies.
+    // We explicitly filter tickets by the requested companyId.
+    if (response?.data?.results && companyId && companyId !== "all") {
+      const targetCid = String(companyId);
+      response.data.results = response.data.results.filter((ticket) => {
+        const t = ticket as any;
+        const tCid = String(t.companyId || t.company_id);
+        
+        // If the ticket has a company ID field, it MUST match the target company ID.
+        if (t.companyId !== undefined || t.company_id !== undefined) {
+          return tCid === targetCid;
+        }
+        
+        // If backend doesn't return companyId fields at all, we keep it to be safe.
+        // But if those 2 rejected tickets have a different company ID, they will now be hidden.
+        return true; 
+      });
+      response.data.count = response.data.results.length;
+    }
+    return response;
   });
 }
 

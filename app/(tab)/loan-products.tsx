@@ -37,7 +37,7 @@ const BROCHURE_BASE_URL = `${WEB_BASE_URL.replace(/\/$/, "")}/brochures/`;
 
 type LoanFeature = { label: string; value: string };
 
-type LoanProduct = {
+export type LoanProduct = {
   id: string;
   title: string;
   subtitle: string;
@@ -57,7 +57,7 @@ type LoanProduct = {
 
 // ─── VERIFIED DATASET (UPDATED SHIFTS AND ALIGNMENTS) ─────────────────────────
 
-const LOAN_PRODUCTS: LoanProduct[] = [
+export const LOAN_PRODUCTS: LoanProduct[] = [
   {
     id: "overdraft",
     title: "Overdraft / Cash Credit Limit",

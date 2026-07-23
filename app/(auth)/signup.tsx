@@ -15,7 +15,11 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { Snackbar, useTheme } from "react-native-paper";
 
 import TurnstileCaptcha from "@/components/login_Signup/TurnstileCaptcha";
-import { useSignUp } from "@/hooks/useAuth";
+import { useSignUp, useLogin } from "@/hooks/useAuth";
+import { restApi } from "@/apis/config/axiosConfig";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setGraphqlAuthToken } from "@/apis/config/graphql_Notification_Client";
+import { decodeJwt } from "@/lib/utils/utils";
 import { signUpSchema, SignUpSchemaType } from "@/lib/validators/signup.schema";
 import { COLORS } from "@/styles/theme/tokens";
 
@@ -35,6 +39,7 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { mutateAsync: signUp, isPending } = useSignUp();
+  const { mutateAsync: loginMutation, isPending: isLoginPending } = useLogin();
 
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -143,17 +148,111 @@ export default function SignUp() {
 
       const response = await signUp(payload);
 
-      if (response?.success) {
-        showSuccess("Account created successfully!");
-        setTimeout(() => {
-          router.replace("/signin");
-        }, 1200);
-      } else {
+      if (!response?.success) {
         showError(response?.message || "Signup failed");
         setCaptchaToken(null);
         setCaptchaRefreshKey((k) => k + 1);
         scrollRef.current?.scrollToEnd(true);
+        return;
       }
+
+      const companyId = response.companyId;
+
+      if (!isReferralSignup && !companyId) {
+        throw new Error("Aggregator profile not created");
+      }
+
+      // Create Company (REST Api) - Non-blocking (Skip if registering as member)
+      if (!isReferralSignup) {
+        try {
+          const companyRes = await restApi.post("/companies", {
+            name: apiData.companyName || `${apiData.fullName}'s Agency`,
+            email: apiData.email,
+            contactNumber: apiData.contact,
+            companyId,
+          });
+
+          if (companyRes.status !== 200 && companyRes.status !== 201) {
+            console.warn("Company creation failed:", companyRes.data);
+            showError("Account created but company profile sync failed. Please contact support.");
+          }
+        } catch (companyError) {
+          console.error("Company creation error:", companyError);
+          showError("Secondary server unavailable. Account created locally.");
+        }
+      }
+
+      if (isReferralSignup) {
+        showSuccess("Agent created successfully!");
+        setTimeout(() => {
+          router.replace("/signin");
+        }, 1200);
+        return;
+      }
+
+      // Auto-login
+      const loginResponse = await loginMutation({
+        email: payload.email,
+        password: payload.password,
+        captchaToken: "", // Empty token signals auto-login
+      });
+
+      if (!loginResponse?.success) {
+        showError(loginResponse?.message || "Unable to login. Please try logging in manually.");
+        setTimeout(() => {
+          router.replace("/signin");
+        }, 1200);
+        return;
+      }
+
+      const token = loginResponse?.access_token;
+      if (token) {
+        await AsyncStorage.setItem("token", token);
+        setGraphqlAuthToken(token);
+
+        const decoded = decodeJwt(token);
+        const role = decoded?.role;
+
+        const companyIdValue =
+          decoded?.companyId ??
+          decoded?.company_id ??
+          decoded?.company?.id ??
+          decoded?.company?.companyId ??
+          decoded?.user?.companyId ??
+          decoded?.data?.companyId ??
+          decoded?.tenant?.companyId ??
+          companyId; // Fallback to the one created during signup
+          
+        if (companyIdValue) {
+          await AsyncStorage.setItem("companyId", String(companyIdValue));
+          await AsyncStorage.setItem("selectedCompanyId", String(companyIdValue)); // Ensure it's selected
+        }
+
+        const userIdValue =
+          decoded?.userId ??
+          decoded?.id ??
+          decoded?.sub ??
+          decoded?.salesUserId ??
+          decoded?.user_id;
+        if (userIdValue) {
+          await AsyncStorage.setItem("userId", String(userIdValue));
+        }
+
+        showSuccess("Account created successfully!");
+        
+        setTimeout(() => {
+          if (role === "aggregator_admin" || role === "AGGREGATOR_ADMIN") {
+            router.replace("/(tab)/dashboard");
+          } else if (role === "aggregator_member" || role === "AGGREGATOR_MEMBER") {
+            router.replace("/(tab)/applications");
+          } else {
+            router.replace("/(tab)/dashboard");
+          }
+        }, 1200);
+      } else {
+        throw new Error("No token returned from login");
+      }
+
     } catch (error: any) {
       showError(error?.message || "Signup failed");
       setCaptchaToken(null);
@@ -521,12 +620,12 @@ export default function SignUp() {
                   shadowRadius: 12,
                   elevation: 8,
                 },
-                (isPending || !captchaToken) && { opacity: 0.6 },
+                (isPending || isLoginPending || !captchaToken) && { opacity: 0.6 },
               ]}
-              disabled={isPending || !captchaToken}
+              disabled={isPending || isLoginPending || !captchaToken}
               onPress={handleSubmit}
             >
-              {isPending ? (
+              {isPending || isLoginPending ? (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                   <ActivityIndicator size="small" color="#FFFFFF" />
                   <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "700" }}>

@@ -149,9 +149,13 @@ export const uploadToS3 = async (
     type,
   });
 
+  const token = await AsyncStorage.getItem("token");
   const response = await fetch(`${UPLOAD_API_URL}/upload-to-s3`, {
     method: "POST",
     body: formData,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   });
 
   if (!response.ok) {
