@@ -119,12 +119,12 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
           <MaterialCommunityIcons
             name="chart-line"
             size={26}
-            color={theme.colors.tertiary ?? "#FFD700"}
+                  color={theme.colors.tertiary ?? "#FFB547"}
           />
           <Text
             style={[
               styles.benefitTitle,
-              { color: theme.colors.tertiary ?? "#FFD700" },
+              { color: theme.colors.tertiary ?? "#FFB547" },
             ]}
           >
             Aggregator Benefits
@@ -161,7 +161,7 @@ const LendGridSections: React.FC<Props> = ({ isSmallScreen }) => {
                 <MaterialCommunityIcons
                   name={item.icon as any}
                   size={22}
-                  color={theme.colors.tertiary ?? "#FFD700"}
+                        color={theme.colors.tertiary ?? "#FFB547"}
                 />
                 <View style={styles.benefitText}>
                   <Text

@@ -974,7 +974,7 @@ export default function Layout() {
               headerLeft: () => (
                 <View>
                   <Image
-                    source={require('@/assets/images/logo_blue_croped.png')}
+                    source={theme.dark ? require('@/assets/images/logo_white_croped.png') : require('@/assets/images/logo_blue_croped.png')}
                     style={{
                       width: 140,
                       height: 44,
@@ -1007,6 +1007,19 @@ export default function Layout() {
             name="applications"
             options={{
               title: "Applications",
+              headerTitle: "",
+              headerLeft: () => (
+                <View>
+                  <Image
+                    source={theme.dark ? require('@/assets/images/logo_white_croped.png') : require('@/assets/images/logo_blue_croped.png')}
+                    style={{
+                      width: 140,
+                      height: 44,
+                      resizeMode: "contain",
+                    }}
+                  />
+                </View>
+              ),
               href: "/applications",
               headerRight: () => <AppsHeaderRight />,
               _iconName: 'document-text',
@@ -1018,6 +1031,19 @@ export default function Layout() {
             name="tickets"
             options={{
               title: "Tickets",
+              headerTitle: "",
+              headerLeft: () => (
+                <View>
+                  <Image
+                    source={theme.dark ? require('@/assets/images/logo_white_croped.png') : require('@/assets/images/logo_blue_croped.png')}
+                    style={{
+                      width: 140,
+                      height: 44,
+                      resizeMode: "contain",
+                    }}
+                  />
+                </View>
+              ),
               href: isSales ? "/tickets" : null,
               _isHidden: !isSales,
               headerRight: () => <AppsHeaderRight />,

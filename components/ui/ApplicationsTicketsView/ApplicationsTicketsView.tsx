@@ -20,6 +20,7 @@ import PagerView from "react-native-pager-view";
 import { ActivityIndicator, TouchableRipple } from "react-native-paper";
 import dayjs from "dayjs";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import MultiStepApplicationForm from "../applications/MultiStepApplicationForm";
 
 type Props = {
   theme: any;
@@ -60,6 +61,7 @@ type Props = {
   notificationTicketId?: string;
   startDate?: string;
   setStartDate?: (d?: string) => void;
+  endDate?: string;
   endDate?: string;
   setEndDate?: (d?: string) => void;
 };
@@ -207,6 +209,7 @@ function AppTicketCard({
   showHistoryIcon,
   ticketId,
   initiallyOpenHistory = false,
+  onEditDocuments,
 }: any) {
   const [openHistory, setOpenHistory] = useState(!!initiallyOpenHistory);
 
@@ -308,6 +311,7 @@ function AppTicketCard({
   const isDark = !!theme?.dark;
   const p = getHistoryPalette(accent, isDark);
 
+  const Wrapper = showHistoryIcon ? TouchableOpacity : View;
   return (
     <Animated.View
       style={[
@@ -318,10 +322,8 @@ function AppTicketCard({
       ]}
     >
       {!openHistory ? (
-        <TouchableOpacity
-          activeOpacity={showHistoryIcon ? 0.75 : 1}
-          disabled={!showHistoryIcon}
-          onPress={handleToggleHistory}
+        <Wrapper
+          {...(showHistoryIcon ? { activeOpacity: 0.75, onPress: handleToggleHistory } : {})}
         >
           <Animated.View style={{ opacity: fadeAnim }}>
             <LinearGradient
@@ -420,10 +422,44 @@ function AppTicketCard({
                     </View>
                   </Pressable>
                 )}
+
+                {!!onEditDocuments && (
+                  <Pressable onPress={onEditDocuments}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderColor: `${theme.colors.secondary}44`,
+                        backgroundColor: `${theme.colors.secondary}18`,
+                        gap: 6,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "700",
+                          color: theme.colors.secondary,
+                        }}
+                      >
+                        Edit Docs
+                      </Text>
+
+                      <Feather
+                        name="file-text"
+                        size={14}
+                        color={theme.colors.secondary}
+                      />
+                    </View>
+                  </Pressable>
+                )}
               </View>
             )}
           </Animated.View>
-        </TouchableOpacity>
+        </Wrapper>
       ) : (
         <Animated.View style={{ opacity: fadeAnim }}>
           <View
@@ -737,6 +773,9 @@ export default function ApplicationsTicketsView(props: Props) {
   const surfacePalette = getSurfacePalette(theme);
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [editDocsCustomerId, setEditDocsCustomerId] = useState<string | null>(null);
+  const [editDocsAppId, setEditDocsAppId] = useState<string | number | null>(null);
+
   const [tempRange, setTempRange] = useState<{
     startDate: Date | undefined;
     endDate: Date | undefined;
@@ -1769,6 +1808,10 @@ export default function ApplicationsTicketsView(props: Props) {
               lender={app.applicationProvider}
               amount={formatCurrency(app.applicationAmount)}
               dateLabel={`Submitted: ${formatDate(app.applicationDate)}`}
+              onEditDocuments={() => {
+                setEditDocsCustomerId(app.customerId || app.customer_id);
+                setEditDocsAppId(app.applicationId);
+              }}
             />
           );
         })}
@@ -2026,6 +2069,10 @@ export default function ApplicationsTicketsView(props: Props) {
               showHistoryIcon
               ticketId={ticket.ticketId}
               initiallyOpenHistory={shouldOpenHistory}
+              onEditDocuments={() => {
+                setEditDocsCustomerId(ticket.customerId || ticket.customer_id);
+                setEditDocsAppId(ticket.applicationId);
+              }}
             />
           );
         })}
@@ -2126,6 +2173,22 @@ export default function ApplicationsTicketsView(props: Props) {
         {showCreateButton ? renderCreateFab() : null}
         {renderSearchPanel()}
         {renderDatePickerPanel()}
+        <Modal
+          visible={!!editDocsCustomerId}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setEditDocsCustomerId(null)}
+        >
+          <MultiStepApplicationForm
+            editMode={true}
+            initialCustomerId={editDocsCustomerId}
+            initialApplicationId={editDocsAppId}
+            onClose={() => {
+              setEditDocsCustomerId(null);
+              setEditDocsAppId(null);
+            }}
+          />
+        </Modal>
       </View>
     );
   }
@@ -2240,6 +2303,23 @@ export default function ApplicationsTicketsView(props: Props) {
       {activeTab === "applications" ? renderCreateFab() : null}
       {renderSearchPanel()}
       {renderDatePickerPanel()}
+      
+      <Modal
+        visible={!!editDocsCustomerId}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setEditDocsCustomerId(null)}
+      >
+        <MultiStepApplicationForm
+          editMode={true}
+          initialCustomerId={editDocsCustomerId}
+          initialApplicationId={editDocsAppId}
+          onClose={() => {
+            setEditDocsCustomerId(null);
+            setEditDocsAppId(null);
+          }}
+        />
+      </Modal>
     </View>
   );
 }

@@ -27,7 +27,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_ENV": "preview",
+        "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_GRAPHQL_HTTP_URL": "https://lendgrid.f2fintech.in/graphql",
         "EXPO_PUBLIC_GRAPHQL_WS_URL": "wss://lendgrid.f2fintech.in/graphql",
         "EXPO_PUBLIC_API_URL": "https://lendgrid.f2fintech.in/graphql",
@@ -37,7 +37,8 @@
         "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://lendgrid.in/terms-of-service",
         "EXPO_PUBLIC_BANKER_DIRECTORY_URL": "https://banker.f2fintech.in/banker-directory",
         "EXPO_PUBLIC_BANKER_ASSOCIATED_BANKS_URL": "https://banker.f2fintech.in/banker-directory/associated-options",
-        "EXPO_PUBLIC_BANKER_STATE_CITY_URL": "https://banker.f2fintech.in/banker-directory/state-city-meta"
+        "EXPO_PUBLIC_BANKER_STATE_CITY_URL": "https://banker.f2fintech.in/banker-directory/state-city-meta",
+        "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1"
       }
     },
     "preview_simulator": {
@@ -78,9 +79,37 @@
         "EXPO_PUBLIC_BANKER_STATE_CITY_URL": "https://banker.f2fintech.in/banker-directory/state-city-meta",
         "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1"
       }
+    },
+    "ios_production": {
+      "autoIncrement": true,
+      "ios": {
+        "simulator": false
+      },
+      "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_GRAPHQL_HTTP_URL": "https://lendgrid.f2fintech.in/graphql",
+        "EXPO_PUBLIC_GRAPHQL_WS_URL": "wss://lendgrid.f2fintech.in/graphql",
+        "EXPO_PUBLIC_API_URL": "https://lendgrid.f2fintech.in/graphql",
+        "EXPO_PUBLIC_CORE_REST_URL": "https://web.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_ADMIN_API_URL": "https://admin.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://lendgrid.in/privacy-policy",
+        "EXPO_PUBLIC_TERMS_OF_SERVICE_URL": "https://lendgrid.in/terms-of-service",
+        "EXPO_PUBLIC_BANKER_DIRECTORY_URL": "https://banker.f2fintech.in/banker-directory",
+        "EXPO_PUBLIC_BANKER_ASSOCIATED_BANKS_URL": "https://banker.f2fintech.in/banker-directory/associated-options",
+        "EXPO_PUBLIC_BANKER_STATE_CITY_URL": "https://banker.f2fintech.in/banker-directory/state-city-meta",
+        "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "testflight": {
+      "ios": {
+        "appleId": "YOUR_APPLE_ID_EMAIL",
+        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      }
+    }
   }
 }

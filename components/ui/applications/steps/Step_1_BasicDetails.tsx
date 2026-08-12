@@ -33,26 +33,42 @@ export type Step1Values = {
 
   city: string;
   state: string;
+  pincode: string;
 
-  employment_type: "" | "salaried" | "business" | "professional";
+  employment_type: "" | "salaried" | "self_employed" | "professional";
 
   dob?: string;
   consent_tc: boolean;
   consent_marketing: boolean;
+
+  co_applicant_name?: string;
+  co_applicant_contact?: string;
+  co_applicant_email?: string;
+  co_applicant_mother_name?: string;
 };
 
 type Props = {
   value: Step1Values;
   onChange: (next: Step1Values) => void;
   onValidityChange?: (isValid: boolean) => void;
+  loanType?: string;
+  disabled?: boolean;
 };
 
 const TITLE_OPTIONS: Step1Values["title"][] = ["Mr", "Mrs", "Miss", "Dr", "Ca"];
 const EMPLOYMENT_OPTIONS: Step1Values["employment_type"][] = [
   "salaried",
-  "business",
+  "self_employed",
   "professional",
 ];
+
+const toTitleCase = (str: string) => {
+  if (!str) return "";
+  return str.replace(/_/g, " ").replace(
+    /\w\S*/g,
+    (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase(),
+  );
+};
 
 const formatDateLabel = (dobISO?: string) => {
   if (!dobISO) return "Select date";
@@ -89,6 +105,8 @@ export default function Step1BasicDetails({
   value,
   onChange,
   onValidityChange,
+  loanType,
+  disabled,
 }: Props) {
   const theme = useTheme();
 
@@ -124,8 +142,15 @@ export default function Step1BasicDetails({
       current_address: value.current_address ?? "",
       city: value.city ?? "",
       state: value.state ?? "",
+      pincode: value.pincode ?? "",
       employment_type: value.employment_type || undefined,
       dob: value.dob ? new Date(value.dob) : undefined, // schema expects Date
+
+      // Co-Applicant fields
+      co_applicant_name: value.co_applicant_name ?? "",
+      co_applicant_email: value.co_applicant_email ?? "",
+      co_applicant_contact: value.co_applicant_contact ?? "",
+      co_applicant_mother_name: value.co_applicant_mother_name ?? "",
     };
   }, [value]);
 
@@ -364,7 +389,7 @@ export default function Step1BasicDetails({
   };
 
   return (
-    <View>
+    <View pointerEvents={disabled ? "none" : "auto"} style={{ opacity: disabled ? 0.7 : 1 }}>
       {showUserInfo && (
         <View
           style={{
@@ -473,7 +498,7 @@ export default function Step1BasicDetails({
       {/* Father + Mother */}
       {input(
         "father_name",
-        "Father's Name*",
+        "Father's Name",
         value.father_name,
         (v) => set({ father_name: v }),
         "Enter father's name",
@@ -533,6 +558,17 @@ export default function Step1BasicDetails({
         { autoCapitalize: "words" },
       )}
 
+      {/* Pincode */}
+      {input(
+        "pincode",
+        "Pincode*",
+        value.pincode,
+        (v) => set({ pincode: v }),
+        "Enter 6-digit pincode",
+        "map-pin",
+        { keyboardType: "number-pad", maxLength: 6 },
+      )}
+
       {/* State dropdown (rendered ONLY ONCE) */}
       <IndianStatePicker
         label="State*"
@@ -547,7 +583,7 @@ export default function Step1BasicDetails({
       {pickRow(
         "employment_type",
         "Employment Type*",
-        value.employment_type ? value.employment_type : "",
+        value.employment_type ? (value.employment_type === "self_employed" ? "Self Employed" : toTitleCase(value.employment_type)) : "",
         () => setEmpModal(true),
         "activity",
       )}
@@ -628,6 +664,54 @@ export default function Step1BasicDetails({
         )}
       </View>
 
+      {loanType === "education loan" && (
+        <View style={{ marginTop: 16, marginBottom: 16, padding: 16, backgroundColor: theme.colors.surfaceVariant, borderRadius: 16 }}>
+          <Text style={{ color: theme.colors.primary, fontWeight: "900", fontSize: 16, marginBottom: 16 }}>
+            🎓 Student (Co-Applicant) Details
+          </Text>
+
+          {input(
+            "co_applicant_name",
+            "Student Full Name*",
+            value.co_applicant_name || "",
+            (v) => set({ co_applicant_name: v }),
+            "Enter student name",
+            "user",
+            { autoCapitalize: "words" },
+          )}
+
+          {input(
+            "co_applicant_contact",
+            "Student Mobile Number*",
+            value.co_applicant_contact || "",
+            (v) => set({ co_applicant_contact: v }),
+            "Enter 10-digit mobile number",
+            "phone",
+            { keyboardType: "number-pad", maxLength: 10 },
+          )}
+
+          {input(
+            "co_applicant_email",
+            "Student Email ID*",
+            value.co_applicant_email || "",
+            (v) => set({ co_applicant_email: v }),
+            "Enter email address",
+            "mail",
+            { keyboardType: "email-address", autoCapitalize: "none" },
+          )}
+
+          {input(
+            "co_applicant_mother_name",
+            "Student Mother's Name*",
+            value.co_applicant_mother_name || "",
+            (v) => set({ co_applicant_mother_name: v }),
+            "Enter mother's name",
+            "users",
+            { autoCapitalize: "words" },
+          )}
+        </View>
+      )}
+
       {/* ONLY link buttons next to checkboxes (no long text) */}
       {checkboxRow(
         "consent_tc",
@@ -637,7 +721,7 @@ export default function Step1BasicDetails({
         () =>
           openLink(
             Constants.expoConfig?.extra?.PRIVACY_URL ||
-              "https://lendgrid.in/privacy-policy",
+            "https://lendgrid.in/privacy-policy",
           ),
         privacyPressed,
         setPrivacyPressed,
@@ -651,7 +735,7 @@ export default function Step1BasicDetails({
         () =>
           openLink(
             Constants.expoConfig?.extra?.TERMS_URL ||
-              "https://lendgrid.in/terms-of-service",
+            "https://lendgrid.in/terms-of-service",
           ),
         termsPressed,
         setTermsPressed,
@@ -788,8 +872,8 @@ export default function Step1BasicDetails({
                   >
                     {t === "salaried"
                       ? "Salaried"
-                      : t === "business"
-                        ? "Business"
+                      : t === "self_employed"
+                        ? "Self Employed"
                         : "Professional"}
                   </Text>
                 </TouchableOpacity>

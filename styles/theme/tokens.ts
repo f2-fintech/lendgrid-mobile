@@ -1,40 +1,64 @@
 // styles/theme/tokens.ts
+// Dark mode: Warm Charcoal — Notion/Figma/Linear style
+// Light mode: Clean white with subtle lavender tints
 export const COLORS = {
-  brandBg: "#0F1F3A",
-  brandAccent: "#FFD700",
+  // ─────────────────────────────────────────────
+  // Brand
+  // ─────────────────────────────────────────────
+  brandBg: "#1C1C1E",           // Warm charcoal (not cold navy)
+  brandAccent: "#FFB547",       // Warm amber-gold accent (less garish than FFD700)
 
-  // primary: "#1E90FF",
-  primary: "#3238F3",
+  // Primary CTA — Indigo violet, softer than the old #3238F3
+  primary: "#6366F1",           // Indigo-500 — calm, premium, fintech-perfect
 
-  // text
-  textPrimaryDark: "#FFFFFF",
-  textSecondaryDark: "#B8C5D6",
-  textMuted: "rgba(255,255,255,0.7)",
+  // ─────────────────────────────────────────────
+  // Dark mode text
+  // ─────────────────────────────────────────────
+  textPrimaryDark: "#FFFFFF",   // Pure white as requested
+  textSecondaryDark: "#FFFFFF", // Also pure white
+  textMuted: "rgba(255,255,255,0.85)",
 
-  textPrimaryLight: "#1E1E1E",
-  textSecondaryLight: "#4B5563",
+  // ─────────────────────────────────────────────
+  // Light mode text
+  // ─────────────────────────────────────────────
+  textPrimaryLight: "#18181B",  // Zinc-900
+  textSecondaryLight: "#52525B", // Zinc-600
 
-  // surfaces
-  surfaceDark: "#0F1F3A",
-  surfaceVariantDark: "#1A2B45",
+  // ─────────────────────────────────────────────
+  // Dark mode surfaces  (warm charcoal layering)
+  // ─────────────────────────────────────────────
+  backgroundDark: "#111113",    // Deepest layer — true base (not black, not navy)
+  surfaceDark: "#1C1C1F",       // Cards / sheets — warm dark charcoal
+  surfaceVariantDark: "#26262B",// Elevated cards, input backgrounds
+  surfaceElevatedDark: "#2E2E33", // Modals, popovers (highest layer)
 
+  // ─────────────────────────────────────────────
+  // Light mode surfaces
+  // ─────────────────────────────────────────────
   surfaceLight: "#FFFFFF",
-  surfaceVariantLight: "#F5F3FF",
+  surfaceVariantLight: "#F4F4F6", // Very subtle grey — not lavender-tinted
 
-  borderDark: "#2E3A4A",
-  borderLight: "#E0E0E0",
+  // ─────────────────────────────────────────────
+  // Borders
+  // ─────────────────────────────────────────────
+  borderDark: "rgba(255,255,255,0.08)",  // Subtle warm white border
+  borderLight: "#E4E4E7",               // Zinc-200
 
-  tabsBgDark: "#0B1A2F",
-  tabInactiveBgDark: "#13253F",
-  tabInactiveTextDark: "#9FB3C8",
+  // ─────────────────────────────────────────────
+  // Tab bar (dark)
+  // ─────────────────────────────────────────────
+  tabsBgDark: "#1C1C1F",          // Matches surface — pill floats on bg
+  tabInactiveBgDark: "#26262B",   // Slightly lifted inactive zone
+  tabInactiveTextDark: "rgba(255,255,255,0.85)", // White with slight opacity for inactive state
 
-  tabActiveBg: "#1E90FF",
+  // Tab bar (light)
+  tabsBgLight: "#FFFFFF",
+  tabInactiveBgLight: "#F4F4F6",
+  tabInactiveTextLight: "#71717A",
+
+  // Active tab
+  tabActiveBg: "#6366F1",         // Indigo pill
   tabActiveText: "#FFFFFF",
-
-  // (optional for light theme if you want later)
-  tabsBgLight: "#EEF2FF",
-  tabInactiveBgLight: "#E5E7EB",
-  tabInactiveTextLight: "#4B5563",
 };
 
 export const TYPOGRAPHY = {
@@ -55,8 +79,8 @@ export const SIZES = {
 
 export const RADIUS = {
   sm: 8,
-  md: 10,
-  lg: 12,
+  md: 12,
+  lg: 16,
 };
 
 export const SPACING = (n: number) => n * 8;

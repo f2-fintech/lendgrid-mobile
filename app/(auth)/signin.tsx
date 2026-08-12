@@ -82,14 +82,14 @@ export default function SignIn() {
   };
 
   // ─── Dynamic colors based on mode ─────────────────────────────────────────
-  const bg = isDark ? "#0D1117" : "#F5F6FA";
-  const cardBg = isDark ? "#161B27" : "#FFFFFF";
-  const inputBg = isDark ? "#1C2333" : "#F0F2F8";
-  const inputBorder = isDark ? "#2D3748" : "#E2E6F0";
-  const inputText = isDark ? "#E8EAF0" : "#1A1D2E";
-  const placeholderText = isDark ? "#4A5568" : "#9DA3B4";
-  const labelText = isDark ? "#8B95A9" : "#6B7280";
-  const dividerColor = isDark ? "#2D3748" : "#E5E7EB";
+  const bg = isDark ? COLORS.backgroundDark : "#F5F6FA";
+  const cardBg = isDark ? COLORS.surfaceDark : "#FFFFFF";
+  const inputBg = isDark ? COLORS.surfaceVariantDark : "#F0F2F8";
+  const inputBorder = isDark ? COLORS.borderDark : "#E2E6F0";
+  const inputText = isDark ? COLORS.textPrimaryDark : "#1A1D2E";
+  const placeholderText = isDark ? "rgba(255,255,255,0.4)" : "#9DA3B4";
+  const labelText = isDark ? COLORS.textSecondaryDark : "#6B7280";
+  const dividerColor = isDark ? COLORS.borderDark : "#E5E7EB";
   // Soft accent for dark mode text links — avoids harsh electric blue on dark bg
   const accent = isDark ? "#818CF8" : BRAND;
 
@@ -120,29 +120,14 @@ export default function SignIn() {
 
           {/* ── Logo Section ── */}
           <View style={{ alignItems: "center", marginBottom: 36, marginTop: 60 }}>
-            <View
-              style={{
-                width: 90,
-                height: 90,
-                borderRadius: 28,
-                backgroundColor: isDark ? "#1C2333" : "#EEF2FF",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 16,
-                shadowColor: BRAND,
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: isDark ? 0.4 : 0.15,
-                shadowRadius: 20,
-                elevation: 10,
-              }}
-            >
+            <View style={{ marginBottom: 16 }}>
               <Image
                 source={
                   isDark
                     ? require("@/assets/images/logo.png")
                     : require("@/assets/images/logo_blue.png")
                 }
-                style={{ width: 60, height: 60 }}
+                style={{ width: 80, height: 80 }}
                 resizeMode="contain"
               />
             </View>
@@ -180,14 +165,14 @@ export default function SignIn() {
               shadowRadius: 20,
               elevation: 8,
               borderWidth: isDark ? 1 : 0,
-              borderColor: isDark ? "#2D3748" : "transparent",
+              borderColor: isDark ? COLORS.borderDark : "transparent",
             }}
           >
             {/* ── Tab Switcher ── */}
             <View
               style={{
                 flexDirection: "row",
-                backgroundColor: isDark ? "#0D1117" : "#ECEEF8",
+                backgroundColor: isDark ? COLORS.backgroundDark : "#ECEEF8",
                 borderRadius: 50,
                 padding: 3,
                 marginBottom: 20,

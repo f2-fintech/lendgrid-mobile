@@ -82,3 +82,10 @@ export function fetchCustomerApplications(params: {
     },
   );
 }
+
+// GET /get-customer-full-details/:id
+export function fetchCustomerFullDetails(customerId: string | number) {
+  return restRequest<RestEnvelope<any>>(`/get-customer-full-details/${customerId}`, {
+    method: "GET",
+  });
+}

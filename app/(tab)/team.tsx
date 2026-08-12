@@ -105,8 +105,8 @@ export default function TeamManagementScreen() {
       mutedText: colors.onSurfaceVariant,
       faintText: isDark ? "rgba(255,255,255,0.4)" : "rgba(51,65,85,0.5)",
       divider: isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.08)",
-      primaryGradient: ["#3238F3", "#1A20A8"] as const,
-      primaryGlow: isDark ? "rgba(50,56,243,0.15)" : "rgba(50,56,243,0.08)",
+      primaryGradient: ["#6366F1", "#4F46E5"] as const,
+      primaryGlow: isDark ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)",
       activeGlow: isDark ? "rgba(34, 197, 94, 0.18)" : "rgba(34, 197, 94, 0.08)",
       errorGlow: isDark ? "rgba(239, 68, 68, 0.18)" : "rgba(239, 68, 68, 0.08)",
     };
@@ -276,7 +276,7 @@ export default function TeamManagementScreen() {
             <LinearGradient colors={teamPalette.cardGradient} style={StyleSheet.absoluteFillObject} />
             <View style={styles.metricContent}>
               <View style={[styles.metricIconBox, { backgroundColor: teamPalette.primaryGlow }]}>
-                <Ionicons name="people" size={18} color={isDark ? "#818CF8" : "#3238F3"} />
+                <Ionicons name="people" size={18} color={isDark ? "#818CF8" : "#6366F1"} />
               </View>
               <View style={styles.metricTexts}>
                 <Text style={[styles.metricLabel, { color: teamPalette.faintText }]}>Total</Text>
@@ -453,7 +453,7 @@ export default function TeamManagementScreen() {
                       {/* Badges */}
                       <View style={styles.badgeRow}>
                         <View style={[styles.roleBadge, { backgroundColor: teamPalette.primaryGlow }]}>
-                          <Text style={[styles.roleBadgeText, { color: isDark ? "#A5B4FC" : "#3238F3" }]}>
+                          <Text style={[styles.roleBadgeText, { color: isDark ? "#FFFFFF" : "#6366F1" }]}>
                             Agent
                           </Text>
                         </View>
@@ -1292,7 +1292,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-    shadowColor: "#3238F3",
+    shadowColor: "#6366F1",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -1373,7 +1373,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 10,
-    backgroundColor: "#3238F3",
+    backgroundColor: "#6366F1",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1386,7 +1386,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 48,
     borderRadius: 10,
-    backgroundColor: "#3238F3",
+    backgroundColor: "#6366F1",
     alignItems: "center",
     justifyContent: "center",
   },

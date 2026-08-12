@@ -9,23 +9,20 @@ import type { PickedFile } from "./Step_2_Statement";
 
 export type Step4Values = {
   salary: string;
+  totalExperience: string;
   existingEmi: string;
   existingLiability: string;
-  certificates: PickedFile[];
 };
 
 type Props = {
   value: Step4Values;
   onChange: (v: Step4Values) => void;
   onValidityChange?: (valid: boolean) => void;
-  onUploadFile?: (index: number) => void;
-  uploadingFileKey?: string | null;
-  customerId?: string | null; // ← NEW
+  customerId?: string | null;
+  disabled?: boolean;
 };
 
-const MAX_CERT_FILES = 4;
-const MAX_CERT_MB = 5;
-const MAX_CERT_BYTES = MAX_CERT_MB * 1024 * 1024;
+
 
 const toFieldErrors = (issues: any[]) => {
   const out: Record<string, string> = {};
@@ -41,13 +38,11 @@ export default function Step4AdditionalDetails({
   value,
   onChange,
   onValidityChange,
-  onUploadFile,
-  uploadingFileKey,
+  disabled,
 }: Props) {
   const theme = useTheme();
   const [local, setLocal] = useState<Step4Values>(value);
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(true);
-  const [fileError, setFileError] = useState<string>("");
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const markTouched = (k: string) =>
@@ -58,9 +53,9 @@ export default function Step4AdditionalDetails({
   const schemaInput = useMemo(
     () => ({
       salary: local.salary ?? "",
+      total_experience: local.totalExperience ?? "",
       existing_emi: local.existingEmi || undefined,
       existing_liability: local.existingLiability || undefined,
-      certificates: local.certificates?.length ? local.certificates : undefined,
     }),
     [local],
   );
@@ -85,64 +80,8 @@ export default function Step4AdditionalDetails({
     onChange(next);
   };
 
-  const pickCertificates = async () => {
-    markTouched("certificates");
-    setFileError("");
-
-    if (local.certificates.length >= MAX_CERT_FILES) return;
-
-    const res = await DocumentPicker.getDocumentAsync({
-      multiple: true,
-      copyToCacheDirectory: true,
-      type: [
-        "application/pdf",
-        "image/*",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ],
-    });
-
-    if (res.canceled) return;
-
-    const incoming: PickedFile[] = (res.assets || []).map((a) => ({
-      uri: a.uri,
-      name: a.name || "file",
-      size: a.size,
-      mimeType: a.mimeType,
-    }));
-
-    const merged = [...local.certificates, ...incoming].slice(
-      0,
-      MAX_CERT_FILES,
-    );
-
-    const rejected: PickedFile[] = [];
-    const validFiles = merged.filter((f) => {
-      if (typeof f.size === "number" && f.size > MAX_CERT_BYTES) {
-        rejected.push(f);
-        return false;
-      }
-      return true;
-    });
-
-    if (rejected.length) {
-      const first = rejected[0];
-      setFileError(
-        `File too large: ${first.name} (${first.size ? (first.size / 1024 / 1024).toFixed(2) : "NA"} MB). Max ${MAX_CERT_MB}MB allowed.`,
-      );
-    }
-
-    setField("certificates", validFiles);
-  };
-
-  const removeCert = (idx: number) => {
-    markTouched("certificates");
-    const next = local.certificates.filter((_, i) => i !== idx);
-    setField("certificates", next);
-  };
-
   const input = (
-    key: "salary" | "existing_emi" | "existing_liability",
+    key: "salary" | "existing_emi" | "existing_liability" | "totalExperience",
     label: string,
     val: string,
     onChangeText: (t: string) => void,
@@ -179,6 +118,7 @@ export default function Step4AdditionalDetails({
           onChangeText={onChangeText}
           onBlur={() => markTouched(key)}
           keyboardType="numeric"
+          editable={!disabled}
           placeholder={placeholder}
           placeholderTextColor={theme.colors.onSurfaceVariant}
           style={{
@@ -197,7 +137,7 @@ export default function Step4AdditionalDetails({
   );
 
   return (
-    <View>
+    <View pointerEvents={disabled ? "none" : "auto"} style={{ opacity: disabled ? 0.7 : 1 }}>
       {showAdditionalInfo && (
         <View
           style={{
@@ -269,6 +209,14 @@ export default function Step4AdditionalDetails({
           true,
         )}
         {input(
+          "totalExperience",
+          "Total Experience (Years)",
+          local.totalExperience,
+          (t) => setField("totalExperience", t),
+          "Enter total experience",
+          true,
+        )}
+        {input(
           "existing_emi",
           "Existing EMI Amount (optional)",
           local.existingEmi,
@@ -282,171 +230,6 @@ export default function Step4AdditionalDetails({
           (t) => setField("existingLiability", t),
           "Enter liability",
         )}
-      </View>
-
-      <View
-        style={{
-          backgroundColor: theme.colors.surface,
-          borderRadius: 16,
-          padding: 16,
-          borderWidth: 1,
-          borderColor: theme.colors.outlineVariant,
-        }}
-      >
-        <Text
-          style={{
-            color: theme.colors.onSurface,
-            fontWeight: "900",
-            marginBottom: 10,
-          }}
-        >
-          Degree and Registration Certificate (Optional)
-        </Text>
-
-        <TouchableOpacity
-          onPress={pickCertificates}
-          disabled={local.certificates.length >= MAX_CERT_FILES}
-          style={{
-            paddingVertical: 12,
-            borderRadius: 12,
-            backgroundColor:
-              local.certificates.length >= MAX_CERT_FILES
-                ? theme.colors.surfaceVariant
-                : theme.colors.primary,
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <Text
-            style={{
-              color:
-                local.certificates.length >= MAX_CERT_FILES
-                  ? theme.colors.onSurfaceVariant
-                  : "#FFFFFF",
-              fontWeight: "900",
-            }}
-          >
-            Upload Certificates ({local.certificates.length}/{MAX_CERT_FILES})
-          </Text>
-        </TouchableOpacity>
-
-        {!!fileError && (
-          <View
-            style={{
-              backgroundColor: theme.colors.errorContainer,
-              borderRadius: 12,
-              padding: 12,
-              marginBottom: 12,
-            }}
-          >
-            <Text
-              style={{
-                color: theme.colors.onErrorContainer,
-                fontWeight: "800",
-              }}
-            >
-              {fileError}
-            </Text>
-          </View>
-        )}
-
-        {local.certificates.map((f, idx) => {
-          const fileKey = `certificate-${idx}`;
-          const isPending = !!f.uri && !f.uri.startsWith("http") && !f.uploaded;
-          const isUploadingThis = uploadingFileKey === fileKey;
-
-          return (
-          <View
-            key={`${f.uri}-${idx}`}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 10,
-              borderBottomWidth: idx === local.certificates.length - 1 ? 0 : 1,
-              borderBottomColor: theme.colors.outlineVariant,
-            }}
-          >
-            <Feather
-              name="file-text"
-              size={18}
-              color={theme.colors.onSurfaceVariant}
-            />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text
-                numberOfLines={1}
-                style={{ color: theme.colors.onSurface, fontWeight: "800" }}
-              >
-                {f.name}
-              </Text>
-              <Text
-                style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}
-              >
-                {f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : "NA"} (max{" "}
-                {MAX_CERT_MB}MB)
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => removeCert(idx)}
-              disabled={isUploadingThis}
-              style={{
-                padding: 8,
-                borderRadius: 10,
-                backgroundColor: theme.colors.errorContainer,
-              }}
-            >
-              <Feather
-                name="x"
-                size={18}
-                color={theme.colors.onErrorContainer}
-              />
-            </TouchableOpacity>
-            {isPending && onUploadFile && (
-              <TouchableOpacity
-                onPress={() => onUploadFile(idx)}
-                disabled={isUploadingThis}
-                activeOpacity={0.85}
-                style={{
-                  marginLeft: 8,
-                  paddingHorizontal: 10,
-                  paddingVertical: 8,
-                  borderRadius: 10,
-                  backgroundColor: isUploadingThis
-                    ? theme.colors.surfaceVariant
-                    : theme.colors.secondary,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <Feather
-                  name="upload"
-                  size={14}
-                  color={isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF"}
-                />
-                <Text
-                  style={{
-                    color: isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF",
-                    fontSize: 12,
-                    fontWeight: "900",
-                  }}
-                >
-                  {isUploadingThis ? "Uploading" : "Upload"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          );
-        })}
-
-        <Text
-          style={{
-            marginTop: 10,
-            fontSize: 12,
-            color: theme.colors.onSurfaceVariant,
-          }}
-        >
-          Max {MAX_CERT_FILES} files • {MAX_CERT_MB}MB each
-        </Text>
       </View>
     </View>
   );

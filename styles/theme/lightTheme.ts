@@ -6,29 +6,35 @@ const lightTheme = {
   colors: {
     ...DefaultTheme.colors,
 
-    primary: COLORS.primary,
-    secondary: "#B19CD9",
+    // ── Core brand ──────────────────────────────────────────
+    primary: COLORS.primary,            // Indigo-500 #6366F1
+    secondary: "#7C3AED",               // Violet-600 — richer in light mode
+    tertiary: COLORS.brandAccent,       // Amber-gold
 
-    background: COLORS.surfaceLight,
-    surface: COLORS.surfaceLight,
-    surfaceVariant: COLORS.surfaceVariantLight,
+    // ── Backgrounds & surfaces ───────────────────────────────
+    background: "#F9F9FB",              // Very slightly warm off-white (not stark white)
+    surface: COLORS.surfaceLight,       // Pure white cards
+    surfaceVariant: COLORS.surfaceVariantLight, // #F4F4F6 — input backgrounds
 
-    tertiary: COLORS.brandAccent,
+    // ── Text ────────────────────────────────────────────────
+    onPrimary: "#FFFFFF",
+    onSurface: COLORS.textPrimaryLight,         // #18181B
+    onSurfaceVariant: COLORS.textSecondaryLight, // #52525B
 
-    onPrimary: COLORS.textPrimaryDark,
-    onSurface: COLORS.textPrimaryLight,
-    onSurfaceVariant: COLORS.textSecondaryLight,
+    // ── Borders & disabled ──────────────────────────────────
+    outline: COLORS.borderLight,                // #E4E4E7
+    outlineVariant: "#EBEBEF",
+    surfaceDisabled: "rgba(0,0,0,0.04)",
+    onSurfaceDisabled: "rgba(0,0,0,0.28)",
 
-    outline: COLORS.borderLight,
-    surfaceDisabled: "rgba(0,0,0,0.05)",
-
+    // ── Tab bar ─────────────────────────────────────────────
     tabsBg: COLORS.tabsBgLight,
     tabInactiveBg: COLORS.tabInactiveBgLight,
     tabInactiveText: COLORS.tabInactiveTextLight,
-    tabActiveBg: COLORS.tabsBgDark,
+    tabActiveBg: COLORS.tabActiveBg,
     tabActiveText: COLORS.tabActiveText,
   },
-  roundness: 10,
+  roundness: 12,
 };
 
 export default lightTheme;

@@ -11,6 +11,7 @@ import { onError } from "@apollo/client/link/error";
 import { getMainDefinition } from "@apollo/client/utilities";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import { router } from "expo-router";
 import { Client, createClient } from "graphql-ws";
 
 //  Read env safely
@@ -20,12 +21,14 @@ const extra =
   {};
 
 const GRAPHQL_HTTP_URL: string =
+  process.env.EXPO_PUBLIC_GRAPHQL_HTTP_URL ??
   extra.GRAPHQL_HTTP_URL ??
   extra.EXPO_PUBLIC_GRAPHQL_HTTP_URL ??
   extra.API_URL ??
   "https://YOUR_API/graphql";
 
 const GRAPHQL_WS_URL: string =
+  process.env.EXPO_PUBLIC_GRAPHQL_WS_URL ??
   extra.GRAPHQL_WS_URL ??
   extra.EXPO_PUBLIC_GRAPHQL_WS_URL ??
   (GRAPHQL_HTTP_URL.startsWith("https")
@@ -167,6 +170,7 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
         AsyncStorage.removeItem("token");
         AsyncStorage.removeItem("omsToken");
         AsyncStorage.removeItem("accessToken");
+        router.replace("/(auth)/signin");
       }
     }
   }

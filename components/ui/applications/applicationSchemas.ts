@@ -42,6 +42,8 @@ export const step0Schema = z
 
     businessEntityType: z.string().optional(),
 
+    professionalType: z.enum(["Dr", "CA", "CS", "CMA", "Engineer", "Lawyer", ""]).optional(),
+
     tenure: z.string().min(1, "Tenure is required"),
 
     leadType: z.string().optional().default("null"),
@@ -174,9 +176,8 @@ export const step1Schema = z.object({
 
   father_name: z
     .string()
-    .min(2, "Father's name must be at least 2 characters")
-    .max(40, "Father's name must not exceed 40 characters")
-    .regex(/^[a-zA-Z\s]+$/, "Name should only contain letters"),
+    .regex(/^[a-zA-Z\s]*$/, "Name should only contain letters")
+    .optional(),
 
   mother_name: z
     .string()

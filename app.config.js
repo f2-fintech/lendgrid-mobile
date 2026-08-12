@@ -70,11 +70,10 @@ export default {
       [
         "expo-splash-screen",
         {
-          image: "./assets/images/adaptive-icon_1.png",
+          image: "./assets/images/logo_blue.png",
           imageWidth: 200,
           resizeMode: "contain",
           backgroundColor: "#FFFFFF",
-          dark: { backgroundColor: "#0A1628" },
         },
       ],
       [

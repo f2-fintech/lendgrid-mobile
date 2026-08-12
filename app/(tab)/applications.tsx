@@ -13,15 +13,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import PagerView from "react-native-pager-view";
-import { Menu, useTheme } from "react-native-paper";
+import {
+  ActivityIndicator,
+  Button,
+  Dialog,
+  Portal,
+  useTheme,
+} from "react-native-paper";
 
 import { useCustomerApplications } from "@/hooks/use-customer-applications_rest";
 import { useTickets } from "@/hooks/use-tickets_rest";
+import { useAppConfig } from "@/contexts/ConfigContext";
 
 import ApplicationsTicketsView from "@/components/ui/ApplicationsTicketsView/ApplicationsTicketsView";
 
@@ -63,6 +71,9 @@ type ApplicationsContentProps = {
 };
 
 export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
+  const { config } = useAppConfig();
+  const effectiveLockedTab = config.isReviewMode ? "tickets" : lockedTab;
+
   const theme = useTheme();
   const styles = useMemo(() => commissionsStyles(theme), [theme]);
 
@@ -82,7 +93,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"applications" | "tickets">(
-    lockedTab ?? "applications",
+    effectiveLockedTab ?? "applications",
   );
 
   const [appsPage, setAppsPage] = useState(1);
@@ -121,7 +132,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
 
   const setTab = useCallback(
     (tab: "applications" | "tickets") => {
-      if (lockedTab && tab !== lockedTab) return;
+      if (effectiveLockedTab && tab !== effectiveLockedTab) return;
 
       setActiveTab(tab);
 
@@ -129,20 +140,20 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
         pagerRef.current?.setPage(tab === "applications" ? 0 : 1);
       });
     },
-    [lockedTab],
+    [effectiveLockedTab],
   );
 
   useFocusEffect(
     useCallback(() => {
-      if (lockedTab) {
-        setActiveTab(lockedTab);
+      if (effectiveLockedTab) {
+        setActiveTab(effectiveLockedTab);
         return;
       }
 
       const t = String(params?.tab || "").toLowerCase();
       if (t === "tickets") setTab("tickets");
       if (t === "applications") setTab("applications");
-    }, [lockedTab, params?.tab, setTab]),
+    }, [effectiveLockedTab, params?.tab, setTab]),
   );
 
   useEffect(() => {
@@ -246,7 +257,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       setDecodedClaims(decoded);
       setSelectedCompanyId(
         isOmsSalesSession
-          ? normalizeStoredValue(storedSelectedCompanyId)
+          ? "101"
           : normalizeStoredValue(storedCompanyId),
       );
       setAuthLoaded(true);
@@ -285,10 +296,10 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       : undefined;
   const applicationsCompanyId =
     isOmsSales && normalizedSalesUserId
-      ? (selectedCompanyId || "all")
+      ? "101"
       : selectedCompanyId;
   const viewLockedTab =
-    lockedTab ??
+    effectiveLockedTab ??
     (isOmsSales || isAggregatorMember ? "applications" : undefined);
 
   useEffect(() => {
@@ -318,7 +329,7 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
   }, []);
 
   useEffect(() => {
-    if (lockedTab === "tickets") {
+    if (effectiveLockedTab === "tickets") {
       navigation.setOptions({
         title: "Tickets",
         headerTitle: undefined,
@@ -335,102 +346,13 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
     }
 
     navigation.setOptions({
-      headerTitle: () => (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            maxWidth: 230,
-          }}
-        >
-          <Text
-            numberOfLines={1}
-            style={{
-              color: theme.colors.onSurface,
-              fontSize: 18,
-              fontWeight: "700",
-            }}
-          >
-            Applications
-          </Text>
-          <Menu
-            visible={companyMenuVisible}
-            onDismiss={() => setCompanyMenuVisible(false)}
-            anchor={
-              <TouchableOpacity
-                onPress={() => setCompanyMenuVisible(true)}
-                activeOpacity={0.84}
-                style={{
-                  maxWidth: 116,
-                  height: 32,
-                  paddingHorizontal: 10,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: theme.dark
-                    ? "rgba(255,255,255,0.12)"
-                    : "rgba(50,56,243,0.16)",
-                  backgroundColor: theme.dark
-                    ? "rgba(255,255,255,0.07)"
-                    : "rgba(50,56,243,0.08)",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    flexShrink: 1,
-                    color: selectedCompany?.name
-                      ? theme.colors.onSurface
-                      : theme.colors.onSurfaceVariant,
-                    fontSize: 12,
-                    fontWeight: "700",
-                  }}
-                >
-                  {selectedCompany?.name || "Company"}
-                </Text>
-                <Feather
-                  name={companyMenuVisible ? "chevron-up" : "chevron-down"}
-                  size={14}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              </TouchableOpacity>
-            }
-          >
-            {companiesLoading ? (
-              <Menu.Item title="Loading companies..." disabled />
-            ) : companiesError ? (
-              <Menu.Item title={companiesError} disabled />
-            ) : companies.length > 0 ? (
-              companies.map((company) => (
-                <Menu.Item
-                  key={`${company.id}-${company.companyId}`}
-                  title={company.name}
-                  onPress={() => saveSelectedCompany(company)}
-                />
-              ))
-            ) : (
-              <Menu.Item title="No companies available" disabled />
-            )}
-          </Menu>
-        </View>
-      ),
+      title: "Applications",
+      headerTitle: undefined,
     });
   }, [
-    companies,
-    companiesError,
-    companiesLoading,
-    companyMenuVisible,
     isOmsSales,
-    lockedTab,
+    effectiveLockedTab,
     navigation,
-    saveSelectedCompany,
-    selectedCompany?.name,
-    theme.colors.onSurface,
-    theme.colors.onSurfaceVariant,
-    theme.dark,
   ]);
 
   useEffect(() => {
@@ -540,6 +462,40 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
       keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 80}
     >
       <View style={styles.container}>
+        {isOmsSales && viewLockedTab !== "tickets" && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4, zIndex: 10 }}>
+            <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13, marginBottom: 8, fontWeight: "600" }}>Company:</Text>
+            <View
+              style={{
+                height: 48,
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.dark
+                  ? "rgba(255,255,255,0.12)"
+                  : "rgba(50,56,243,0.16)",
+                backgroundColor: theme.dark
+                  ? "rgba(255,255,255,0.04)"
+                  : "rgba(50,56,243,0.04)",
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                numberOfLines={1}
+                style={{
+                  flexShrink: 1,
+                  color: theme.colors.onSurface,
+                  fontSize: 15,
+                  fontWeight: "600",
+                }}
+              >
+                {selectedCompany?.name || "Financial Freedom"}
+              </Text>
+            </View>
+          </View>
+        )}
+
         <ApplicationsTicketsView
           theme={theme}
           styles={styles}
@@ -580,6 +536,92 @@ export function ApplicationsContent({ lockedTab }: ApplicationsContentProps) {
           setEndDate={setEndDate}
         />
       </View>
+
+      <Portal>
+        <Dialog
+          visible={companyMenuVisible}
+          onDismiss={() => setCompanyMenuVisible(false)}
+          style={{
+            borderRadius: 16,
+            maxHeight: "80%",
+            backgroundColor: theme.dark ? "#1E1E2D" : "#FFFFFF",
+          }}
+        >
+          <Dialog.Title style={{ fontWeight: "700", fontSize: 18 }}>
+            Select Company
+          </Dialog.Title>
+          <Dialog.Content style={{ paddingHorizontal: 16, maxHeight: 350 }}>
+            {companiesLoading ? (
+              <View style={{ padding: 24, alignItems: "center" }}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>
+                  Loading companies...
+                </Text>
+              </View>
+            ) : companiesError ? (
+              <Text style={{ color: theme.colors.error, padding: 16 }}>
+                {companiesError}
+              </Text>
+            ) : companies.length > 0 ? (
+              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={true}>
+                {companies.map((company) => {
+                  const isSelected =
+                    selectedCompany?.companyId === company.companyId ||
+                    selectedCompany?.id === company.id;
+                  return (
+                    <TouchableOpacity
+                      key={`${company.id}-${company.companyId}`}
+                      onPress={() => saveSelectedCompany(company)}
+                      activeOpacity={0.7}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        paddingVertical: 14,
+                        paddingHorizontal: 12,
+                        borderRadius: 10,
+                        marginBottom: 4,
+                        backgroundColor: isSelected
+                          ? theme.dark
+                            ? "rgba(99, 102, 241, 0.18)"
+                            : "rgba(50, 56, 243, 0.08)"
+                          : "transparent",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: isSelected ? "700" : "500",
+                          color: isSelected
+                            ? theme.colors.primary
+                            : theme.colors.onSurface,
+                          flex: 1,
+                          marginRight: 8,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {company.name}
+                      </Text>
+                      {isSelected && (
+                        <Feather name="check" size={18} color={theme.colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <Text style={{ color: theme.colors.onSurfaceVariant, padding: 16 }}>
+                No companies available
+              </Text>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+            <Button mode="contained" onPress={() => setCompanyMenuVisible(false)}>
+              Close
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </KeyboardAvoidingView>
   );
 }

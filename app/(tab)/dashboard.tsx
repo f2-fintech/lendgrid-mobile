@@ -10,12 +10,12 @@ import { useSelector } from "react-redux";
 import CommissionHistoryList from "@/components/ui/dashboard/ApplicationsList";
 import DisbursalChart from "@/components/ui/dashboard/DisbursalChart";
 import HeroCard from "@/components/ui/dashboard/HeroCard";
-import QuickStats from "@/components/ui/dashboard/QuickStats";
-import SkeletonLoader from "@/components/ui/dashboard/SkeletonLoader";
-import ServicesAndTools from "@/components/ui/dashboard/ServicesAndTools";
 import LoanProductsSlider from "@/components/ui/dashboard/LoanProductsSlider";
-import DashboardHeader from "@/components/ui/dashboard/DashboardHeader";
+import QuickStats from "@/components/ui/dashboard/QuickStats";
+import ServicesAndTools from "@/components/ui/dashboard/ServicesAndTools";
+import SkeletonLoader from "@/components/ui/dashboard/SkeletonLoader";
 
+import { useAppConfig } from "@/contexts/ConfigContext";
 import {
   useApplicationCount,
   useDashboardTicketStats,
@@ -23,7 +23,6 @@ import {
 } from "@/hooks/use-aggregator-dashboard";
 import { useCommissionTransactionsInfinite } from "@/hooks/useCommissions";
 import { CommissionStatus } from "@/types/commissions";
-import { useAppConfig } from "@/contexts/ConfigContext";
 
 // No Mock Data used anymore
 
@@ -179,7 +178,7 @@ export default function AggregatorDashboard() {
   const displayEarned = commissionSummary.total || 0;
   const displayPaid = commissionSummary.paid || 0;
   const displayPending = commissionSummary.pending || 0;
-  
+
   const displaySubmitted = appCount.data || 0;
   const displayApproved = approved.data?.count || 0;
   const displayDisbursed = disbursed.data?.count || 0;

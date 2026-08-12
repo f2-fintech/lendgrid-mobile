@@ -198,11 +198,18 @@ export default function Step3IdProof({
           backgroundColor: theme.colors.surface,
         }}
       >
-        <Image
-          source={{ uri: file.uri }}
-          style={{ width: "100%", height: "100%" }}
-          resizeMode="cover"
-        />
+        {file.uri.toLowerCase().endsWith(".pdf") || file.mimeType === "application/pdf" ? (
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: `${theme.colors.error}10` }}>
+            <Feather name="file-text" size={48} color={theme.colors.error} />
+            <Text style={{ marginTop: 8, fontSize: 12, fontWeight: "600", color: theme.colors.error }}>PDF Document</Text>
+          </View>
+        ) : (
+          <Image
+            source={{ uri: file.uri }}
+            style={{ width: "100%", height: "100%" }}
+            resizeMode="cover"
+          />
+        )}
         <TouchableOpacity
           onPress={() => setField(field, null)}
           disabled={isUploadingThis}

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 import { setGraphqlAuthToken } from "./graphql_Notification_Client";
 import { gqlApi } from "./axiosConfig";
 
@@ -20,6 +21,7 @@ export async function gqlRequest<T>(
         AsyncStorage.removeItem("token");
         AsyncStorage.removeItem("omsToken");
         AsyncStorage.removeItem("accessToken");
+        router.replace("/(auth)/signin");
       }
       
       throw new Error(errorMsg);
@@ -33,6 +35,7 @@ export async function gqlRequest<T>(
       AsyncStorage.removeItem("token");
       AsyncStorage.removeItem("omsToken");
       AsyncStorage.removeItem("accessToken");
+      router.replace("/(auth)/signin");
     }
     console.log("GraphQL Error:", err);
     throw err;

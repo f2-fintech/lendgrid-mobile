@@ -67,6 +67,22 @@ const businessEntityOptions = [
   { value: "partnership", label: "Partnership Firm" },
 ];
 
+const professionalTypeOptions = [
+  { value: "Dr", label: "Doctor" },
+  { value: "CA", label: "Chartered Accountant" },
+  { value: "CS", label: "Company Secretary" },
+  { value: "CMA", label: "Cost and Management Accountant" },
+  { value: "Engineer", label: "Engineer" },
+  { value: "Lawyer", label: "Lawyer" },
+];
+
+const propertyPurchaseTypeOptions = [
+  { value: "fresh_purchase", label: "Fresh Purchase" },
+  { value: "resale_purchase", label: "Resale Purchase" },
+  { value: "builder_purchase", label: "Direct Builder Purchase" },
+  { value: "balance_transfer", label: "Balance Transfer" },
+];
+
 const getLoanCategory = (type: string): "secured" | "unsecured" | "" => {
   const securedTypes = ["home loan", "lap", "auto loan", "machinery loan"];
   const unsecuredTypes = [
@@ -124,6 +140,9 @@ export type Step0Values = {
   | "sole_proprietorship"
   | "private_limited"
   | "partnership";
+  professionalType?: "" | "Dr" | "CA" | "CS" | "CMA";
+  propertyPurchaseType?: string;
+  referralCode?: string;
 };
 
 type Props = {
@@ -131,6 +150,7 @@ type Props = {
   onChange: (next: Step0Values) => void;
   providers?: string[];
   onValidityChange?: (isValid: boolean) => void;
+  disabled?: boolean;
 };
 
 function zodFirstErrorMap(err: z.ZodError) {
@@ -147,6 +167,7 @@ export default function Step0LoanDetails({
   onChange,
   providers,
   onValidityChange,
+  disabled,
 }: Props) {
   const theme = useTheme();
   const { config } = useAppConfig();
@@ -193,9 +214,9 @@ export default function Step0LoanDetails({
         "ABFL",
         "Bajaj Finance",
         "Bajaj Market",
-        "L&T",
-        "Tata",
-        "Godrej",
+        "L&T Finance",
+        "Tata Capital",
+        "Godrej Capital",
         "Cholamandalam",
         "HDFC",
         "IDFC",
@@ -260,6 +281,7 @@ export default function Step0LoanDetails({
   const [whichLoanModalOpen, setWhichLoanModalOpen] = useState(false);
   const [caseTypeModalOpen, setCaseTypeModalOpen] = useState(false);
   const [businessEntityModalOpen, setBusinessEntityModalOpen] = useState(false);
+  const [professionalTypeModalOpen, setProfessionalTypeModalOpen] = useState(false);
 
   // validation errors
   const [allErrors, setAllErrors] = useState<Record<string, string>>({});
@@ -276,6 +298,7 @@ export default function Step0LoanDetails({
     leadType: false,
     caseType: false,
     businessEntityType: false,
+    professionalType: false,
   });
 
   const [activeExistingLoanIndex, setActiveExistingLoanIndex] = useState<number | null>(null);
@@ -311,6 +334,8 @@ export default function Step0LoanDetails({
       })),
       caseType: "fresh" as any,
       businessEntityType: value.businessEntityType || "",
+      professionalType: value.professionalType || "",
+      propertyPurchaseType: value.propertyPurchaseType || "",
     };
 
     const res = step0Schema.safeParse(payload);
@@ -331,6 +356,7 @@ export default function Step0LoanDetails({
     value.existingLoans,
     value.caseType,
     value.businessEntityType,
+    value.professionalType,
   ]);
 
   // Show errors only when touched
@@ -341,6 +367,12 @@ export default function Step0LoanDetails({
   const showCaseTypeError = touched.caseType ? allErrors["caseType"] : "";
   const showBusinessEntityError = touched.businessEntityType
     ? allErrors["businessEntityType"]
+    : "";
+  const showProfessionalTypeError = touched.professionalType
+    ? allErrors["professionalType"]
+    : "";
+  const showPropertyPurchaseTypeError = touched.propertyPurchaseType
+    ? allErrors["propertyPurchaseType"]
     : "";
 
   const providerAmountErrorFor = (provider: string) => {
@@ -372,6 +404,10 @@ export default function Step0LoanDetails({
       tenure: "",
       businessEntityType:
         loanType === "business loan" ? value.businessEntityType : "",
+      professionalType:
+        loanType === "professional loan" ? value.professionalType : "",
+      propertyPurchaseType:
+        loanType === "home loan" ? value.propertyPurchaseType : "",
     });
   };
 
@@ -485,9 +521,15 @@ export default function Step0LoanDetails({
   const businessEntityDisplay =
     businessEntityOptions.find((x) => x.value === value.businessEntityType)
       ?.label || "";
+  const professionalTypeDisplay =
+    professionalTypeOptions.find((x) => x.value === value.professionalType)
+      ?.label || "";
 
   return (
-    <View style={{ paddingBottom: keyboardSpace ? keyboardSpace - 40 : 0 }}>
+    <View
+      style={[{ paddingBottom: keyboardSpace ? keyboardSpace - 40 : 0 }, disabled && { opacity: 0.7 }]}
+      pointerEvents={disabled ? "none" : "auto"}
+    >
       {/* Info Card */}
       {showInfo && (
         <View
@@ -680,6 +722,118 @@ export default function Step0LoanDetails({
             </Text>
           )}
         </>
+      )}
+
+      {value.loanType === "professional loan" && (
+        <>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              color: theme.colors.onSurface,
+              marginBottom: 8,
+            }}
+          >
+            Type of Professional*
+          </Text>
+          <TouchableOpacity
+            onPress={() => setProfessionalTypeModalOpen(true)}
+            activeOpacity={0.8}
+            style={{
+              padding: 14,
+              borderRadius: 16, backgroundColor: theme.colors.surfaceVariant,
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Feather
+              name="user"
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <Text
+              style={{
+                marginLeft: 10,
+                color: professionalTypeDisplay
+                  ? theme.colors.onSurface
+                  : theme.colors.onSurfaceVariant,
+                fontSize: 15,
+              }}
+            >
+              {professionalTypeDisplay || "Select professional type"}
+            </Text>
+            <View style={{ marginLeft: "auto" }}>
+              <Feather
+                name="chevron-down"
+                size={18}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </TouchableOpacity>
+          {!!showProfessionalTypeError && (
+            <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+              {showProfessionalTypeError}
+            </Text>
+          )}
+        </>
+      )}
+
+      {value.loanType === "home loan" && (
+        <View style={{ marginBottom: 14 }}>
+          <Text
+            style={{
+              color: theme.colors.onSurface,
+              fontWeight: "700",
+              marginBottom: 8,
+            }}
+          >
+            Property Purchase Type <Text style={{ color: theme.colors.error }}>*</Text>
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {propertyPurchaseTypeOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                onPress={() => {
+                  onChange({ ...value, propertyPurchaseType: opt.value as any });
+                  setTouched((t) => ({ ...t, propertyPurchaseType: true }));
+                }}
+                activeOpacity={0.7}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor:
+                    value.propertyPurchaseType === opt.value
+                      ? theme.colors.primary
+                      : theme.colors.outlineVariant,
+                  backgroundColor:
+                    value.propertyPurchaseType === opt.value
+                      ? `${theme.colors.primary}15`
+                      : theme.colors.surface,
+                }}
+              >
+                <Text
+                  style={{
+                    color:
+                      value.propertyPurchaseType === opt.value
+                        ? theme.colors.primary
+                        : theme.colors.onSurface,
+                    fontWeight: value.propertyPurchaseType === opt.value ? "800" : "600",
+                  }}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {!!showPropertyPurchaseTypeError && (
+            <Text style={{ color: "#EF4444", marginTop: 4, fontSize: 12 }}>
+              {showPropertyPurchaseTypeError}
+            </Text>
+          )}
+        </View>
       )}
 
       {/* Tenure */}
@@ -2089,6 +2243,30 @@ export default function Step0LoanDetails({
                   borderBottomColor: theme.colors.outlineVariant,
                 }}
               >
+                <Text style={{ color: theme.colors.onSurface }}>{x.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+      {/* NEW: Professional Type Modal */}
+      <Modal visible={professionalTypeModalOpen} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: "40%" }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <Text style={{ color: theme.colors.onSurface, fontWeight: "900", fontSize: 16 }}>
+                Select Professional Type
+              </Text>
+              <TouchableOpacity onPress={() => { setProfessionalTypeModalOpen(false); setTouched(t => ({ ...t, professionalType: true })); }} style={{ padding: 6 }}>
+                <Feather name="x" size={20} color={theme.colors.onSurface} />
+              </TouchableOpacity>
+            </View>
+            {professionalTypeOptions.map((x) => (
+              <TouchableOpacity key={x.value} onPress={() => {
+                onChange({ ...value, professionalType: x.value as any });
+                setProfessionalTypeModalOpen(false);
+                setTouched(t => ({ ...t, professionalType: true }));
+              }} style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: theme.colors.outlineVariant }}>
                 <Text style={{ color: theme.colors.onSurface }}>{x.label}</Text>
               </TouchableOpacity>
             ))}

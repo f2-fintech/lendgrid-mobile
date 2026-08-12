@@ -71,7 +71,7 @@ function PulsingRing() {
         height: 56,
         borderRadius: 28,
         borderWidth: 2,
-        borderColor: "#FFD700",
+        borderColor: "#FFB547",
         transform: [{ scale }],
         opacity,
       }}
@@ -362,7 +362,7 @@ export default function InviteScreen() {
             <View style={styles.networkStamp}>
               <View style={styles.floatIconWrap}>
                 <PulsingRing />
-                <FontAwesome name="paper-plane" size={16} color="#FFD700" />
+                <FontAwesome name="paper-plane" size={16} color="#FFB547" />
               </View>
             </View>
           </View>
@@ -385,7 +385,7 @@ export default function InviteScreen() {
           <View style={styles.codeHeader}>
             <View style={styles.codeIconWrap}>
               <LinearGradient
-                colors={["#FFD700", "#E6A800"]}
+                colors={["#FFB547", "#E6932E"]}
                 style={StyleSheet.absoluteFillObject}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -440,7 +440,7 @@ export default function InviteScreen() {
             >
               <LinearGradient
                 colors={
-                  copied ? ["#22C55E", "#16A34A"] : ["#FFD700", "#E6A800"]
+                  copied ? ["#22C55E", "#16A34A"] : ["#FFB547", "#E6932E"]
                 }
                 style={StyleSheet.absoluteFillObject}
                 start={{ x: 0, y: 0 }}
@@ -533,7 +533,7 @@ export default function InviteScreen() {
                   <FontAwesome
                     name={step.icon as any}
                     size={14}
-                    color="#FFD700"
+                    color="#FFB547"
                   />
                 </View>
                 <View style={styles.stepText}>
@@ -566,14 +566,14 @@ export default function InviteScreen() {
 }
 
 const CARD_RADIUS = 18;
-const ACCENT = "#FFD700";
-const ACCENT_DIM = "rgba(255,215,0,0.18)";
-const BRAND = "#3238F3";
+const ACCENT = "#FFB547";
+const ACCENT_DIM = "rgba(255,181,71,0.18)";
+const BRAND = "#6366F1";
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#050814",
+    backgroundColor: "#111113",
   },
   glowBrandTopRight: {
     position: "absolute",

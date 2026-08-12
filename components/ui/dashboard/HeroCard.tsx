@@ -27,8 +27,10 @@ export default function HeroCard({ earned, paid, pending }: Props) {
         style={[
           styles.card,
           {
-            backgroundColor: theme.colors.primary,
-            shadowColor: theme.colors.primary,
+            backgroundColor: theme.dark ? "#1C1C1F" : theme.colors.primary,
+            shadowColor: theme.dark ? "#000000" : theme.colors.primary,
+            borderWidth: theme.dark ? 1 : 0,
+            borderColor: theme.dark ? "rgba(255,255,255,0.08)" : "transparent",
           },
         ]}
       >

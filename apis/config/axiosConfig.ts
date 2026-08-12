@@ -2,12 +2,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import Constants from "expo-constants";
+import { router } from "expo-router";
 
 const extra = Constants.expoConfig?.extra as any;
 
 // GraphQL (Nest + Mongo)
 export const gqlApi = axios.create({
-  baseURL: extra?.GRAPHQL_HTTP_URL,
+  baseURL: process.env.EXPO_PUBLIC_GRAPHQL_HTTP_URL ?? extra?.GRAPHQL_HTTP_URL,
   timeout: 20000,
   headers: {
     "Content-Type": "application/json",
@@ -16,7 +17,7 @@ export const gqlApi = axios.create({
 
 // REST (Admin + MySQL)
 export const restApi = axios.create({
-  baseURL: extra?.ADMIN_API_URL, // EXPO_PUBLIC_ADMIN_API_URL = http://192.168.1.10:3001/api/v1
+  baseURL: process.env.EXPO_PUBLIC_ADMIN_API_URL ?? extra?.ADMIN_API_URL, // EXPO_PUBLIC_ADMIN_API_URL = http://192.168.1.10:3001/api/v1
   timeout: 20000,
   headers: {
     "Content-Type": "application/json",
@@ -24,7 +25,7 @@ export const restApi = axios.create({
 });
 
 export const coreApi = axios.create({
-  baseURL: extra?.CORE_REST_URL, //  http://192.168.1.46:8080/api/v1
+  baseURL: process.env.EXPO_PUBLIC_CORE_REST_URL ?? extra?.CORE_REST_URL, //  http://192.168.1.46:8080/api/v1
   timeout: 20000,
   headers: { "Content-Type": "application/json" },
 });
@@ -79,6 +80,7 @@ export const coreApi = axios.create({
         await AsyncStorage.removeItem("token");
         await AsyncStorage.removeItem("omsToken");
         await AsyncStorage.removeItem("accessToken");
+        router.replace("/(auth)/signin");
       }
       return Promise.reject(error);
     }

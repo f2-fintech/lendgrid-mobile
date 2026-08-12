@@ -5,6 +5,7 @@ import {
     normalizeString,
     uploadToS3,
 } from "@/lib/utils/utils";
+import { fetchCustomerFullDetails } from "@/apis/modules/applications.api_rest";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
 import { Buffer } from "buffer";
@@ -41,7 +42,9 @@ type Props = {
   onSuccess?: () => void;
   initialLoanType?: string | string[];
   initialLoanCategory?: "secured" | "unsecured" | string | string[];
-  showHeader?: boolean;
+  editMode?: boolean;
+  initialCustomerId?: string | null;
+  initialApplicationId?: string | number | null;
 };
 
 type CompanyOption = {
@@ -143,7 +146,7 @@ const ConfettiParticle = ({ delay, theme }: any) => {
     theme.colors.primary,
     theme.colors.secondary,
     theme.colors.tertiary,
-    "#FFD700",
+    "#FFB547",
     "#FF6B9D",
     "#4ECDC4",
   ];
@@ -202,9 +205,13 @@ export default function MultiStepApplicationForm({
   onSuccess,
   initialLoanType,
   initialLoanCategory,
+  editMode = false,
+  initialCustomerId = null,
+  initialApplicationId = null,
 }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { config } = useAppConfig();
 
   const [applicationNo, setApplicationNo] = useState<string | null>(null);
   const [step, setStep] = useState(0);
@@ -213,8 +220,9 @@ export default function MultiStepApplicationForm({
   const queryClient = useQueryClient();
 
   // Server-like state
-  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(initialCustomerId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetchingCustomer, setIsFetchingCustomer] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingFileKey, setUploadingFileKey] = useState<string | null>(null);
 
@@ -381,6 +389,8 @@ export default function MultiStepApplicationForm({
         runningEmi: "",
       },
     ],
+    propertyPurchaseType: "",
+    referralCode: "",
   });
 
   const [step1, setStep1] = useState<Step1Values>({
@@ -409,6 +419,7 @@ export default function MultiStepApplicationForm({
   });
 
   useEffect(() => {
+    if (editMode) return;
     setStep2({
       files: [],
       bankingPassword: "",
@@ -425,10 +436,201 @@ export default function MultiStepApplicationForm({
 
   const [step4, setStep4] = useState<Step4Values>({
     salary: "",
+    totalExperience: "",
     existingEmi: "",
     existingLiability: "",
     certificates: [],
   });
+
+  useEffect(() => {
+    if (editMode && initialCustomerId) {
+      const loadCustomerData = async () => {
+        setIsFetchingCustomer(true);
+        try {
+          const res = await fetchCustomerFullDetails(initialCustomerId);
+          console.log("[MultiStepApplicationForm] fetchCustomerFullDetails response:", res);
+          const data = res?.data;
+          console.log("[MultiStepApplicationForm] customer data:", data);
+          if (data) {
+            setStep1(prev => ({
+              ...prev,
+              name: data.name || "",
+              contact: data.contact || "",
+              email: data.email || "",
+              pan: data.info?.pan || "",
+              father_name: data.info?.father_name || "",
+              mother_name: data.info?.mother_name || "",
+              working_address: data.info?.working_address || "",
+              permanent_address: data.info?.permanent_address || "",
+              current_address: data.info?.current_address || "",
+              city: data.info?.city || "",
+              state: data.info?.state || "",
+              employment_type: data.info?.employment_type || "",
+              dob: data.dob ? new Date(data.dob).toISOString() : undefined,
+            }));
+            
+            // Populate step 0 and step 4 from the latest application
+            if (data.applications && data.applications.length > 0) {
+              const sortedApps = data.applications.sort(
+                (a: any, b: any) =>
+                  new Date(b.application_date).getTime() -
+                  new Date(a.application_date).getTime()
+              );
+
+              let latestApp: any = {};
+              if (initialApplicationId) {
+                latestApp =
+                  data.applications.find(
+                    (a: any) => String(a.id) === String(initialApplicationId)
+                  ) ||
+                  sortedApps[0] ||
+                  {};
+              } else {
+                latestApp = sortedApps[0] || {};
+              }
+              
+              setStep0(prev => ({
+                ...prev,
+                loanAmount: latestApp.amount ? String(latestApp.amount) : "",
+                loanType: latestApp.loan_type ? latestApp.loan_type.toLowerCase() : "",
+                loanCategory: latestApp.loan_category ? latestApp.loan_category.toLowerCase() : "",
+                tenure: latestApp.tenure || "",
+                businessEntityType: data.info?.company_type || "",
+                professionalType: data.info?.occupation || "",
+              }));
+              
+              setStep4(prev => ({
+                ...prev,
+                salary: data.info?.salary ? String(data.info.salary) : (latestApp.salary ? String(latestApp.salary) : ""),
+                existingEmi: data.info?.existing_emi ? String(data.info.existing_emi) : (latestApp.existing_emi ? String(latestApp.existing_emi) : ""),
+                existingLiability: data.info?.existing_liability ? String(data.info.existing_liability) : (latestApp.existing_liability ? String(latestApp.existing_liability) : ""),
+              }));
+            }
+            if (data.customerDocuments && data.customerDocuments.length > 0) {
+              const reverseDocTypeMap: Record<string, string> = {
+                "form 16": "form16",
+                "itr": "itr",
+                "salary slip": "salarySlip",
+                "bank statement": "banking",
+                "computation of income": "computationOfIncome",
+                "financials": "financials",
+                "udhyam certificate": "udhyamCertificate",
+                "gst": "gst",
+                "form 26 as": "form26as",
+                "list of directors": "listOfDirectors",
+                "list of shareholders": "listOfShareholders",
+                "aoa": "aoa",
+                "moa": "moa",
+                "company pan": "companyPan",
+                "directors kyc": "directorsKyc",
+                "partners kyc": "partnersKyc",
+                "partnership deed": "partnershipDeed",
+                "board resolution": "boardResolution",
+                "mca report": "mcaReport",
+                "coi": "coi",
+                "ug certificate": "ugCertificate",
+                "pg certificate": "pgCertificate",
+                "registration": "registration",
+                "address proof": "currentAddressProof",
+                "company id card": "companyIdCard",
+                "ownership proof": "ownershipProof",
+                "utility bill": "utilityBill",
+                "company address proof": "companyAddressProof",
+                "share holding pattern": "shareHoldingPattern",
+                "cop": "cop",
+                "com": "com",
+                "firm card": "firmCard",
+                "property papers": "propertyPapers",
+                "ats": "ats",
+                "seller kyc": "sellerKyc",
+                "seller cancelled cheque": "sellerCancelledCheque",
+                "ptm": "ptm",
+                "allotment letter": "allotmentLetter",
+                "customer ledger": "customerLedger",
+                "payment receipts": "paymentReceipts",
+                "tpa": "tpa",
+                "project noc": "projectNoc",
+                "existing sanction letter": "existingSanctionLetter",
+                "lod": "lod",
+                "title deed": "titleDeed",
+                "electricity bill": "electricityBill",
+                "marksheet 10": "marksheet10",
+                "marksheet 12": "marksheet12",
+                "graduation marksheet": "marksheetGrad",
+                "offer letter": "offerLetter",
+                "fee structure": "feeStructure",
+                "entrance exam result": "entranceExamResult",
+                "co-applicant aadhaar front": "coApplicantAadhaarFront",
+                "co-applicant aadhaar back": "coApplicantAadhaarBack",
+                "co-applicant pan": "coApplicantPan",
+                "co-applicant bank": "coApplicantBank",
+                "co-applicant cheque": "coApplicantCheque",
+                "co-applicant income docs": "coApplicantIncomeDocs",
+                "cancel cheque": "cancelCheque",
+              };
+
+              const findDoc = (typeNames: string[]) => 
+                data.customerDocuments.find((d: any) => typeNames.includes(String(d.type).toLowerCase()));
+
+              const aadharFront = findDoc(['aadhaar front', 'aadhar front']);
+              const aadharBack = findDoc(['aadhaar back', 'aadhar back']);
+              const pancard = findDoc(['pancard', 'pan card']);
+              const passportPhoto = findDoc(['photo', 'profile photo']);
+              
+              setStep3(prev => ({
+                ...prev,
+                aadharFront: aadharFront ? { uri: aadharFront.document_url, uploaded: true, name: aadharFront.document_name || "Aadhaar Front" } as any : null,
+                aadharBack: aadharBack ? { uri: aadharBack.document_url, uploaded: true, name: aadharBack.document_name || "Aadhaar Back" } as any : null,
+                pancard: pancard ? { uri: pancard.document_url, uploaded: true, name: pancard.document_name || "PAN Card" } as any : null,
+                passportPhoto: passportPhoto ? { uri: passportPhoto.document_url, uploaded: true, name: passportPhoto.document_name || "Profile Photo" } as any : null,
+              }));
+
+              const step3Types = ['aadhaar front', 'aadhar front', 'aadhaar back', 'aadhar back', 'pancard', 'pan card', 'photo', 'profile photo', 'certificate'];
+              
+              const step2Files = data.customerDocuments
+                .filter((d: any) => !step3Types.includes(String(d.type).toLowerCase()))
+                .map((s: any) => {
+                  const typeKey = String(s.type).toLowerCase();
+                  return {
+                    uri: s.document_url,
+                    uploaded: true,
+                    name: s.document_name || s.name || s.document_url.split('/').pop(),
+                    fieldKey: reverseDocTypeMap[typeKey] || typeKey.replace(/\s+/g, '_')
+                  };
+                });
+              
+              if (step2Files.length > 0) {
+                 setStep2(prev => ({
+                   ...prev,
+                   files: step2Files
+                 }));
+              }
+
+              const certificates = data.customerDocuments
+                .filter((d: any) => String(d.type).toLowerCase() === 'certificate')
+                .map((s: any) => ({
+                  uri: s.document_url,
+                  uploaded: true,
+                  name: s.document_name || s.name || s.document_url.split('/').pop(),
+                }));
+
+              if (certificates.length > 0) {
+                 setStep4(prev => ({
+                   ...prev,
+                   certificates: certificates
+                 }));
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch customer data for edit mode", error);
+        } finally {
+          setIsFetchingCustomer(false);
+        }
+      };
+      loadCustomerData();
+    }
+  }, [editMode, initialCustomerId]);
 
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
@@ -485,8 +687,7 @@ export default function MultiStepApplicationForm({
       setIsOmsStaff(oms);
 
       if (oms) {
-        const savedCompanyId = await AsyncStorage.getItem("selectedCompanyId");
-        setSelectedCompanyId(savedCompanyId || "");
+        setSelectedCompanyId("101");
         await loadCompanies();
         return;
       }
@@ -531,7 +732,6 @@ export default function MultiStepApplicationForm({
     const isPanOk = pan.length === 10;
 
     const isParentsOk =
-      normalizeString(step1.father_name).length > 0 &&
       normalizeString(step1.mother_name).length > 0;
 
     const isAddressOk =
@@ -620,6 +820,7 @@ export default function MultiStepApplicationForm({
   }, [skipped, step3]);
 
   const maxStepAllowed = useMemo(() => {
+    if (editMode) return 4;
     let allowed = 0;
 
     if (step0Valid) allowed = 1;
@@ -635,24 +836,27 @@ export default function MultiStepApplicationForm({
     else return allowed;
 
     return allowed;
-  }, [step0Valid, step1Valid, step2EffectiveValid, step3EffectiveValid]);
+  }, [step0Valid, step1Valid, step2EffectiveValid, step3EffectiveValid, editMode]);
 
   const canGoNext = useMemo(() => {
+    if (editMode) return true;
     if (step === 0) return step0Valid;
     if (step === 1) return step1Valid;
     if (step === 2) return step2EffectiveValid;
     if (step === 3) return step3EffectiveValid;
     return true;
-  }, [step, step0Valid, step1Valid, step2EffectiveValid, step3EffectiveValid]);
+  }, [step, step0Valid, step1Valid, step2EffectiveValid, step3EffectiveValid, editMode]);
 
   const canSubmit = useMemo(
-    () =>
-      step === 4 &&
+    () => {
+      if (editMode) return !isSubmitting && !isUploading;
+      return step === 4 &&
       step4Valid &&
       !step4HasPendingDocs &&
       !isSubmitting &&
-      !isUploading,
-    [step, step4Valid, step4HasPendingDocs, isSubmitting, isUploading],
+      !isUploading;
+    },
+    [step, step4Valid, step4HasPendingDocs, isSubmitting, isUploading, editMode],
   );
 
   // -----------------------------
@@ -770,11 +974,6 @@ export default function MultiStepApplicationForm({
   }, [step, step1Valid, createCustomerEarly]);
 
   // ==========================================
-  // CONFIG CONTEXT
-  // ==========================================
-  const { config } = useAppConfig();
-
-  // ==========================================
   // DYNAMIC STEPS
   // ==========================================
   const dynamicSteps = STEPS.map((step) => {
@@ -869,8 +1068,8 @@ export default function MultiStepApplicationForm({
           customer_id: activeCustomerId,
           document_url: finalUrl,
           type: docType,
-          document_name: docType,
-          name: docType,
+          document_name: file.name || docType,
+          name: file.name || docType,
         },
         requestConfig,
       );
@@ -884,6 +1083,58 @@ export default function MultiStepApplicationForm({
     if (fieldKey.includes("aadhaar_back")) return "aadhaar back";
     if (fieldKey.includes("aadhaar")) return "aadhaar front";
     if (fieldKey.includes("pan")) return "pancard";
+    if (fieldKey.includes("currentaddress")) return "current address proof";
+    if (fieldKey.includes("cop")) return "cop";
+    if (fieldKey.includes("com")) return "com";
+    if (fieldKey.includes("firmcard")) return "firm card";
+    if (fieldKey.includes("cancelcheque")) return "cancel cheque";
+    if (fieldKey.includes("companyid")) return "company id card";
+    if (fieldKey.includes("coapplicantaadhaar")) return "co-applicant aadhaar";
+    if (fieldKey.includes("coapplicantpan")) return "co-applicant pan";
+    if (fieldKey.includes("marksheet10")) return "marksheet 10";
+    if (fieldKey.includes("marksheet12")) return "marksheet 12";
+    if (fieldKey.includes("graduationmarksheet")) return "graduation marksheet";
+    if (fieldKey.includes("offerletter")) return "offer letter";
+    if (fieldKey.includes("feestructure")) return "fee structure";
+    if (fieldKey.includes("entranceexam")) return "entrance exam result";
+    if (fieldKey.includes("propertypapers")) return "property papers";
+    if (fieldKey.includes("sellerkyc")) return "seller kyc";
+    if (fieldKey.includes("allotmentletter")) return "allotment letter";
+    if (fieldKey.includes("titledeed")) return "title deed";
+    if (fieldKey.includes("boardresolution")) return "board resolution";
+    if (fieldKey.includes("mcareport")) return "mca report";
+    if (fieldKey.includes("coi")) return "coi";
+    if (fieldKey.includes("aoa")) return "aoa";
+    if (fieldKey.includes("moa")) return "moa";
+    if (fieldKey.includes("companypan")) return "company pan";
+    if (fieldKey.includes("ptm")) return "ptm";
+    if (fieldKey.includes("tpa")) return "tpa";
+    if (fieldKey.includes("projectnoc")) return "project noc";
+    if (fieldKey.includes("lod")) return "lod";
+    if (fieldKey.includes("ats")) return "ats";
+    if (fieldKey.includes("electricitybill")) return "electricity bill";
+    if (fieldKey.includes("utilitybill")) return "utility bill";
+    if (fieldKey.includes("ownershipproof")) return "ownership proof";
+    if (fieldKey.includes("shareholdingpattern")) return "share holding pattern";
+    if (fieldKey.includes("registration")) return "registration";
+    if (fieldKey.includes("ug_certificate")) return "ug certificate";
+    if (fieldKey.includes("pg_certificate")) return "pg certificate";
+    if (fieldKey.includes("partnership_deed")) return "partnership deed";
+    if (fieldKey.includes("directors_kyc")) return "directors kyc";
+    if (fieldKey.includes("list_of_shareholders")) return "list of shareholders";
+    if (fieldKey.includes("list_of_directors")) return "list of directors";
+    if (fieldKey.includes("form_26_as")) return "form 26 as";
+    if (fieldKey.includes("gst")) return "gst";
+    if (fieldKey.includes("udhyam_certificate")) return "udhyam certificate";
+    if (fieldKey.includes("financials")) return "financials";
+    if (fieldKey.includes("computation_of_income")) return "computation of income";
+    if (fieldKey.includes("salary_slip")) return "salary slip";
+    if (fieldKey.includes("itr")) return "itr";
+    if (fieldKey.includes("form_16")) return "form 16";
+    if (fieldKey.includes("photo")) return "photo";
+    if (fieldKey.includes("certificate")) return "certificate";
+    if (fieldKey.includes("audio")) return "audio";
+    
     return "bank statement";
   };
 
@@ -973,9 +1224,7 @@ export default function MultiStepApplicationForm({
 
         setStep4((prev) => ({
           ...prev,
-          certificates: prev.certificates.map((file) =>
-            isLocalPendingFile(file) ? { ...file, uploaded: true } : file,
-          ),
+          certificates: prev.certificates.map((file) => isLocalPendingFile(file) ? { ...file, uploaded: true } : file),
         }));
       }
 
@@ -1119,20 +1368,7 @@ export default function MultiStepApplicationForm({
     [step3, uploadSingleDocument],
   );
 
-  const uploadStep4File = useCallback(
-    (index: number) => {
-      const file = step4.certificates[index];
-      uploadSingleDocument(file, "certificate", `certificate-${index}`, () => {
-        setStep4((prev) => ({
-          ...prev,
-          certificates: prev.certificates.map((item, itemIndex) =>
-            itemIndex === index ? { ...item, uploaded: true } : item,
-          ),
-        }));
-      });
-    },
-    [step4.certificates, uploadSingleDocument],
-  );
+
 
   // 1. Add this state at the top of your component with your other useState hooks:
   // const [applicationNo, setApplicationNo] = useState<string | null>(null);
@@ -1215,7 +1451,7 @@ export default function MultiStepApplicationForm({
       });
       let newCustomerId = customerId;
 
-      if (!newCustomerId) {
+      if (!editMode && !newCustomerId) {
         console.log("⚠️ Creating customer in submit fallback...");
 
         const customerRes = await coreApi.post(
@@ -1237,25 +1473,35 @@ export default function MultiStepApplicationForm({
       if (!newCustomerId) throw new Error("CustomerId not returned from API");
       setCustomerId(String(newCustomerId));
 
-      setStage("Creating customer info");
+      if (!editMode) {
+        setStage("Creating customer info");
 
-      // 2) create-customer-info
-      await coreApi.post(
-        "/create-customer-info",
-        {
-          customer_id: newCustomerId,
-          pan: step1.pan,
-          father_name: step1.father_name,
-          mother_name: step1.mother_name,
-          working_address: step1.working_address,
-          permanent_address: step1.permanent_address,
-          current_address: step1.current_address,
-          city: step1.city,
-          state: step1.state,
-          employment_type: step1.employment_type,
-        },
-        requestConfig,
-      );
+        // 2) create-customer-info
+        await coreApi.post(
+          "/create-customer-info",
+          {
+            customer_id: newCustomerId,
+            pan: step1.pan,
+            father_name: step1.father_name,
+            mother_name: step1.mother_name,
+            working_address: step1.working_address,
+            permanent_address: step1.permanent_address,
+            current_address: step1.current_address,
+            city: step1.city,
+            state: step1.state,
+            employment_type: step1.employment_type,
+            company_type: step0.businessEntityType,
+            occupation: step0.professionalType,
+            
+            // Co-Applicant details sent to backend
+            co_applicant_name: step1.co_applicant_name,
+            co_applicant_email: step1.co_applicant_email,
+            co_applicant_contact: step1.co_applicant_contact,
+            co_applicant_mother_name: step1.co_applicant_mother_name,
+          },
+          requestConfig,
+        );
+      }
 
       const pendingStep2Files = (step2.files || []).filter(
         (file) => file.uri && !file.uri.startsWith("http") && !file.uploaded,
@@ -1314,6 +1560,17 @@ export default function MultiStepApplicationForm({
         throw new Error("No provider selected for application");
       }
 
+      if (editMode) {
+         setSubmitStatus((prev) => ({
+          ...prev,
+          applicationCreated: true,
+          docsUploaded: true,
+        }));
+
+        playSuccessToast();
+        return;
+      }
+
       setStage("Creating applications");
 
       const application_no = generateApplicationNumber();
@@ -1370,6 +1627,7 @@ export default function MultiStepApplicationForm({
           : { source: "lendgrid", is_picked: 0 }),
         ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
         ...(aggregatorMemberId ? { aggregator_member_id: aggregatorMemberId } : {}),
+        ...(step0.referralCode?.trim() ? { referral_code: step0.referralCode.trim() } : {}),
       };
 
       console.log("[MultiStepApplicationForm] create-application payload", {
@@ -1591,6 +1849,7 @@ export default function MultiStepApplicationForm({
             value={step0}
             onChange={setStep0}
             onValidityChange={setStep0Valid}
+            disabled={editMode}
           />
         )}
 
@@ -1599,6 +1858,8 @@ export default function MultiStepApplicationForm({
             value={step1}
             onChange={setStep1}
             onValidityChange={() => {}}
+            loanType={step0.loanType}
+            disabled={editMode}
           />
         )}
 
@@ -1610,8 +1871,12 @@ export default function MultiStepApplicationForm({
             customerId={customerId}
             loanType={step0.loanType}
             businessEntityType={step0.businessEntityType}
+            propertyPurchaseType={step0.propertyPurchaseType}
+            professionalType={step0.professionalType}
+            employmentType={step1.employment_type}
             onUploadFile={uploadStep2File}
             uploadingFileKey={uploadingFileKey}
+            disabled={editMode}
           />
         )}
 
@@ -1622,6 +1887,7 @@ export default function MultiStepApplicationForm({
             customerId={customerId}
             onUploadFile={uploadStep3File}
             uploadingFileKey={uploadingFileKey}
+            disabled={editMode}
           />
         )}
 
@@ -1631,8 +1897,7 @@ export default function MultiStepApplicationForm({
             onChange={setStep4}
             onValidityChange={setStep4Valid}
             customerId={customerId}
-            onUploadFile={uploadStep4File}
-            uploadingFileKey={uploadingFileKey}
+            disabled={editMode}
           />
         )}
 

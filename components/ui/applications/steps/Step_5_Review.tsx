@@ -138,6 +138,7 @@ export default function Step5Review({
         {row(`${loanWord} Type`, step0.loanType ? step0.loanType.replace(/loan/gi, loanWord) : "")}
         {row("Tenure", step0.tenure)}
         {row(config.isReviewMode ? "Partners" : "Providers", (step0.selectedProviders || []).join(", "))}
+        {row("Referral Code", step0.referralCode || "NA")}
 
         <View style={{ height: 10 }} />
 

@@ -289,12 +289,12 @@ export default function RootLayout() {
       <View
         style={{
           flex: 1,
-          backgroundColor: activeTheme === "dark" ? "#0A1628" : "#FFFFFF",
+          backgroundColor: activeTheme === "dark" ? "#111113" : "#FFFFFF",
         }}
       >
         <StatusBar
           barStyle={activeTheme === "dark" ? "light-content" : "dark-content"}
-          backgroundColor={activeTheme === "dark" ? "#0A1628" : "#FFFFFF"}
+          backgroundColor={activeTheme === "dark" ? "#111113" : "#FFFFFF"}
         />
       </View>
     );

@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 
 const extra = (Constants.expoConfig?.extra ?? {}) as any;
 
-const UPLOAD_API_URL = String(extra?.UPLOAD_API_URL).replace(/\/+$/, "");
+const UPLOAD_API_URL = String(process.env.EXPO_PUBLIC_UPLOAD_API_URL ?? extra?.UPLOAD_API_URL).replace(/\/+$/, "");
 console.log("UPLOAD_API_URL:", UPLOAD_API_URL);
 
 /* =========================

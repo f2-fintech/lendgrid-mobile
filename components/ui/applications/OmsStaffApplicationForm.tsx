@@ -122,6 +122,7 @@ const INITIAL_STEP0: Step0Values = {
       runningEmi: "",
     },
   ],
+  referralCode: "",
 };
 
 const INITIAL_STEP1: Step1Values = {

@@ -7,8 +7,8 @@ import { LOAN_PRODUCTS, LoanProduct } from '@/app/(tab)/loan-products';
 
 const { width } = Dimensions.get('window');
 
-// We duplicate the array to create a seamless infinite scrolling effect
-const INFINITE_DATA = [...LOAN_PRODUCTS, ...LOAN_PRODUCTS, ...LOAN_PRODUCTS];
+// We duplicate the array many times to create a seamless infinite scrolling effect that doesn't run out
+const INFINITE_DATA = Array(50).fill(LOAN_PRODUCTS).flat();
 
 export default function LoanProductsSlider() {
   const theme = useTheme();
@@ -16,21 +16,26 @@ export default function LoanProductsSlider() {
   const router = useRouter();
   
   const flatListRef = useRef<FlatList>(null);
-  const scrollX = useRef(new Animated.Value(0)).current;
+  // Keep track of the current scroll position so we don't jump back to 0
+  const scrollXRef = useRef(0);
   const [isAutoScrolling, setIsAutoScrolling] = useState(true);
   
   // Auto-scroll animation logic
   useEffect(() => {
     if (!isAutoScrolling) return;
 
-    let offset = 0;
     const interval = setInterval(() => {
-      offset += 1;
-      flatListRef.current?.scrollToOffset({ offset, animated: false });
+      scrollXRef.current += 1.5; // Smooth incremental scroll
+      flatListRef.current?.scrollToOffset({ offset: scrollXRef.current, animated: false });
     }, 30); // 30ms interval for smooth scrolling
 
     return () => clearInterval(interval);
   }, [isAutoScrolling]);
+
+  const handleScroll = (event: any) => {
+    // Update the ref when the user manually scrolls so it resumes from there
+    scrollXRef.current = event.nativeEvent.contentOffset.x;
+  };
 
   const handlePress = () => {
     // Navigate to loan products page when a user clicks a slide
@@ -59,7 +64,7 @@ export default function LoanProductsSlider() {
         <Text style={[styles.title, { color: isDark ? '#F8FAFC' : '#1F2937' }]} numberOfLines={1}>
           {item.title}
         </Text>
-        <Text style={[styles.subtitle, { color: isDark ? '#94A3B8' : '#6B7280' }]} numberOfLines={1}>
+        <Text style={[styles.subtitle, { color: isDark ? '#FFFFFF' : '#6B7280' }]} numberOfLines={1}>
           {item.interestRate}
         </Text>
       </View>
@@ -91,6 +96,8 @@ export default function LoanProductsSlider() {
         horizontal
         showsHorizontalScrollIndicator={false}
         scrollEnabled={true}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         onScrollBeginDrag={() => setIsAutoScrolling(false)}
         onScrollEndDrag={() => setIsAutoScrolling(true)}
         contentContainerStyle={styles.listContainer}
