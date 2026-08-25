@@ -4,6 +4,7 @@ import CustomSplashScreen from "@/components/common/CustomSplashScreen";
 import { decodeJwt } from "@/lib/utils/utils";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 
 export default function Index() {
   const [nextRoute, setNextRoute] = useState<string>(ROUTES.signin);
@@ -35,6 +36,32 @@ export default function Index() {
             setNextRoute(ROUTES.Dashboard);
           }
         } else {
+          // If no token, check for a deferred deep link (Play Install Referrer)
+          if (Platform.OS === 'android') {
+            try {
+              const Application = await import('expo-application');
+              const referrer = await Application.getInstallReferrerAsync();
+              if (referrer) {
+                const extractParam = (query: string, param: string) => {
+                  const match = RegExp('[?&]' + param + '=([^&]*)').exec('?' + query);
+                  return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+                };
+                const ref = extractParam(referrer, 'ref');
+                if (ref) {
+                  await AsyncStorage.setItem("referralCode", ref);
+                  const processed = await AsyncStorage.getItem("processedReferrer");
+                  if (processed !== ref) {
+                    await AsyncStorage.setItem("processedReferrer", ref);
+                    setNextRoute(`/signup?ref=${encodeURIComponent(ref)}`);
+                    return;
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn("Failed to get Play Install Referrer", e);
+            }
+          }
+          // Default to sign-in if no valid referrer found
           setNextRoute(ROUTES.signin);
         }
       } catch {

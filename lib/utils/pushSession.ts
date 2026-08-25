@@ -45,7 +45,7 @@ export async function registerForPushNotificationsAsync() {
     ).data;
     return token;
   } catch (error) {
-    console.error("Error getting push token:", error);
+    console.warn("Could not get push token (expected on emulators):", error);
     return null;
   }
 }

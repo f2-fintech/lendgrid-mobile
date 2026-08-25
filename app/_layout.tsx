@@ -283,6 +283,8 @@ export default function RootLayout() {
     };
   }, [router]);
 
+
+
   if (!booted) {
     const activeTheme = persistedTheme || colorScheme || "light";
     return (

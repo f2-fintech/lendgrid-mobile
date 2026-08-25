@@ -22,6 +22,11 @@ import dayjs from "dayjs";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import MultiStepApplicationForm from "../applications/MultiStepApplicationForm";
 
+const capitalizeWords = (str?: string) => {
+  if (!str) return '';
+  return str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
+
 type Props = {
   theme: any;
   styles: any;
@@ -1802,7 +1807,7 @@ export default function ApplicationsTicketsView(props: Props) {
               title={`Application No - ${String(
                 app.applicationNumber || app.applicationId,
               )}`}
-              subtitle={`${app.customerName} • ${app.loanType}`}
+              subtitle={`${app.customerName} • ${capitalizeWords(app.loanType)}`}
               status={status}
               statusColor={statusColor}
               lender={app.applicationProvider}
@@ -2060,7 +2065,7 @@ export default function ApplicationsTicketsView(props: Props) {
               styles={styles}
               theme={theme}
               title={`ID - F2FIN-${String(ticket.ticketId)}`}
-              subtitle={`${ticket.customerName}`}
+              subtitle={ticket.loanType ? `${ticket.customerName} • ${capitalizeWords(ticket.loanType)}` : `${ticket.customerName}`}
               status={status}
               statusColor={statusColor}
               lender={ticket.applicationProvider}

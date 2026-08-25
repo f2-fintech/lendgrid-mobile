@@ -212,7 +212,7 @@ export default function DataScreen() {
         {/* Outer Vertical ScrollView handles scrolling up/down for the ENTIRE table perfectly in sync */}
         <ScrollView
           showsVerticalScrollIndicator={true}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 120 }}
         >
           <View style={{ flexDirection: "row" }}>
             {/* --- FIXED LEFT SECTION --- */}

@@ -22,7 +22,9 @@ export const signUpSchema = z
       .string()
       .min(9, "Contact must be at least 9 characters")
       .max(20, "Contact is too long")
-      .regex(/^[0-9]+$/, "Contact can only contain numbers"),
+      .regex(/^[0-9]+$/, "Contact can only contain numbers")
+      .or(z.literal(''))
+      .optional(),
 
     password: z
       .string()

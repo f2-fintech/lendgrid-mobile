@@ -1026,7 +1026,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 96,
+    paddingBottom: 120,
     gap: 16,
   },
   loadingCenter: {
@@ -1284,7 +1284,7 @@ const styles = StyleSheet.create({
   // FAB
   fab: {
     position: "absolute",
-    bottom: 24,
+    bottom: 120,
     right: 24,
     width: 54,
     height: 54,

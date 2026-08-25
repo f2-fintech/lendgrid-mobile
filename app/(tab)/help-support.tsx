@@ -339,7 +339,7 @@ export default function HelpSupportScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 44 },
+  content: { padding: 20, paddingBottom: 120 },
 
   // Header
   header: { marginBottom: 24 },

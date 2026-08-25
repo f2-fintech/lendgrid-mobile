@@ -121,6 +121,7 @@ export default function InviteScreen() {
   });
   const inviteCode = data?.referralCode?.trim() || "";
   const canShareInvite = Boolean(inviteCode) && !isLoading && !isError;
+
   const appSignupLink = canShareInvite
     ? `${WEB_BASE_URL}/signup?ref=${encodeURIComponent(inviteCode)}&c_name=${encodeURIComponent(data?.companyName || "")}&source=mobile`
     : "";
@@ -626,7 +627,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 14,
     paddingTop: 44,
-    paddingBottom: 32,
+    paddingBottom: 120,
     gap: 10,
   },
 

@@ -1,27 +1,60 @@
 {
   "project_info": {
-    "project_number": "659485329236",
-    "project_id": "lendgrid",
-    "storage_bucket": "lendgrid.firebasestorage.app"
+    "project_number": "354580642316",
+    "project_id": "lendgrid-8f92b",
+    "storage_bucket": "lendgrid-8f92b.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:659485329236:android:931a8b08ad3b97a09a6ac1",
+        "mobilesdk_app_id": "1:354580642316:android:eada7ba42a2a1aa7f44c29",
         "android_client_info": {
           "package_name": "com.lendgrid.mobile"
         }
       },
-
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "354580642316-334cl3fdlmimc7knjo67ekjhvefo1tqs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lendgrid.mobile",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lendgrid.mobile",
+            "certificate_hash": "148e5d268f2314c9a94c8dcf2cd7c0a97718785b"
+          }
+        },
+        {
+          "client_id": "354580642316-g15fvt1kf4khdibap53uf4eccb6g9on3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lendgrid.mobile",
+            "certificate_hash": "95f30a1ef7661856be167e452b779a1c1165ea72"
+          }
+        },
+        {
+          "client_id": "354580642316-k4da5027hvdfm7v0s6479u7k32pmfdr3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyCzA2NEOfGCIGKWXHetbvK2-bIvUob334g"
+          "current_key": "AIzaSyCanCqFcvuh2fOfACCW8dkI5NM8zGCQuHM"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "354580642316-k4da5027hvdfm7v0s6479u7k32pmfdr3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

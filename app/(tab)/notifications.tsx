@@ -332,6 +332,7 @@ export default function NotificationsScreen() {
     <ScrollView
       contentContainerStyle={{
         paddingVertical: 8,
+        paddingBottom: 120,
         backgroundColor: theme.colors.background,
         flexGrow: 1,
       }}

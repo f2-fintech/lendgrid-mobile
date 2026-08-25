@@ -88,7 +88,7 @@ export const DRAWER_ITEMS: DrawerItem[] = [
   },
   {
     icon: "book-open",
-    label: "Training and Resources",
+    label: "Learn and Grow",
     route: "/training-resources",
   },
   { icon: "grid", label: "SAAS Products", route: "/saas-products" },
@@ -1096,7 +1096,7 @@ export default function Layout() {
           <Tabs.Screen
             name="training-resources"
             options={{
-              title: "Training and Resources",
+              title: "Learn and Grow",
               href: null,
               headerRight: () => <ThemeToggleBtn />,
             }}

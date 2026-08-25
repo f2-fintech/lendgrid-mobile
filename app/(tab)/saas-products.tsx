@@ -704,7 +704,7 @@ export default function SaasProductsScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1 } as ViewStyle,
-  content: { paddingTop: 16, paddingBottom: 40 } as ViewStyle,
+  content: { paddingTop: 16, paddingBottom: 120 } as ViewStyle,
 
   // Top bar
   topBar: {

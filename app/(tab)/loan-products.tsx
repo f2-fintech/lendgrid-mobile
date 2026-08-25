@@ -208,7 +208,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
       "Turn your dream home into reality with low interest rate structures through India's leading banks.",
     icon: "home",
     badge: "Popular",
-    interestRate: "Starting 7.35% p.a.",
+    interestRate: "Starting 7% p.a.",
     maxAmount: "Up to ₹10 Cr",
     tenure: "Up to 36 years",
     processingFee: "Zero if loan > ₹1 Cr",
@@ -219,7 +219,7 @@ export const LOAN_PRODUCTS: LoanProduct[] = [
         label: "Partner Lenders",
         value: "SBI, PNB, Baroda, HDFC, ICICI, Axis",
       },
-      { label: "Interest Rate Range", value: "7.35% – 9.40% p.a." },
+      { label: "Interest Rate Range", value: "7% – 9.40% p.a." },
       { label: "Min. EMI Per Lakh", value: "₹1,205 onwards" },
       { label: "Waiver Benefit", value: "0 Processing Fee if loan > ₹1 Crore" },
       { label: "Turnaround Time", value: "10 – 15 Working Days" },
@@ -885,7 +885,7 @@ export default function LoanProductsScreen() {
 
             <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 30 }}
+              contentContainerStyle={{ paddingBottom: 120 }}
             >
               {/* Quick Stats Matrix */}
               <View

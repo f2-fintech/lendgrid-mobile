@@ -459,7 +459,7 @@ export default function ProfileScreen() {
     <FormProvider {...methods}>
       <ScrollView
         style={{ flex: 1, backgroundColor: theme.colors.background }}
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
       >
         <View
           style={{

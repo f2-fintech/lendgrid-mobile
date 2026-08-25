@@ -137,7 +137,7 @@ export default function MoreScreen() {
     <>
       <ScrollView 
         style={[styles.container, { backgroundColor: theme.colors.background }]}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
       >
         <View style={styles.grid}>
           {visibleItems.map((item) => (

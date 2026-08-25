@@ -307,7 +307,7 @@ export default function CommissionsScreen() {
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={{ paddingTop: 14, paddingBottom: 30 }}
+        contentContainerStyle={{ paddingTop: 14, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

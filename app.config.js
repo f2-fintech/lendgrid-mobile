@@ -11,7 +11,12 @@ export default {
     scheme: "lendgridmobile",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
-
+    updates: {
+      url: "https://u.expo.dev/3cf91ffe-266c-441e-a633-c3f0f25e3b50"
+    },
+    runtimeVersion: {
+      policy: "appVersion"
+    },
     android: {
       package: "com.lendgrid.mobile",
       // CRITICAL: Point to your Firebase config file for system notifications
@@ -94,6 +99,7 @@ export default {
           "cameraPermission": "Allow LendGrid to access your camera to capture document images."
         }
       ],
+      "@react-native-google-signin/google-signin"
     ],
 
     experiments: {

@@ -1089,7 +1089,7 @@ export default function EMICalculatorScreen() {
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 8 },
+  scroll: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 120 },
 
   header: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   headerIcon: {

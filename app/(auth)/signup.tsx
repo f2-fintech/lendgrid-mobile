@@ -30,6 +30,8 @@ export default function SignUp() {
   const params = useLocalSearchParams<{
     ref?: string | string[];
     c_name?: string | string[];
+    email?: string | string[];
+    name?: string | string[];
   }>();
   const scrollRef = useRef<KeyboardAwareScrollView>(null);
   const theme = useTheme();
@@ -57,14 +59,31 @@ export default function SignUp() {
     setSnackbarVisible(true);
   };
 
+  const readParam = (value?: string | string[]) =>
+    Array.isArray(value) ? value[0] || "" : value || "";
+
+  const emailParam = readParam(params.email);
+  const nameParam = readParam(params.name);
+  const isGoogleSignup = Boolean(emailParam);
+
+  const generatePassword = (name: string) => {
+    if (!name) return "";
+    const firstName = name.split(" ")[0] || "";
+    const capitalizedFirst = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+    const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4 digit random number
+    return `${capitalizedFirst}@${randomNumber}`;
+  };
+
+  const initialPassword = isGoogleSignup ? generatePassword(nameParam) : "";
+
   const [formData, setFormData] = useState<SignUpSchemaType>({
     role: "AGGREGATOR_ADMIN",
-    fullName: "",
-    email: "",
+    fullName: nameParam,
+    email: emailParam,
     companyName: "",
     userType: "aggregator",
-    password: "",
-    confirmPassword: "",
+    password: initialPassword,
+    confirmPassword: initialPassword,
     contact: "",
     agreeToTerms: true,
     referralCode: "",
@@ -74,9 +93,6 @@ export default function SignUp() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaRefreshKey, setCaptchaRefreshKey] = useState(0);
-
-  const readParam = (value?: string | string[]) =>
-    Array.isArray(value) ? value[0] || "" : value || "";
 
   const referralCodeFromParams = readParam(params.ref).trim();
   const parentCompanyNameFromParams = readParam(params.c_name).trim();
@@ -90,6 +106,17 @@ export default function SignUp() {
         companyName: parentCompanyNameFromParams || prev.companyName,
         role: "AGGREGATOR_MEMBER",
       }));
+    } else {
+      // Fallback: check if we stored a referral code from a deferred deep link via Branch
+      AsyncStorage.getItem("referralCode").then((storedRef) => {
+        if (storedRef) {
+          setFormData((prev) => ({
+            ...prev,
+            referralCode: storedRef,
+            role: "AGGREGATOR_MEMBER",
+          }));
+        }
+      }).catch(() => {});
     }
   }, [referralCodeFromParams, parentCompanyNameFromParams]);
 
@@ -237,6 +264,20 @@ export default function SignUp() {
         if (userIdValue) {
           await AsyncStorage.setItem("userId", String(userIdValue));
         }
+
+        // Explicitly set authSource and userType to override any previous state
+        const isAggregatorMember = role === "aggregator_member" || role === "AGGREGATOR_MEMBER";
+        const isAggregatorAdmin = role === "aggregator_admin" || role === "AGGREGATOR_ADMIN";
+        
+        let userType = "sales";
+        if (isAggregatorAdmin) {
+          userType = "aggregator";
+        } else if (isAggregatorMember) {
+          userType = "sales";
+        }
+
+        await AsyncStorage.setItem("userType", userType);
+        await AsyncStorage.setItem("authSource", isAggregatorMember ? "oms" : "user");
 
         showSuccess("Account created successfully!");
         
@@ -420,9 +461,13 @@ export default function SignUp() {
             <TextInput
               placeholder="Enter referral code"
               placeholderTextColor={placeholderText}
-              style={inputStyle}
+              style={[
+                inputStyle,
+                isReferralSignup && { opacity: 0.6, backgroundColor: isDark ? "#222" : "#F5F5F5" }
+              ]}
               value={formData.referralCode}
               onChangeText={(v) => handleChange("referralCode", v)}
+              editable={!isReferralSignup}
             />
 
             <View style={{ height: 16 }} />
@@ -459,21 +504,23 @@ export default function SignUp() {
 
             {/* ── Full Name + Phone (2 cols) ── */}
             <View style={{ flexDirection: "row", gap: 12 }}>
+              {!isGoogleSignup && (
+                <View style={{ flex: 1 }}>
+                  <FieldLabel label="Full Name" labelText={labelText} />
+                  <TextInput
+                    placeholder="John Doe"
+                    placeholderTextColor={placeholderText}
+                    style={inputStyle}
+                    value={formData.fullName}
+                    onChangeText={(v) => handleChange("fullName", v)}
+                  />
+                  {errors.fullName ? (
+                    <Text style={styles.errorText}>{errors.fullName}</Text>
+                  ) : null}
+                </View>
+              )}
               <View style={{ flex: 1 }}>
-                <FieldLabel label="Full Name" labelText={labelText} />
-                <TextInput
-                  placeholder="John Doe"
-                  placeholderTextColor={placeholderText}
-                  style={inputStyle}
-                  value={formData.fullName}
-                  onChangeText={(v) => handleChange("fullName", v)}
-                />
-                {errors.fullName ? (
-                  <Text style={styles.errorText}>{errors.fullName}</Text>
-                ) : null}
-              </View>
-              <View style={{ flex: 1 }}>
-                <FieldLabel label="Phone" labelText={labelText} />
+                <FieldLabel label="Phone (Optional)" labelText={labelText} />
                 <TextInput
                   placeholder="9876543210"
                   placeholderTextColor={placeholderText}
@@ -491,105 +538,113 @@ export default function SignUp() {
             <View style={{ height: 16 }} />
 
             {/* ── Email ── */}
-            <FieldLabel label="Email Address" labelText={labelText} />
-            <TextInput
-              placeholder="john@company.com"
-              placeholderTextColor={placeholderText}
-              keyboardType="email-address"
-              style={inputStyle}
-              value={formData.email}
-              onChangeText={(v) => handleChange("email", v)}
-              autoCapitalize="none"
-            />
-            {errors.email ? (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            ) : null}
+            {!isGoogleSignup && (
+              <>
+                <FieldLabel label="Email Address" labelText={labelText} />
+                <TextInput
+                  placeholder="john@company.com"
+                  placeholderTextColor={placeholderText}
+                  keyboardType="email-address"
+                  style={inputStyle}
+                  value={formData.email}
+                  onChangeText={(v) => handleChange("email", v)}
+                  autoCapitalize="none"
+                />
+                {errors.email ? (
+                  <Text style={styles.errorText}>{errors.email}</Text>
+                ) : null}
 
-            <View style={{ height: 16 }} />
+                <View style={{ height: 16 }} />
+              </>
+            )}
 
             {/* ── Password ── */}
-            <FieldLabel label="Password" labelText={labelText} />
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: inputBg,
-                borderColor: inputBorder,
-                borderWidth: 1.5,
-                borderRadius: 14,
-              }}
-            >
-              <TextInput
-                placeholder="Create password"
-                placeholderTextColor={placeholderText}
-                secureTextEntry={!showPassword}
-                style={{
-                  flex: 1,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  fontSize: 15,
-                  color: inputText,
-                }}
-                value={formData.password}
-                onChangeText={(v) => handleChange("password", v)}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={{ paddingHorizontal: 14, paddingVertical: 4 }}
-              >
-                <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={20}
-                  color={labelText}
-                />
-              </TouchableOpacity>
-            </View>
-            {errors.password ? (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            ) : null}
+            {!isGoogleSignup && (
+              <>
+                <FieldLabel label="Password" labelText={labelText} />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: inputBg,
+                    borderColor: inputBorder,
+                    borderWidth: 1.5,
+                    borderRadius: 14,
+                  }}
+                >
+                  <TextInput
+                    placeholder="Create password"
+                    placeholderTextColor={placeholderText}
+                    secureTextEntry={!showPassword}
+                    style={{
+                      flex: 1,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      fontSize: 15,
+                      color: inputText,
+                    }}
+                    value={formData.password}
+                    onChangeText={(v) => handleChange("password", v)}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={{ paddingHorizontal: 14, paddingVertical: 4 }}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color={labelText}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password ? (
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                ) : null}
 
-            <View style={{ height: 16 }} />
+                <View style={{ height: 16 }} />
 
-            {/* ── Confirm Password ── */}
-            <FieldLabel label="Confirm Password" labelText={labelText} />
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: inputBg,
-                borderColor: inputBorder,
-                borderWidth: 1.5,
-                borderRadius: 14,
-              }}
-            >
-              <TextInput
-                placeholder="Confirm password"
-                placeholderTextColor={placeholderText}
-                secureTextEntry={!showConfirmPassword}
-                style={{
-                  flex: 1,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  fontSize: 15,
-                  color: inputText,
-                }}
-                value={formData.confirmPassword}
-                onChangeText={(v) => handleChange("confirmPassword", v)}
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={{ paddingHorizontal: 14, paddingVertical: 4 }}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                  size={20}
-                  color={labelText}
-                />
-              </TouchableOpacity>
-            </View>
-            {errors.confirmPassword ? (
-              <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-            ) : null}
+                {/* ── Confirm Password ── */}
+                <FieldLabel label="Confirm Password" labelText={labelText} />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: inputBg,
+                    borderColor: inputBorder,
+                    borderWidth: 1.5,
+                    borderRadius: 14,
+                  }}
+                >
+                  <TextInput
+                    placeholder="Confirm password"
+                    placeholderTextColor={placeholderText}
+                    secureTextEntry={!showConfirmPassword}
+                    style={{
+                      flex: 1,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      fontSize: 15,
+                      color: inputText,
+                    }}
+                    value={formData.confirmPassword}
+                    onChangeText={(v) => handleChange("confirmPassword", v)}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{ paddingHorizontal: 14, paddingVertical: 4 }}
+                  >
+                    <Ionicons
+                      name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color={labelText}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.confirmPassword ? (
+                  <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+                ) : null}
+              </>
+            )}
 
             {/* ── CAPTCHA ── */}
             <View style={{ marginTop: 20, alignItems: "center" }}>
