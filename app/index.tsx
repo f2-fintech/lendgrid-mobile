@@ -5,6 +5,7 @@ import { decodeJwt } from "@/lib/utils/utils";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
+import * as Clipboard from "expo-clipboard";
 
 export default function Index() {
   const [nextRoute, setNextRoute] = useState<string>(ROUTES.signin);
@@ -61,6 +62,30 @@ export default function Index() {
               console.warn("Failed to get Play Install Referrer", e);
             }
           }
+
+          // Fallback: Check clipboard for referral link
+          try {
+            const hasString = await Clipboard.hasStringAsync();
+            if (hasString) {
+              const clipboardContent = await Clipboard.getStringAsync();
+              if (clipboardContent && clipboardContent.includes("lendgrid.in/signup?ref=")) {
+                const refMatch = clipboardContent.match(/ref=([^&\s]+)/);
+                if (refMatch && refMatch[1]) {
+                  const ref = decodeURIComponent(refMatch[1]);
+                  const processed = await AsyncStorage.getItem("processedClipboardRef");
+                  if (processed !== ref) {
+                    await AsyncStorage.setItem("processedClipboardRef", ref);
+                    await AsyncStorage.setItem("referralCode", ref);
+                    setNextRoute(`/signup?ref=${encodeURIComponent(ref)}`);
+                    return;
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("Clipboard fallback failed", e);
+          }
+
           // Default to sign-in if no valid referrer found
           setNextRoute(ROUTES.signin);
         }

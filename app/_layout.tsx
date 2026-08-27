@@ -263,9 +263,8 @@ export default function RootLayout() {
           if (webPath.includes("/aggregator/applications")) {
             // Try the path without the group name
             router.push("/applications");
-          } else if (webPath.includes("/some-other-web-route")) {
-            // Make sure this matches a file name in your /app folder exactly
-            router.push("/profile");
+          } else if (webPath.includes("/aggregator/commission")) {
+            router.push("/commissions");
           } else {
             // Fallback: If no match, try pushing the path directly
             // or go to a general notifications list
