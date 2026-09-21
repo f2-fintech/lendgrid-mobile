@@ -795,8 +795,8 @@ export default function ApplicationsTicketsView(props: Props) {
   useEffect(() => {
     if (datePickerOpen) {
       setTempRange({
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
+        startDate: (startDate && startDate !== "all") ? new Date(startDate) : undefined,
+        endDate: (endDate && endDate !== "all") ? new Date(endDate) : undefined,
       });
     } else {
       setShowStartPicker(false);
@@ -805,22 +805,23 @@ export default function ApplicationsTicketsView(props: Props) {
   }, [datePickerOpen, startDate, endDate]);
 
   const dateRangeLabel = useMemo(() => {
+    if (startDate === "all") return "All Time";
     if (startDate) {
       const startFmt = dayjs(startDate).format("MMM DD");
-      if (endDate) {
+      if (endDate && endDate !== "all") {
         const endFmt = dayjs(endDate).format("MMM DD");
         return `${startFmt} - ${endFmt}`;
       }
       return startFmt;
     }
-    return "Filter with Dates";
+    return dayjs().format("MMM YYYY");
   }, [startDate, endDate]);
 
-  const hasActiveDateFilter = !!startDate;
+  const hasActiveDateFilter = startDate !== "all";
 
   const handleClearDates = () => {
-    if (setStartDate) setStartDate(undefined);
-    if (setEndDate) setEndDate(undefined);
+    if (setStartDate) setStartDate("all");
+    if (setEndDate) setEndDate("all");
   };
 
   const modalStyles = useMemo(() => {

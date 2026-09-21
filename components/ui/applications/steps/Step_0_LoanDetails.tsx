@@ -83,6 +83,16 @@ const propertyPurchaseTypeOptions = [
   { value: "balance_transfer", label: "Balance Transfer" },
 ];
 
+const leadTypeOptions = [
+  { value: "notion", label: "Notion" },
+  { value: "dialler", label: "Dialler" },
+  { value: "field visit", label: "Field visit" },
+  { value: "sourcer", label: "Sourcer" },
+  { value: "channel partner", label: "Channel partner" },
+  { value: "ref from customer", label: "Ref from customer" },
+  { value: "left employee follow up", label: "Left employee follow up" },
+];
+
 const getLoanCategory = (type: string): "secured" | "unsecured" | "" => {
   const securedTypes = ["home loan", "lap", "auto loan", "machinery loan"];
   const unsecuredTypes = [
@@ -143,6 +153,7 @@ export type Step0Values = {
   professionalType?: "" | "Dr" | "CA" | "CS" | "CMA";
   propertyPurchaseType?: string;
   referralCode?: string;
+  leadType?: string;
 };
 
 type Props = {
@@ -336,6 +347,7 @@ export default function Step0LoanDetails({
       businessEntityType: value.businessEntityType || "",
       professionalType: value.professionalType || "",
       propertyPurchaseType: value.propertyPurchaseType || "",
+      leadType: value.leadType || "",
     };
 
     const res = step0Schema.safeParse(payload);
@@ -357,6 +369,7 @@ export default function Step0LoanDetails({
     value.caseType,
     value.businessEntityType,
     value.professionalType,
+    value.leadType,
   ]);
 
   // Show errors only when touched
@@ -374,6 +387,7 @@ export default function Step0LoanDetails({
   const showPropertyPurchaseTypeError = touched.propertyPurchaseType
     ? allErrors["propertyPurchaseType"]
     : "";
+  const showLeadTypeError = touched.leadType ? allErrors["leadType"] : "";
 
   const providerAmountErrorFor = (provider: string) => {
     if (!touched.providerAmounts) return "";
@@ -523,6 +537,9 @@ export default function Step0LoanDetails({
       ?.label || "";
   const professionalTypeDisplay =
     professionalTypeOptions.find((x) => x.value === value.professionalType)
+      ?.label || "";
+  const leadTypeDisplay =
+    leadTypeOptions.find((x) => x.value === value.leadType)
       ?.label || "";
 
   return (
@@ -1157,6 +1174,60 @@ export default function Step0LoanDetails({
       {!!showCaseTypeError && (
         <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
           {showCaseTypeError}
+        </Text>
+      )}
+
+      {/* ✅ NEW: Lead Type */}
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "600",
+          color: theme.colors.onSurface,
+          marginBottom: 8,
+        }}
+      >
+        Lead Type
+      </Text>
+
+      <TouchableOpacity
+        onPress={() => setLeadTypeModalOpen(true)}
+        activeOpacity={0.8}
+        style={{
+          padding: 14,
+          borderRadius: 16, backgroundColor: theme.colors.surfaceVariant,
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: 8,
+        }}
+      >
+        <Feather
+          name="users"
+          size={18}
+          color={theme.colors.onSurfaceVariant}
+        />
+        <Text
+          style={{
+            marginLeft: 10,
+            color: value.leadType
+              ? theme.colors.onSurface
+              : theme.colors.onSurfaceVariant,
+            fontSize: 15,
+          }}
+        >
+          {leadTypeDisplay || "Select lead type"}
+        </Text>
+        <View style={{ marginLeft: "auto" }}>
+          <Feather
+            name="chevron-down"
+            size={18}
+            color={theme.colors.onSurfaceVariant}
+          />
+        </View>
+      </TouchableOpacity>
+
+      {!!showLeadTypeError && (
+        <Text style={{ color: "#EF4444", marginBottom: 12, fontSize: 12 }}>
+          {showLeadTypeError}
         </Text>
       )}
 
@@ -1996,6 +2067,24 @@ export default function Step0LoanDetails({
                 <Feather name="x" size={20} color={theme.colors.onSurface} />
               </TouchableOpacity>
             </View>
+
+            {leadTypeOptions.map((x) => (
+              <TouchableOpacity
+                key={x.value}
+                onPress={() => {
+                  onChange({ ...value, leadType: x.value });
+                  setLeadTypeModalOpen(false);
+                  setTouched((t) => ({ ...t, leadType: true }));
+                }}
+                style={{
+                  paddingVertical: 14,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.outlineVariant,
+                }}
+              >
+                <Text style={{ color: theme.colors.onSurface }}>{x.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </Modal>

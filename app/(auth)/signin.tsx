@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -27,6 +28,7 @@ import {
 } from "@/apis/config/graphql_Notification_Client";
 import { ROUTES } from "@/assets/constants/routes";
 import TurnstileCaptcha from "@/components/login_Signup/TurnstileCaptcha";
+import { AppleAuthButton } from "@/components/ui/AppleAuthButton";
 import { GoogleAuthButton } from "@/components/ui/GoogleAuthButton";
 import { useLogin } from "@/hooks/useAuth";
 import { useOmsLogin } from "@/hooks/useOMSauth";
@@ -747,6 +749,102 @@ function UserLoginForm({
           showError(err?.message || "Failed to sign in with Google");
         }}
       />
+
+      {/* Apple Auth Button (iOS Only) */}
+      {Platform.OS === "ios" && (
+        <AppleAuthButton
+          isDark={isDark}
+          onSuccess={async (response) => {
+            if (response?.success && response?.access_token) {
+              const token = response.access_token;
+              const previousToken = await AsyncStorage.getItem("token");
+
+              if (previousToken) {
+                setGraphqlAuthToken(previousToken);
+                await unregisterPushTokenForCurrentUser();
+                await clearLocalNotifications();
+              }
+
+              await AsyncStorage.clear();
+              await AsyncStorage.setItem("token", token);
+              await AsyncStorage.setItem("authSource", "user");
+
+              const payload = parseJwt(token);
+              const role = payload?.role?.toLowerCase() || "";
+
+              const isSales = role === "sales";
+              const isAggregatorMember = role === "aggregator_member";
+              const isAggregatorAdmin =
+                role === "aggregator_admin" || role === "aggregator";
+
+              let userType = "sales";
+              if (isAggregatorAdmin) {
+                userType = "aggregator";
+              } else if (isSales || isAggregatorMember) {
+                userType = "sales";
+              }
+
+              await AsyncStorage.setItem("userType", userType);
+              await AsyncStorage.setItem(
+                "authSource",
+                isAggregatorMember ? "oms" : "user",
+              );
+
+              const companyIdValue =
+                payload?.companyId ??
+                payload?.company_id ??
+                payload?.company?.id ??
+                payload?.company?.companyId ??
+                payload?.company?.company_id ??
+                payload?.user?.companyId ??
+                payload?.user?.company_id ??
+                payload?.data?.companyId ??
+                payload?.data?.company_id ??
+                payload?.tenant?.companyId ??
+                payload?.tenant?.company_id;
+              if (companyIdValue !== undefined && companyIdValue !== null) {
+                await AsyncStorage.setItem("companyId", String(companyIdValue));
+              }
+
+              const userIdValue =
+                payload?.userId ??
+                payload?.id ??
+                payload?.sub ??
+                payload?.salesUserId ??
+                payload?.user_id;
+              if (userIdValue !== undefined && userIdValue !== null) {
+                await AsyncStorage.setItem("userId", String(userIdValue));
+              }
+
+              setGraphqlAuthToken(token);
+              await apolloClient.clearStore();
+
+              try {
+                await syncPushTokenForCurrentUser();
+              } catch (err) {
+                console.error("Push token error:", err);
+              }
+
+              const nextRoute =
+                userType === "sales" ? "/(tab)/applications" : ROUTES.Dashboard;
+              router.replace(nextRoute);
+            } else if (response?.action === "REDIRECT_SIGNUP") {
+              router.push({
+                pathname: "/signup",
+                params: {
+                  email: response.user_email,
+                  name: response.user_name,
+                },
+              });
+            } else {
+              showError(response?.message || "Apple Sign-In failed");
+            }
+          }}
+          onError={(err: any) => {
+            showError(err?.message || "Failed to sign in with Apple");
+          }}
+        />
+      )}
 
       {/* Divider */}
       <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 24, gap: 12 }}>

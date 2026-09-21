@@ -22,7 +22,8 @@
         "EXPO_PUBLIC_FORGOT_PASSWORD_URL": "https://lendgrid.in/forgot-password",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "354580642316-k4da5027hvdfm7v0s6479u7k32pmfdr3.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com",
-        "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1"
+        "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "354580642316-oc6c40pgkpsn7qsl1jlf4d5rels4j5tr.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -45,7 +46,8 @@
         "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1",
         "EXPO_PUBLIC_FORGOT_PASSWORD_URL": "https://lendgrid.in/forgot-password",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "354580642316-k4da5027hvdfm7v0s6479u7k32pmfdr3.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "354580642316-oc6c40pgkpsn7qsl1jlf4d5rels4j5tr.apps.googleusercontent.com"
       }
     },
     "preview_simulator": {
@@ -68,7 +70,8 @@
         "EXPO_PUBLIC_FORGOT_PASSWORD_URL": "https://lendgrid.in/forgot-password",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "354580642316-k4da5027hvdfm7v0s6479u7k32pmfdr3.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com",
-        "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1"
+        "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "354580642316-oc6c40pgkpsn7qsl1jlf4d5rels4j5tr.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -91,7 +94,8 @@
         "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1",
         "EXPO_PUBLIC_FORGOT_PASSWORD_URL": "https://lendgrid.in/forgot-password",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "354580642316-k4da5027hvdfm7v0s6479u7k32pmfdr3.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "354580642316-oc6c40pgkpsn7qsl1jlf4d5rels4j5tr.apps.googleusercontent.com"
       }
     },
     "ios_production": {
@@ -115,7 +119,8 @@
         "EXPO_PUBLIC_UPLOAD_API_URL": "https://web.f2fintech.in/api/v1",
         "EXPO_PUBLIC_FORGOT_PASSWORD_URL": "https://lendgrid.in/forgot-password",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "354580642316-k4da5027hvdfm7v0s6479u7k32pmfdr3.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "354580642316-crhkufq068mgc6j9isqk0smsbvj0vrms.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "354580642316-oc6c40pgkpsn7qsl1jlf4d5rels4j5tr.apps.googleusercontent.com"
       }
     }
   },

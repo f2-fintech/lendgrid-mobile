@@ -30,10 +30,19 @@ export function useGoogleAuth() {
     try {
       await GoogleSignin.hasPlayServices();
       const userInfo = await GoogleSignin.signIn();
+      
+      console.log('Google Sign-In Response:', JSON.stringify(userInfo, null, 2));
+
+      // Handle user cancellation gracefully
+      if (userInfo.type === 'cancelled') {
+        console.log('User cancelled Google Sign-In');
+        return null; // Return null so the UI can ignore the cancellation instead of crashing
+      }
+
       const idToken = userInfo?.data?.idToken;
 
       if (!idToken) {
-        throw new Error('No ID token found');
+        throw new Error('No ID token found. Please ensure EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is correct.');
       }
 
       const { data } = await googleLoginMutation({

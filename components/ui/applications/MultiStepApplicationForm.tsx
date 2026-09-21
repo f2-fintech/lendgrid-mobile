@@ -214,7 +214,7 @@ export default function MultiStepApplicationForm({
   const { config } = useAppConfig();
 
   const [applicationNo, setApplicationNo] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(editMode ? 2 : 0);
   const [skipped, setSkipped] = useState<Record<number, boolean>>({});
   const formScrollRef = useRef<ScrollView>(null);
   const queryClient = useQueryClient();
@@ -391,6 +391,7 @@ export default function MultiStepApplicationForm({
     ],
     propertyPurchaseType: "",
     referralCode: "",
+    leadType: "",
   });
 
   const [step1, setStep1] = useState<Step1Values>({
@@ -452,9 +453,19 @@ export default function MultiStepApplicationForm({
           const data = res?.data;
           console.log("[MultiStepApplicationForm] customer data:", data);
           if (data) {
+            let parsedTitle: any = "";
+            let parsedName = data.name || "";
+            const nameParts = parsedName.trim().split(/\s+/);
+            const firstPart = nameParts[0]?.replace('.', '');
+            if (["Mr", "Mrs", "Miss", "Dr", "Ca", "Ms"].includes(firstPart)) {
+               parsedTitle = firstPart;
+               parsedName = nameParts.slice(1).join(" ");
+            }
+
             setStep1(prev => ({
               ...prev,
-              name: data.name || "",
+              title: parsedTitle,
+              name: parsedName,
               contact: data.contact || "",
               email: data.email || "",
               pan: data.info?.pan || "",
@@ -465,8 +476,13 @@ export default function MultiStepApplicationForm({
               current_address: data.info?.current_address || "",
               city: data.info?.city || "",
               state: data.info?.state || "",
+              pincode: data.info?.zipcode || "",
               employment_type: data.info?.employment_type || "",
               dob: data.dob ? new Date(data.dob).toISOString() : undefined,
+              co_applicant_name: data.info?.co_applicant_name || "",
+              co_applicant_contact: data.info?.co_applicant_contact || "",
+              co_applicant_email: data.info?.co_applicant_email || "",
+              co_applicant_mother_name: data.info?.co_applicant_mother_name || "",
             }));
             
             // Populate step 0 and step 4 from the latest application
@@ -489,6 +505,34 @@ export default function MultiStepApplicationForm({
                 latestApp = sortedApps[0] || {};
               }
               
+              const providersList = latestApp.provider ? String(latestApp.provider).split(',').map(p => p.trim()).filter(Boolean) : [];
+              const providerAmountsList = providersList.map(p => ({
+                provider: p,
+                amount: latestApp.amount ? String(latestApp.amount) : ""
+              }));
+
+              let mappedExistingLoans = [
+                {
+                  hasRunningLoans: "no" as const,
+                  whichLoan: "",
+                  loanAmount: "",
+                  runningEmi: "",
+                },
+              ];
+              try {
+                if (latestApp.existing_loans) {
+                  const parsedExistingLoans = JSON.parse(latestApp.existing_loans);
+                  if (Array.isArray(parsedExistingLoans) && parsedExistingLoans.length > 0) {
+                    mappedExistingLoans = parsedExistingLoans.map((l: any) => ({
+                      hasRunningLoans: (l.has_running_loans === 1 || l.has_running_loans === true || l.has_running_loans === "yes") ? ("yes" as const) : ("no" as const),
+                      whichLoan: l.which_loan || "",
+                      loanAmount: l.loan_amount ? String(l.loan_amount) : "",
+                      runningEmi: l.running_emi ? String(l.running_emi) : "",
+                    }));
+                  }
+                }
+              } catch (e) {}
+
               setStep0(prev => ({
                 ...prev,
                 loanAmount: latestApp.amount ? String(latestApp.amount) : "",
@@ -497,6 +541,10 @@ export default function MultiStepApplicationForm({
                 tenure: latestApp.tenure || "",
                 businessEntityType: data.info?.company_type || "",
                 professionalType: data.info?.occupation || "",
+                selectedProviders: providersList,
+                providerAmounts: providerAmountsList,
+                caseType: latestApp.case_type || "fresh",
+                existingLoans: mappedExistingLoans,
               }));
               
               setStep4(prev => ({
@@ -1492,6 +1540,7 @@ export default function MultiStepApplicationForm({
             employment_type: step1.employment_type,
             company_type: step0.businessEntityType,
             occupation: step0.professionalType,
+            lead_type: step0.leadType,
             
             // Co-Applicant details sent to backend
             co_applicant_name: step1.co_applicant_name,
@@ -1555,115 +1604,219 @@ export default function MultiStepApplicationForm({
         );
       }
 
+      // 3b) Upload any pending step3 (ID Proof) documents that were not manually uploaded
+      const step3Entries: Array<[keyof Step3Values, string]> = [
+        ["aadharFront", "aadhaar front"],
+        ["aadharBack", "aadhaar back"],
+        ["pancard", "pancard"],
+        ["passportPhoto", "photo"],
+      ];
+      const pendingStep3Entries = step3Entries.filter(([key]) => {
+        const file = step3[key];
+        return file?.uri && !file.uri.startsWith("http") && !file.uploaded;
+      });
+      if (pendingStep3Entries.length > 0) {
+        setStage("Uploading ID proof documents");
+        for (const [key, docType] of pendingStep3Entries) {
+          const file = step3[key];
+          if (file) {
+            await uploadDocumentFile(file as PickedFile, docType, String(newCustomerId), requestConfig);
+          }
+        }
+        setStep3((prev) => ({
+          aadharFront: prev.aadharFront && !prev.aadharFront.uploaded ? { ...prev.aadharFront, uploaded: true } : prev.aadharFront,
+          aadharBack: prev.aadharBack && !prev.aadharBack.uploaded ? { ...prev.aadharBack, uploaded: true } : prev.aadharBack,
+          pancard: prev.pancard && !prev.pancard.uploaded ? { ...prev.pancard, uploaded: true } : prev.pancard,
+          passportPhoto: prev.passportPhoto && !prev.passportPhoto.uploaded ? { ...prev.passportPhoto, uploaded: true } : prev.passportPhoto,
+        }));
+      }
+
       // 3) create one application record with all providers, matching web.
       if (!step0.providerAmounts?.length) {
-        throw new Error("No provider selected for application");
+        throw new Error("No bank/lender selected. Please go back to Step 1 (Loan Details) and select at least one provider.");
       }
 
       if (editMode) {
-         setSubmitStatus((prev) => ({
+        // In edit mode: upload any newly picked documents and update customer info
+        const activeCustomerId = String(newCustomerId);
+        const requestConfig = await buildRequestConfig();
+
+        // Upload any pending step2 files
+        const pendingStep2 = (step2.files || []).filter(
+          (f) => f.uri && !f.uri.startsWith("http") && !f.uploaded
+        );
+        for (const file of pendingStep2) {
+          const docType = getStep2DocumentType(file);
+          const url = await uploadToS3(file, `document/${file.name || docType}`);
+          const finalUrl = docType === "bank statement" && step2.bankingPassword
+            ? `${url}#pwd=${encodeURIComponent(step2.bankingPassword)}`
+            : url;
+          await createDocument(
+            { customer_id: activeCustomerId, document_url: finalUrl, type: docType, document_name: docType, name: docType },
+            requestConfig,
+          );
+        }
+        if (pendingStep2.length > 0) {
+          setStep2((prev) => ({ ...prev, files: prev.files.map((f) => ({ ...f, uploaded: true })) }));
+        }
+
+        // Upload any pending step3 files
+        const step3Entries: Array<[keyof Step3Values, string]> = [
+          ["aadharFront", "aadhaar front"],
+          ["aadharBack", "aadhaar back"],
+          ["pancard", "pancard"],
+          ["passportPhoto", "photo"],
+        ];
+        for (const [key, docType] of step3Entries) {
+          const file = step3[key];
+          if (file && file.uri && !file.uri.startsWith("http") && !file.uploaded) {
+            await uploadDocumentFile(file as PickedFile, docType, activeCustomerId, requestConfig);
+          }
+        }
+        if (step3Entries.some(([key]) => { const f = step3[key]; return f && f.uri && !f.uri.startsWith("http") && !f.uploaded; })) {
+          setStep3((prev) => ({
+            aadharFront: prev.aadharFront && !prev.aadharFront.uploaded ? { ...prev.aadharFront, uploaded: true } : prev.aadharFront,
+            aadharBack: prev.aadharBack && !prev.aadharBack.uploaded ? { ...prev.aadharBack, uploaded: true } : prev.aadharBack,
+            pancard: prev.pancard && !prev.pancard.uploaded ? { ...prev.pancard, uploaded: true } : prev.pancard,
+            passportPhoto: prev.passportPhoto && !prev.passportPhoto.uploaded ? { ...prev.passportPhoto, uploaded: true } : prev.passportPhoto,
+          }));
+        }
+
+        // Upload any pending step4 certificates
+        const pendingStep4 = (step4.certificates || []).filter(
+          (f) => f.uri && !f.uri.startsWith("http") && !f.uploaded
+        );
+        for (const file of pendingStep4) {
+          await uploadDocumentFile(file, "certificate", activeCustomerId, requestConfig);
+        }
+        if (pendingStep4.length > 0) {
+          setStep4((prev) => ({ ...prev, certificates: prev.certificates.map((f) => ({ ...f, uploaded: true })) }));
+        }
+
+        // Update customer info (salary, emi, liability)
+        if (step4?.salary) {
+          try {
+            await updateCustomerInfo(
+              { customer_id: activeCustomerId, salary: step4.salary, existing_emi: step4.existingEmi || "", existing_liability: step4.existingLiability || "" },
+              requestConfig,
+            );
+          } catch (err) {
+            console.error("[editMode] Customer info update failed:", err);
+          }
+        }
+
+        setSubmitStatus((prev) => ({
           ...prev,
           applicationCreated: true,
           docsUploaded: true,
         }));
-
+        queryClient.invalidateQueries({ queryKey: ["tickets"] });
+        queryClient.invalidateQueries({ queryKey: ["customer-applications"] });
         playSuccessToast();
         return;
       }
 
       setStage("Creating applications");
 
-      const application_no = generateApplicationNumber();
-      generatedNumbers.push(application_no);
-
-      const providersString = step0.providerAmounts
-        .map((pa) => pa.provider)
-        .filter(Boolean)
-        .join(", ");
+      const activeProviders = step0.providerAmounts?.length
+        ? step0.providerAmounts
+        : [{ provider: 'Default Provider', amount: step0.loanAmount || 100000 }];
 
       const numericTenure = step0.tenure
         ? Number(String(step0.tenure).split(" ")[0])
         : 5;
 
-      const applicationPayload = {
-        application_no,
-        customer_id: newCustomerId,
-        provider: providersString,
-        amount: Number(step0.loanAmount || 100000),
-        loan_type: step0.loanType || "personal loan",
-        loan_category: step0.loanCategory || "unsecured",
-        tenure: numericTenure,
-        has_running_loans: step0.existingLoans?.[0]?.hasRunningLoans === "yes" ? 1 : 0,
-        which_loan:
-          step0.existingLoans?.[0]?.hasRunningLoans === "yes"
-            ? step0.existingLoans[0].whichLoan || ""
-            : "",
-        running_loan_amount:
-          step0.existingLoans?.[0]?.hasRunningLoans === "yes" &&
-          step0.existingLoans[0].loanAmount
-            ? Number(step0.existingLoans[0].loanAmount)
-            : null,
-        existing_loans: JSON.stringify(
-          (step0.existingLoans || []).map((l: any) => ({
-            has_running_loans: l.hasRunningLoans === "yes" ? 1 : 0,
-            which_loan: l.hasRunningLoans === "yes" ? l.whichLoan || null : null,
-            loan_amount:
-              l.hasRunningLoans === "yes" && l.loanAmount
-                ? Number(l.loanAmount)
-                : null,
-            running_emi:
-              l.hasRunningLoans === "yes" && l.runningEmi
-                ? Number(l.runningEmi)
-                : null,
-          })),
-        ),
-        case_type: step0.caseType || "fresh",
-        application_date: new Date().toISOString(),
-        ...(useCompanyIdString
-          ? { company_id: Number(useCompanyIdString) }
-          : {}),
-        ...(isOmsStaff && appliedByNumber
-          ? { applied_by: appliedByNumber, source: "oms", is_picked: 0 }
-          : { source: "lendgrid", is_picked: 0 }),
-        ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
-        ...(aggregatorMemberId ? { aggregator_member_id: aggregatorMemberId } : {}),
-        ...(step0.referralCode?.trim() ? { referral_code: step0.referralCode.trim() } : {}),
-      };
+      const generatedAppIds: string[] = [];
 
-      console.log("[MultiStepApplicationForm] create-application payload", {
-        selectedCompany,
-        companyId: useCompanyIdString,
-        isOmsStaff,
-        appliedBy: appliedByNumber,
-        applicationPayload,
-      });
+      for (const pa of activeProviders) {
+        if (!pa.provider) continue;
 
-      const appRes = await coreApi.post(
-        "/create-application",
-        applicationPayload,
-        requestConfig,
-      );
+        const application_no = generateApplicationNumber();
+        generatedNumbers.push(application_no);
 
-      const applicationId =
-        appRes?.data?.data?.applicationId ||
-        appRes?.data?.data?.id ||
-        appRes?.data?.id;
+        const finalAmount = pa.amount ? Number(pa.amount) : Number(step0.loanAmount || 100000);
 
-      if (applicationId) {
-        try {
-          await coreApi.post(
-            "/create-loan-tracking",
-            {
-              customer_application_id: applicationId,
-              status: "submitted",
-              ...(useCompanyIdString
-                ? { company_id: Number(useCompanyIdString) }
-                : {}),
-            },
-            requestConfig,
-          );
-        } catch (e) {
-          console.warn("Tracking creation failed, continuing...", e);
+        const applicationPayload = {
+          application_no,
+          customer_id: newCustomerId,
+          provider: pa.provider,
+          amount: finalAmount,
+          loan_type: step0.loanType || "personal loan",
+          loan_category: step0.loanCategory || "unsecured",
+          tenure: numericTenure,
+          has_running_loans: step0.existingLoans?.[0]?.hasRunningLoans === "yes" ? 1 : 0,
+          which_loan:
+            step0.existingLoans?.[0]?.hasRunningLoans === "yes"
+              ? step0.existingLoans[0].whichLoan || ""
+              : "",
+          running_loan_amount:
+            step0.existingLoans?.[0]?.hasRunningLoans === "yes" &&
+            step0.existingLoans[0].loanAmount
+              ? Number(step0.existingLoans[0].loanAmount)
+              : null,
+          existing_loans: JSON.stringify(
+            (step0.existingLoans || []).map((l: any) => ({
+              has_running_loans: l.hasRunningLoans === "yes" ? 1 : 0,
+              which_loan: l.hasRunningLoans === "yes" ? l.whichLoan || null : null,
+              loan_amount:
+                l.hasRunningLoans === "yes" && l.loanAmount
+                  ? Number(l.loanAmount)
+                  : null,
+              running_emi:
+                l.hasRunningLoans === "yes" && l.runningEmi
+                  ? Number(l.runningEmi)
+                  : null,
+            })),
+          ),
+          case_type: step0.caseType || "fresh",
+          application_date: new Date().toISOString(),
+          ...(useCompanyIdString
+            ? { company_id: Number(useCompanyIdString) }
+            : {}),
+          ...(isOmsStaff && appliedByNumber
+            ? { applied_by: appliedByNumber, source: "lendgrid", is_picked: 0 }
+            : { source: "lendgrid", is_picked: 0 }),
+          ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
+          ...(aggregatorMemberId ? { aggregator_member_id: aggregatorMemberId } : {}),
+          ...(step0.referralCode?.trim() ? { referral_code: step0.referralCode.trim() } : {}),
+        };
+
+        console.log("[MultiStepApplicationForm] create-application payload", {
+          selectedCompany,
+          companyId: useCompanyIdString,
+          isOmsStaff,
+          appliedBy: appliedByNumber,
+          applicationPayload,
+        });
+
+        const appRes = await coreApi.post(
+          "/create-application",
+          applicationPayload,
+          requestConfig,
+        );
+
+        const applicationId =
+          appRes?.data?.data?.applicationId ||
+          appRes?.data?.data?.id ||
+          appRes?.data?.id;
+
+        if (applicationId) {
+          generatedAppIds.push(applicationId);
+          try {
+            await coreApi.post(
+              "/create-loan-tracking",
+              {
+                customer_application_id: applicationId,
+                status: "submitted",
+                ...(useCompanyIdString
+                  ? { company_id: Number(useCompanyIdString) }
+                  : {}),
+              },
+              requestConfig,
+            );
+          } catch (e) {
+            console.warn("Tracking creation failed, continuing...", e);
+          }
         }
       }
 
@@ -2043,7 +2196,7 @@ export default function MultiStepApplicationForm({
                 marginBottom: 6,
               }}
             >
-              Application Submitted!
+              {editMode ? "Documents Updated!" : "Application Submitted!"}
             </Text>
 
             {/* Application number badge */}
@@ -2216,8 +2369,8 @@ export default function MultiStepApplicationForm({
               {isSubmitting || isUploading
                 ? isUploading
                   ? "Uploading…"
-                  : "Submitting…"
-                : "Submit Application"}
+                  : "Saving…"
+                : editMode ? "Save Documents" : "Submit Application"}
             </Text>
           </TouchableOpacity>
         ) : (

@@ -1,8 +1,8 @@
+import { RootState } from "@/redux/store";
 import { useMemo, useRef } from "react";
-import { StyleSheet, View, useColorScheme } from "react-native";
+import { StyleSheet, useColorScheme, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { useSelector } from "react-redux";
-import { RootState } from "@/redux/store";
 
 type Props = {
   onToken: (token: string | null) => void;
@@ -32,7 +32,7 @@ export default function TurnstileCaptcha({
     <View style={[styles.container, style]}>
       <WebView
         ref={webRef}
-        originWhitelist={["https://*"]}
+        originWhitelist={["https://*", "about:*", "intent://*"]}
         source={{ uri }}
         javaScriptEnabled
         domStorageEnabled

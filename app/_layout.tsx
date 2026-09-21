@@ -7,11 +7,12 @@ import { ApolloProvider } from "@apollo/client/react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import * as Notifications from "expo-notifications";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Platform,
   StatusBar,
   Text as RNText,
@@ -20,6 +21,8 @@ import {
   useColorScheme,
 } from "react-native";
 import { useTheme } from "react-native-paper";
+import * as Updates from "expo-updates";
+import { NetworkBanner } from "@/components/common/NetworkBanner";
 
 import { useAppDispatch } from "@/hooks/lightDark";
 import { syncPushTokenForCurrentUser } from "@/lib/utils/pushSession";
@@ -187,6 +190,27 @@ export default function RootLayout() {
   useEffect(() => {
     let alive = true;
 
+    // OTA Updates check
+    const checkForUpdates = async () => {
+      try {
+        if (!__DEV__) {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            Alert.alert(
+              "Update Available",
+              "A new version of LendGrid has been downloaded. The app will now restart to apply it.",
+              [{ text: "Restart Now", onPress: () => Updates.reloadAsync() }],
+              { cancelable: false }
+            );
+          }
+        }
+      } catch (error) {
+        console.warn("Error fetching OTA update:", error);
+      }
+    };
+    checkForUpdates();
+
     const initAuth = async () => {
       try {
         const savedTheme = await AsyncStorage.getItem("themeMode");
@@ -306,6 +330,7 @@ export default function RootLayout() {
       <ApolloProvider client={apolloClient}>
         <QueryClientProvider client={queryClient}>
           <AppProviders>
+            <NetworkBanner />
             <RootNavigation
               persistedTheme={persistedTheme}
               colorScheme={colorScheme}

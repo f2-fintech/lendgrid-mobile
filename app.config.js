@@ -5,7 +5,7 @@ export default {
     owner: "f2-tech",
     name: "LendGrid",
     slug: "lendgrid",
-    version: "1.0.0",
+    version: "1.0.1",
     orientation: "portrait",
     icon: "./assets/images/adaptive-icon_1.png",
     scheme: "lendgridmobile",
@@ -57,10 +57,12 @@ export default {
       bundleIdentifier: "com.lendgrid.mobile",
       associatedDomains: ["applinks:lendgrid.in"],
       supportsTablet: true,
+      googleServicesFile: "./GoogleService-Info.plist",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         UIFileSharingEnabled: true,
         LSSupportsOpeningDocumentsInPlace: true,
+        LSApplicationQueriesSchemes: ["about"],
       },
     },
 
@@ -71,7 +73,9 @@ export default {
     },
 
     plugins: [
+      "expo-font",
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
@@ -99,7 +103,12 @@ export default {
           "cameraPermission": "Allow LendGrid to access your camera to capture document images."
         }
       ],
-      "@react-native-google-signin/google-signin"
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.354580642316-oc6c40pgkpsn7qsl1jlf4d5rels4j5tr"
+        }
+      ]
     ],
 
     experiments: {

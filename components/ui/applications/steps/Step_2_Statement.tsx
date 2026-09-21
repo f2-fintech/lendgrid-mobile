@@ -483,58 +483,57 @@ export default function Step2Statement({
         {files.map((file, idx) => {
           const isImg = (file.mimeType || "").startsWith("image/");
           const isPending = !!file.uri && !file.uri.startsWith("http") && !file.uploaded;
+          const isAlreadyUploaded = !!file.uri && (file.uri.startsWith("http") || file.uploaded);
           const isUploadingThis = uploadingFileKey === fieldKey;
 
           return (
-            <View key={file.uri + idx} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8, padding: 8, backgroundColor: theme.colors.surfaceVariant, borderRadius: 12 }}>
-              <View
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 8,
-                  backgroundColor: theme.colors.surface,
-                  overflow: "hidden",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {isImg ? (
-                  <Image source={{ uri: file.uri }} style={{ width: 44, height: 44 }} resizeMode="cover" />
-                ) : (
-                  <Feather name="file-text" size={18} color={theme.colors.onSurfaceVariant} />
-                )}
+            <View key={file.uri + idx} style={{ marginBottom: 8, borderRadius: 14, borderWidth: 1.5, borderColor: isAlreadyUploaded && !isPending ? "rgba(34,197,94,0.35)" : theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant, overflow: "hidden" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 10 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: theme.colors.surface, overflow: "hidden", alignItems: "center", justifyContent: "center" }}>
+                  {isImg ? (
+                    <Image source={{ uri: file.uri }} style={{ width: 44, height: 44 }} resizeMode="cover" />
+                  ) : (
+                    <Feather name="file-text" size={18} color={theme.colors.onSurfaceVariant} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={{ color: theme.colors.onSurface, fontWeight: "700", fontSize: 13 }}>
+                    {file.name}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 }}>
+                    {isAlreadyUploaded && !isPending && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(22,163,74,0.15)", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                        <Feather name="check-circle" size={10} color="#16a34a" />
+                        <Text style={{ color: "#16a34a", fontSize: 10, fontWeight: "800" }}>Uploaded</Text>
+                      </View>
+                    )}
+                    {isPending && (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(234,179,8,0.15)", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                        <Feather name="clock" size={10} color="#b45309" />
+                        <Text style={{ color: "#b45309", fontSize: 10, fontWeight: "800" }}>Pending</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => removeFile(fieldKey, file.uri)}
+                  disabled={isUploadingThis}
+                  style={{ padding: 8, borderRadius: 10, backgroundColor: "rgba(239,68,68,0.12)", opacity: isUploadingThis ? 0.5 : 1 }}
+                >
+                  <Feather name="trash-2" size={15} color={theme.colors.error} />
+                </TouchableOpacity>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text numberOfLines={1} style={{ color: theme.colors.onSurface, fontWeight: "700", fontSize: 13 }}>
-                  {file.name}
-                </Text>
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
-                  {formatMB(file.size)}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => removeFile(fieldKey, file.uri)}
-                disabled={isUploadingThis}
-                style={{ padding: 8, borderRadius: 10, backgroundColor: theme.colors.errorContainer }}
-              >
-                <Feather name="x" size={16} color={theme.colors.onErrorContainer} />
-              </TouchableOpacity>
               {isPending && onUploadFile && (
                 <TouchableOpacity
                   onPress={() => onUploadFile(file)}
                   disabled={isUploadingThis}
                   activeOpacity={0.85}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 8,
-                    borderRadius: 10,
-                    backgroundColor: isUploadingThis ? theme.colors.surfaceVariant : theme.colors.secondary,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
+                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8, backgroundColor: isUploadingThis ? theme.colors.surfaceVariant : theme.colors.secondary, borderTopWidth: 1, borderTopColor: theme.colors.outlineVariant }}
                 >
-                  <Feather name="upload" size={14} color={isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF"} />
+                  <Feather name="upload-cloud" size={14} color={isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF"} />
+                  <Text style={{ color: isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF", fontSize: 12, fontWeight: "900" }}>
+                    {isUploadingThis ? "Uploading…" : "Upload Now"}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>

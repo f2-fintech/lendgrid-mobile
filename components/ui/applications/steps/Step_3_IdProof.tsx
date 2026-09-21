@@ -21,6 +21,7 @@ type Props = {
   onUploadFile?: (field: keyof Step3Values) => void;
   uploadingFileKey?: string | null;
   customerId?: string | null;
+  disabled?: boolean;
 };
 
 const MAX_MB = 5;
@@ -113,6 +114,7 @@ export default function Step3IdProof({
   ) => {
     const file = value[field];
     const isPending = !!file?.uri && !file.uri.startsWith("http") && !file.uploaded;
+    const isAlreadyUploaded = !!file?.uri && (file.uri.startsWith("http") || file.uploaded);
     const isUploadingThis = uploadingFileKey === field;
 
     if (!file) {
@@ -143,6 +145,8 @@ export default function Step3IdProof({
                 fontSize: 12,
                 marginTop: 8,
                 color: theme.colors.onSurfaceVariant,
+                textAlign: "center",
+                paddingHorizontal: 8,
               }}
             >
               {label}
@@ -186,66 +190,137 @@ export default function Step3IdProof({
       );
     }
 
+    const isPdf = file.uri.toLowerCase().endsWith(".pdf") || file.mimeType === "application/pdf";
+
     return (
       <View
         style={{
           flex: 1,
-          height: 140,
           borderRadius: 16,
           overflow: "hidden",
-          borderWidth: 1,
-          borderColor: theme.colors.outlineVariant,
+          borderWidth: 1.5,
+          borderColor: isAlreadyUploaded && !isPending
+            ? "rgba(34,197,94,0.4)"
+            : theme.colors.outlineVariant,
           backgroundColor: theme.colors.surface,
         }}
       >
-        {file.uri.toLowerCase().endsWith(".pdf") || file.mimeType === "application/pdf" ? (
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: `${theme.colors.error}10` }}>
-            <Feather name="file-text" size={48} color={theme.colors.error} />
-            <Text style={{ marginTop: 8, fontSize: 12, fontWeight: "600", color: theme.colors.error }}>PDF Document</Text>
-          </View>
-        ) : (
-          <Image
-            source={{ uri: file.uri }}
-            style={{ width: "100%", height: "100%" }}
-            resizeMode="cover"
-          />
-        )}
-        <TouchableOpacity
-          onPress={() => setField(field, null)}
-          disabled={isUploadingThis}
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            backgroundColor: theme.colors.error,
-            borderRadius: 20,
-            padding: 6,
-          }}
-        >
-          <Feather name="trash-2" size={16} color={theme.colors.onError} />
-        </TouchableOpacity>
+        {/* Preview area */}
+        <View style={{ height: 130 }}>
+          {isPdf ? (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: `${theme.colors.error}10` }}>
+              <Feather name="file-text" size={40} color={theme.colors.error} />
+              <Text style={{ marginTop: 6, fontSize: 11, fontWeight: "600", color: theme.colors.error }}>PDF Document</Text>
+            </View>
+          ) : (
+            <Image
+              source={{ uri: file.uri }}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="cover"
+            />
+          )}
+
+          {/* Status badge */}
+          {isAlreadyUploaded && !isPending && (
+            <View style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              backgroundColor: "rgba(22,163,74,0.92)",
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+            }}>
+              <Feather name="check" size={11} color="#fff" />
+              <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>Uploaded</Text>
+            </View>
+          )}
+          {isPending && (
+            <View style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              backgroundColor: "rgba(234,179,8,0.92)",
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+            }}>
+              <Feather name="clock" size={11} color="#fff" />
+              <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800" }}>Pending Upload</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Action bar */}
+        <View style={{
+          flexDirection: "row",
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.outlineVariant,
+        }}>
+          {/* Change document */}
+          <TouchableOpacity
+            onPress={() => handlePickFile(field)}
+            disabled={isUploadingThis}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              paddingVertical: 10,
+              borderRightWidth: 1,
+              borderRightColor: theme.colors.outlineVariant,
+              opacity: isUploadingThis ? 0.5 : 1,
+            }}
+          >
+            <Feather name="refresh-cw" size={13} color={theme.colors.primary} />
+            <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: "700" }}>Change</Text>
+          </TouchableOpacity>
+
+          {/* Remove document */}
+          <TouchableOpacity
+            onPress={() => setField(field, null)}
+            disabled={isUploadingThis}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              paddingVertical: 10,
+              opacity: isUploadingThis ? 0.5 : 1,
+            }}
+          >
+            <Feather name="trash-2" size={13} color={theme.colors.error} />
+            <Text style={{ color: theme.colors.error, fontSize: 12, fontWeight: "700" }}>Remove</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Manual upload button for pending docs */}
         {isPending && onUploadFile && (
           <TouchableOpacity
             onPress={() => onUploadFile(field)}
             disabled={isUploadingThis}
             activeOpacity={0.85}
             style={{
-              position: "absolute",
-              left: 8,
-              bottom: 8,
-              paddingHorizontal: 10,
-              paddingVertical: 7,
-              borderRadius: 10,
-              backgroundColor: isUploadingThis
-                ? theme.colors.surfaceVariant
-                : theme.colors.secondary,
               flexDirection: "row",
               alignItems: "center",
+              justifyContent: "center",
               gap: 6,
+              paddingVertical: 10,
+              backgroundColor: isUploadingThis ? theme.colors.surfaceVariant : theme.colors.secondary,
+              borderTopWidth: 1,
+              borderTopColor: theme.colors.outlineVariant,
             }}
           >
             <Feather
-              name="upload"
+              name="upload-cloud"
               size={14}
               color={isUploadingThis ? theme.colors.onSurfaceVariant : "#FFFFFF"}
             />
@@ -256,7 +331,7 @@ export default function Step3IdProof({
                 fontWeight: "900",
               }}
             >
-              {isUploadingThis ? "Uploading" : "Upload"}
+              {isUploadingThis ? "Uploading…" : "Upload Now"}
             </Text>
           </TouchableOpacity>
         )}

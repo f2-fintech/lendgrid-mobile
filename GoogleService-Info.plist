@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>354580642316-oc6c40pgkpsn7qsl1jlf4d5rels4j5tr.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.354580642316-oc6c40pgkpsn7qsl1jlf4d5rels4j5tr</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>354580642316-334cl3fdlmimc7knjo67ekjhvefo1tqs.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyAHIumYpb2vaDvimIwVNZ_Z-ffWRU1IV30</string>
+	<key>GCM_SENDER_ID</key>
+	<string>354580642316</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.lendgrid.mobile</string>
+	<key>PROJECT_ID</key>
+	<string>lendgrid-8f92b</string>
+	<key>STORAGE_BUCKET</key>
+	<string>lendgrid-8f92b.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:354580642316:ios:82da29716ac55ecbf44c29</string>
+</dict>
+</plist>

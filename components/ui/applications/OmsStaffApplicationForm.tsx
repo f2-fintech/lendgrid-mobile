@@ -415,7 +415,7 @@ export default function OmsStaffApplicationForm({ onClose, onSuccess }: Props) {
         application_date: new Date().toISOString(),
         company_id: Number(useCompanyIdString),
         applied_by: appliedByNumber,
-        source: "oms",
+        source: "lendgrid",
         is_picked: 0,
         ...(selectedCompany?.id ? { aggregator_id: selectedCompany.id } : {}),
       };

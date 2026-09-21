@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -138,7 +139,13 @@ export default function SignUp() {
   };
 
   const handleSubmit = async () => {
-    const result = signUpSchema.safeParse(formData);
+    // For Apple/Google signup, auto-fill company name to bypass requirement
+    const dataToValidate = { ...formData };
+    if (isGoogleSignup && !dataToValidate.referralCode && (!dataToValidate.companyName || dataToValidate.companyName.trim() === "")) {
+      dataToValidate.companyName = `${dataToValidate.fullName || "User"}'s Account`;
+    }
+
+    const result = signUpSchema.safeParse(dataToValidate);
 
     if (!result.success) {
       const errObj: Record<string, string> = {};
@@ -485,7 +492,7 @@ export default function SignUp() {
                   <View style={{ height: 16 }} />
                 </>
               ) : null
-            ) : (
+            ) : !isGoogleSignup ? (
               <>
                 <FieldLabel label="Company Name" labelText={labelText} />
                 <TextInput
@@ -500,7 +507,7 @@ export default function SignUp() {
                 ) : null}
                 <View style={{ height: 16 }} />
               </>
-            )}
+            ) : null}
 
             {/* ── Full Name + Phone (2 cols) ── */}
             <View style={{ flexDirection: "row", gap: 12 }}>
