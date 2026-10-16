@@ -337,6 +337,10 @@ export const registerUserApi = async (payload: {
   password?: string;
   role: string;
   parentAggregatorId?: string;
+  companyName?: string;
+  referralCode?: string;
+  aggregatorType?: string;
+  isOmsEnabled?: boolean;
 }) => {
   const query = `
     mutation CreateUser($createUserInput: CreateUserDto!) {

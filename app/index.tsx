@@ -31,8 +31,15 @@ export default function Index() {
             ]);
           }
 
-          if (userType === "sales" || role === "aggregator_member") {
-            setNextRoute("/(tab)/applications");
+          if (
+            userType === "sales" ||
+            role === "aggregator_member" ||
+            role === "sales" ||
+            role === "lendgrid_sales"
+          ) {
+            setNextRoute("/(tab)/tickets");
+          } else if (userType === "oms_viewer") {
+            setNextRoute("/(tab)/oms-partners");
           } else {
             setNextRoute(ROUTES.Dashboard);
           }

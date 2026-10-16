@@ -118,37 +118,31 @@ export function useOmsLogin() {
           "role lowercase:",
           role,
           "full decoded:",
-          decoded,
+          JSON.stringify(decoded),
         );
       }
 
-      const isSales = role === "sales";
-      const isAggregatorMember = role === "aggregator_member";
+      // ── Role Classification ──────────────────────────────────────────────────
+      // Channel partners who came via OMS referral:
       const isAggregatorAdmin = role === "aggregator_admin";
+      const isAggregatorMember = role === "aggregator_member";
+
+      // OMS sales staff (can create applications)
+      const isSales =
+        role === "sales" || role === "lendgrid_sales" || role === "sales_manager";
+
+      // ALL other OMS roles (operations, hr, manager, cre, team_lead, etc.)
+      // These are valid OMS employees — they get "oms_viewer" mode
+      const isOmsViewer =
+        !isSales && !isAggregatorAdmin && !isAggregatorMember;
 
       if (__DEV__) {
         console.log(
-          "[OMS AUTH] Role detection - isSales:",
-          isSales,
-          "isAggregatorAdmin:",
-          isAggregatorAdmin,
-          "isAggregatorMember:",
-          isAggregatorMember,
-          "role value:",
-          role,
-          "matches: sales?",
-          role === "sales",
-          "matches: aggregator_admin?",
-          role === "aggregator_admin",
-          "matches: aggregator_member?",
-          role === "aggregator_member",
+          "[OMS AUTH] Role classification — isSales:", isSales,
+          "isOmsViewer:", isOmsViewer,
+          "isAggregatorAdmin:", isAggregatorAdmin,
+          "isAggregatorMember:", isAggregatorMember,
         );
-      }
-
-      if (!isSales && !isAggregatorAdmin && !isAggregatorMember) {
-        console.error("[OMS AUTH] Role not recognized:", role);
-        onError("Access denied");
-        return;
       }
 
       const previousToken = await AsyncStorage.getItem("token");
@@ -170,17 +164,28 @@ export function useOmsLogin() {
         "selectedAggregatorId",
       ]);
 
-      // 🔥 STEP 2: RESET APOLLO (VERY IMPORTANT)
+      // 🔥 STEP 2: RESET APOLLO
       await apolloClient.clearStore();
 
-      // 🔥 STEP 3: RESET AUTH TOKEN (force refresh)
+      // 🔥 STEP 3: RESET AUTH TOKEN
       setGraphqlAuthToken(null);
 
       // 🔥 STEP 4: SAVE NEW TOKEN
       await AsyncStorage.setItem("token", result.access_token);
       await AsyncStorage.setItem("authSource", "oms");
-      const savedType = isSales || isAggregatorMember ? "sales" : "aggregator";
+
+      // userType logic:
+      // sales          → "sales"       (can create apps, sees existing UI)
+      // aggregator_*   → "aggregator"  (channel partner, existing UI)
+      // all other OMS  → "oms_viewer"  (read-only Your Partners mode)
+      const savedType = isSales || isAggregatorMember
+        ? "sales"
+        : isAggregatorAdmin
+          ? "aggregator"
+          : "oms_viewer";
+
       await AsyncStorage.setItem("userType", savedType);
+
       const userIdValue =
         decoded?.userId ??
         decoded?.id ??
@@ -193,14 +198,8 @@ export function useOmsLogin() {
 
       if (__DEV__) {
         console.log(
-          "[OMS AUTH] Saved userType:",
-          savedType,
-          "- isSales:",
-          isSales,
-          "isAggregatorAdmin:",
-          isAggregatorAdmin,
-          "isAggregatorMember:",
-          isAggregatorMember,
+          "[OMS AUTH] Saved userType:", savedType,
+          "authSource: oms",
         );
       }
 
@@ -246,10 +245,15 @@ export function useOmsLogin() {
       await new Promise((res) => setTimeout(res, 300));
 
       // 🔥 STEP 7: NAVIGATION
+      // - oms_viewer  → directly to Your Partners (they have no apps to create)
+      // - sales/member → tickets tab (landing page)
+      // - aggregator  → dashboard (existing flow)
       router.replace(
-        isSales || isAggregatorMember
-          ? "/(tab)/applications"
-          : ROUTES.Dashboard,
+        isOmsViewer
+          ? "/(tab)/oms-partners"
+          : isSales || isAggregatorMember
+            ? "/(tab)/tickets"
+            : ROUTES.Dashboard,
       );
     } catch (err: any) {
       console.error("[OMS AUTH] Error during login:", {

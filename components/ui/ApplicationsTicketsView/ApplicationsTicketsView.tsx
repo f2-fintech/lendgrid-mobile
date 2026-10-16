@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import PagerView from "react-native-pager-view";
+import PagerView from "@/components/ui/PagerViewWrapper";
 import { ActivityIndicator, TouchableRipple } from "react-native-paper";
 import dayjs from "dayjs";
 import DateTimePicker from "@react-native-community/datetimepicker";

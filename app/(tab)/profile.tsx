@@ -217,7 +217,8 @@ export default function ProfileScreen() {
       const role = String(claims?.role || "").toLowerCase();
       const isStaff =
         storedAuthSource === "oms" &&
-        (storedUserType === "sales" || role === "sales");
+        role !== "aggregator_admin" &&
+        role !== "aggregator_member";
       const isAggMember = role === "aggregator_member";
 
       if (!mounted) return;

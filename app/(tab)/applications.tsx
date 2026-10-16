@@ -18,7 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import PagerView from "react-native-pager-view";
+import PagerView from "@/components/ui/PagerViewWrapper";
 import {
   ActivityIndicator,
   Button,

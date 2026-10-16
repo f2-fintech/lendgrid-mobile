@@ -122,13 +122,16 @@ export default function SignUp() {
   }, [referralCodeFromParams, parentCompanyNameFromParams]);
 
   const isReferralSignup = Boolean(formData.referralCode);
+  const isOmsReferral = formData.referralCode?.startsWith('OMS-') ?? false;
+  const isAggregatorReferral = isReferralSignup && !isOmsReferral;
 
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
-      role: isReferralSignup ? "AGGREGATOR_MEMBER" : "AGGREGATOR_ADMIN",
+      // OMS referral → AGGREGATOR_ADMIN (own company), AG- referral → AGGREGATOR_MEMBER (join existing)
+      role: isOmsReferral ? "AGGREGATOR_ADMIN" : isAggregatorReferral ? "AGGREGATOR_MEMBER" : "AGGREGATOR_ADMIN",
     }));
-  }, [isReferralSignup]);
+  }, [isReferralSignup, isOmsReferral, isAggregatorReferral]);
 
   const handleChange = <K extends keyof SignUpSchemaType>(
     key: K,
@@ -170,7 +173,7 @@ export default function SignUp() {
         username: apiData.fullName,
         email: apiData.email.toLowerCase(),
         password: apiData.password,
-        role: isReferralSignup ? "AGGREGATOR_MEMBER" : "AGGREGATOR_ADMIN",
+        role: isOmsReferral ? "AGGREGATOR_ADMIN" : isAggregatorReferral ? "AGGREGATOR_MEMBER" : "AGGREGATOR_ADMIN",
         companyName: formData.parentCompanyName || apiData.companyName,
         aggregatorType: "CHANNEL_PARTNER",
         isOmsEnabled: true,
@@ -419,8 +422,33 @@ export default function SignUp() {
             </Text>
           </View>
 
-          {/* ── Referral Banner ── */}
-          {isReferralSignup && (
+          {isOmsReferral && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: isDark ? "#1A2A40" : "#EEF6FF",
+                borderRadius: 14,
+                padding: 14,
+                marginBottom: 20,
+                gap: 10,
+                borderWidth: 1,
+                borderColor: isDark ? "#2D4A6A" : "#93C5FD",
+              }}
+            >
+              <Ionicons name="business-outline" size={18} color="#3B82F6" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#3B82F6", fontSize: 13, fontWeight: "700" }}>
+                  OMS Partner Onboarding
+                </Text>
+                <Text style={{ color: labelText, fontSize: 12, marginTop: 2 }}>
+                  You're registering as a Channel Partner via OMS staff referral
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {isAggregatorReferral && (
             <View
               style={{
                 flexDirection: "row",

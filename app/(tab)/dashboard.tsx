@@ -52,7 +52,7 @@ export default function AggregatorDashboard() {
 
   useEffect(() => {
     if (isSalesUser) {
-      router.replace("/(tab)/applications");
+      router.replace("/(tab)/tickets");
     }
   }, [isSalesUser, router]);
 

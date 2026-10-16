@@ -67,3 +67,112 @@ export const omsAuthApi = {
     return { message: envelope.message };
   },
 };
+
+// ─── OMS Referral Code (GraphQL — lendgrid-server) ───────────────────────────
+import { gqlRequest } from "@/apis/config/apiClient";
+
+export interface OmsReferralCodeData {
+  referralCode: string;
+  employeeName: string;
+  designation?: string;
+  employeeCode?: string;
+  signupLink: string;
+}
+
+export interface OmsPartnerItem {
+  _id: string;
+  companyName: string;
+  companyId?: number;
+  kycStatus?: string;
+  totalApplicationsSubmitted?: number;
+  totalApplicationsApproved?: number;
+  totalDisbursedAmount?: number;
+  createdAt?: string;
+}
+
+export interface OmsPartnersData {
+  partners: OmsPartnerItem[];
+  totalCount: number;
+}
+
+/** Fetch (or lazy-create) the OMS referral code for the logged-in OMS staff */
+export const getOmsReferralCodeApi = async (): Promise<OmsReferralCodeData> => {
+  const query = `
+    query GetMyOmsReferralCode {
+      getMyOmsReferralCode {
+        referralCode
+        employeeName
+        designation
+        employeeCode
+        signupLink
+      }
+    }
+  `;
+  const data = await gqlRequest<{ getMyOmsReferralCode: OmsReferralCodeData }>(query, {});
+  return data.getMyOmsReferralCode;
+};
+
+/** Fetch all channel partners referred by the logged-in OMS staff */
+export const getOmsPartnersApi = async (): Promise<OmsPartnersData> => {
+  const query = `
+    query GetOmsPartners {
+      getOmsPartners {
+        totalCount
+        partners {
+          _id
+          companyName
+          companyId
+          kycStatus
+          totalApplicationsSubmitted
+          totalApplicationsApproved
+          totalDisbursedAmount
+          createdAt
+        }
+      }
+    }
+  `;
+  const data = await gqlRequest<{ getOmsPartners: OmsPartnersData }>(query, {});
+  return data.getOmsPartners;
+};
+
+export interface OmsPartnerApplicationItem {
+  _id: string;
+  applicantName?: string;
+  loanType?: string;
+  status?: string;
+  loanAmount?: number;
+  applicationId?: string;
+  createdAt?: string;
+}
+
+export interface OmsPartnerApplicationsData {
+  applications: OmsPartnerApplicationItem[];
+  totalCount: number;
+}
+
+/** Fetch all applications for a specific referred partner */
+export const getOmsPartnerApplicationsApi = async (
+  aggregatorProfileId: string
+): Promise<OmsPartnerApplicationsData> => {
+  const query = `
+    query GetOmsPartnerApplications($aggregatorProfileId: ID!) {
+      getOmsPartnerApplications(aggregatorProfileId: $aggregatorProfileId) {
+        totalCount
+        applications {
+          _id
+          applicantName
+          applicationId
+          loanAmount
+          loanType
+          status
+          createdAt
+        }
+      }
+    }
+  `;
+  const data = await gqlRequest<{ getOmsPartnerApplications: OmsPartnerApplicationsData }>(
+    query,
+    { aggregatorProfileId }
+  );
+  return data.getOmsPartnerApplications;
+};

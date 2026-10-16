@@ -5,7 +5,7 @@ export default {
     owner: "f2-tech",
     name: "LendGrid",
     slug: "lendgrid",
-    version: "1.0.1",
+    version: "1.0.3",
     orientation: "portrait",
     icon: "./assets/images/adaptive-icon_1.png",
     scheme: "lendgridmobile",

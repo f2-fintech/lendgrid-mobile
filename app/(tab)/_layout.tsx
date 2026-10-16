@@ -57,6 +57,7 @@ export type DrawerRoute =
   // | "/data"
   | "/invite"
   | "/team"
+  | "/oms-partners"
   | "/training-resources"
   | "/saas-products"
   | "/loan-products"
@@ -85,6 +86,11 @@ export const DRAWER_ITEMS: DrawerItem[] = [
     icon: "users",
     label: "Team Management",
     route: "/team",
+  },
+  {
+    icon: "users",
+    label: "Your Partners",
+    route: "/oms-partners",
   },
   {
     icon: "book-open",
@@ -227,7 +233,8 @@ const TabBarButton = ({ route, focused, opts, onPress, theme }: any) => {
   );
 };
 
-const CustomTabBar = ({ state, descriptors, navigation, theme, isSales }: any) => {
+const CustomTabBar = ({ state, descriptors, navigation, theme, isSales, isOmsViewer }: any) => {
+
   const routes = state.routes.filter((r: any) => {
     const opts = descriptors[r.key]?.options;
     // A tab must have an icon assigned, must not be explicitly marked hidden,
@@ -345,6 +352,7 @@ export default function Layout() {
   const [userType, setUserType] = useState<string | null | undefined>(
     undefined,
   );
+  const [isOmsStaff, setIsOmsStaff] = useState(false);
 
   const [contentHeight, setContentHeight] = useState(1);
   const [visibleHeight, setVisibleHeight] = useState(1);
@@ -382,11 +390,21 @@ export default function Layout() {
   const loadUserType = useCallback(async () => {
     // Ensure company is auto-selected before or while loading user type
     await autoSelectCompany();
-    const [type, token] = await Promise.all([
+    const [type, token, authSrc] = await Promise.all([
       AsyncStorage.getItem("userType"),
       AsyncStorage.getItem("token"),
+      AsyncStorage.getItem("authSource"),
     ]);
     const role = String(decodeJwt(token)?.role || "").toLowerCase();
+
+    // Detect OMS staff: authSource === 'oms' AND not a channel partner role
+    // OMS staff have roles like 'sales', 'lendgrid_sales' with authSource='oms'
+    // Channel partners onboarded via OMS have roles: 'aggregator_admin', 'aggregator_member'
+    const isOmsStaffUser =
+      authSrc === 'oms' &&
+      role !== 'aggregator_admin' &&
+      role !== 'aggregator_member';
+    setIsOmsStaff(isOmsStaffUser);
 
     if (role === "aggregator_member") {
       await AsyncStorage.multiSet([
@@ -562,8 +580,20 @@ export default function Layout() {
     closeDrawer();
   }, [closeDrawer, pathname, pendingDrawerRoute]);
 
+  const role = String(storedProfile.role || "").toLowerCase();
+  const isSales =
+    String(userType || "").toLowerCase() === "sales" ||
+    role === "sales" ||
+    role === "lendgrid_sales" ||
+    role === "sales_manager";
+  const isOmsViewer = String(userType || "").toLowerCase() === "oms_viewer";
+
   const defaultBackRoute =
-    userType === "sales" ? "/applications" : "/dashboard";
+    isOmsViewer || (isOmsStaff && !isSales)
+      ? "/oms-partners"
+      : isSales
+      ? "/tickets"
+      : "/dashboard";
 
   const openDrawer = useCallback(
     (originRoute = pathname) => {
@@ -594,17 +624,42 @@ export default function Layout() {
     router.setParams({ openDrawer: undefined });
   }, [openDrawerFromParam, params.backTo, params.openDrawer, pathname, router]);
 
-  const isSales = String(userType || "").toLowerCase() === "sales";
 
   useEffect(() => {
     if (userType === undefined) return;
 
-    if (isSales && (pathname === "/dashboard" || pathname === "/commissions" || pathname === "/invite" || pathname === "/")) {
-      router.replace("/applications");
-    } else if (!isSales && pathname === "/tickets") {
+    if (
+      isOmsViewer &&
+      pathname !== "/oms-partners" &&
+      pathname !== "/oms-partner-detail" &&
+      pathname !== "/oms-add-partner" &&
+      pathname !== "/profile" &&
+      pathname !== "/more"
+    ) {
+      router.replace("/oms-partners");
+    } else if (
+      isOmsStaff &&
+      !isSales &&
+      (pathname === "/applications" ||
+        pathname === "/tickets" ||
+        pathname === "/dashboard" ||
+        pathname === "/commissions" ||
+        pathname === "/invite" ||
+        pathname === "/")
+    ) {
+      router.replace("/oms-partners");
+    } else if (
+      isSales &&
+      (pathname === "/dashboard" ||
+        pathname === "/commissions" ||
+        pathname === "/invite" ||
+        pathname === "/")
+    ) {
+      router.replace("/tickets");
+    } else if (!isSales && !isOmsViewer && !isOmsStaff && pathname === "/tickets") {
       router.replace("/dashboard");
     }
-  }, [isSales, pathname, router, userType]);
+  }, [isSales, isOmsViewer, isOmsStaff, pathname, router, userType]);
 
   if (userType === undefined) {
     return (
@@ -633,10 +688,12 @@ export default function Layout() {
     !!storedProfile.companyName;
   const isAggregatorAdmin =
     !isSales && storedProfile.role === "aggregator_admin";
-  const visibleDrawerItems = DRAWER_ITEMS.filter(
-    (item) =>
-      (item.route !== "/invite" && item.route !== "/team") || isAggregatorAdmin,
-  );
+  const visibleDrawerItems = DRAWER_ITEMS.filter((item) => {
+    if (isOmsViewer) return item.route === "/oms-partners";
+    if (item.route === "/invite" || item.route === "/team") return isAggregatorAdmin;
+    if (item.route === "/oms-partners") return isOmsStaff;
+    return true;
+  });
   const roleLabel = formatRoleLabel(storedProfile.role);
   const companyDisplayName = formatDisplayName(storedProfile.companyName);
   const userDisplayName = formatDisplayName(storedProfile.name);
@@ -694,6 +751,23 @@ export default function Layout() {
   };
 
   // --- HEADER COMPONENTS ---
+  const LogoHeaderLeft = () => (
+    <View style={{ marginLeft: 4 }}>
+      <Image
+        source={
+          theme.dark
+            ? require('@/assets/images/logo_white_croped.png')
+            : require('@/assets/images/logo_blue_croped.png')
+        }
+        style={{
+          width: 140,
+          height: 44,
+          resizeMode: "contain",
+        }}
+      />
+    </View>
+  );
+
   const DashboardHeaderRight = () => (
     <View style={{ flexDirection: "row", alignItems: "center", marginRight: 4 }}>
       <TouchableOpacity onPress={handleShare} activeOpacity={0.8} style={{ marginRight: 12 }}>
@@ -729,6 +803,22 @@ export default function Layout() {
       <ThemeToggleBtn />
       <NotificationBtn />
     </View>
+  );
+
+  const ScreenBackButton = () => (
+    <TouchableOpacity
+      onPress={() => router.back()}
+      style={{
+        marginLeft: 12,
+        minWidth: 40,
+        minHeight: 40,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+      activeOpacity={0.7}
+    >
+      <Ionicons name="arrow-back" size={24} color={theme.colors.onSurface} />
+    </TouchableOpacity>
   );
 
   const NotificationsHeaderLeft = () => (
@@ -775,6 +865,11 @@ export default function Layout() {
 
   const navigateFromDrawer = (route: DrawerRoute) => {
     if ((route === "/invite" || route === "/team") && !isAggregatorAdmin) {
+      closeDrawer();
+      return;
+    }
+
+    if (route === "/oms-partners" && !isOmsStaff) {
       closeDrawer();
       return;
     }
@@ -946,11 +1041,17 @@ export default function Layout() {
       </Portal>
       <View style={styles.appShell}>
         <Tabs
-          sceneContainerStyle={{ paddingBottom: 110 }}
-          initialRouteName={isSales ? "applications" : "dashboard"}
+          initialRouteName={
+            isSales
+              ? "tickets"
+              : isOmsViewer || isOmsStaff
+              ? "oms-partners"
+              : "dashboard"
+          }
           backBehavior="history"
           screenOptions={{
             headerShown: true,
+            headerTitleAlign: "center",
             headerStyle: {
               backgroundColor: theme.colors.background,
               elevation: 0,
@@ -961,30 +1062,19 @@ export default function Layout() {
               fontSize: 18,
             },
             headerTintColor: theme.colors.onSurface,
+            headerLeft: () => <LogoHeaderLeft />,
+            headerRight: () => <AppsHeaderRight />,
             tabBarShowLabel: false,
             tabBarStyle: { display: 'none' }, // Hidden — we use custom tabBar prop below
           }}
-          tabBar={(props) => <CustomTabBar {...props} theme={theme} isSales={isSales} />}
+          tabBar={(props) => <CustomTabBar {...props} theme={theme} isSales={isSales} isOmsViewer={isOmsViewer} />}
         >
           <Tabs.Screen
             name="dashboard"
             options={{
               title: "Dashboard",
-              headerTitle: "",
-              headerLeft: () => (
-                <View>
-                  <Image
-                    source={theme.dark ? require('@/assets/images/logo_white_croped.png') : require('@/assets/images/logo_blue_croped.png')}
-                    style={{
-                      width: 140,
-                      height: 44,
-                      resizeMode: "contain",
-                    }}
-                  />
-                </View>
-              ),
-              href: isSales ? null : "/dashboard",
-              _isHidden: isSales,
+              href: isSales || isOmsViewer ? null : "/dashboard",
+              _isHidden: isSales || isOmsViewer,
               headerRight: () => <DashboardHeaderRight />,
               _iconName: 'home',
               _tabLabel: 'Home',
@@ -995,35 +1085,10 @@ export default function Layout() {
             name="commissions"
             options={{
               title: "Commissions",
-              href: isSales ? null : "/commissions",
-              _isHidden: isSales,
-              headerRight: () => <CommissionsHeaderRight />,
+              href: isSales || isOmsViewer ? null : "/commissions",
+              _isHidden: isSales || isOmsViewer,
               _iconName: 'wallet',
               _tabLabel: 'Commission',
-              tabBarIcon: ({ focused }) => (<></>),
-            } as any}
-          />
-          <Tabs.Screen
-            name="applications"
-            options={{
-              title: "Applications",
-              headerTitle: "",
-              headerLeft: () => (
-                <View>
-                  <Image
-                    source={theme.dark ? require('@/assets/images/logo_white_croped.png') : require('@/assets/images/logo_blue_croped.png')}
-                    style={{
-                      width: 140,
-                      height: 44,
-                      resizeMode: "contain",
-                    }}
-                  />
-                </View>
-              ),
-              href: "/applications",
-              headerRight: () => <AppsHeaderRight />,
-              _iconName: 'document-text',
-              _tabLabel: 'Apps',
               tabBarIcon: ({ focused }) => (<></>),
             } as any}
           />
@@ -1031,33 +1096,59 @@ export default function Layout() {
             name="tickets"
             options={{
               title: "Tickets",
-              headerTitle: "",
-              headerLeft: () => (
-                <View>
-                  <Image
-                    source={theme.dark ? require('@/assets/images/logo_white_croped.png') : require('@/assets/images/logo_blue_croped.png')}
-                    style={{
-                      width: 140,
-                      height: 44,
-                      resizeMode: "contain",
-                    }}
-                  />
-                </View>
-              ),
-              href: isSales ? "/tickets" : null,
-              _isHidden: !isSales,
-              headerRight: () => <AppsHeaderRight />,
+              href: (isSales && !isOmsViewer) ? "/tickets" : null,
+              _isHidden: (!isSales || isOmsViewer),
               _iconName: 'ticket',
               _tabLabel: 'Tickets',
               tabBarIcon: ({ focused }) => (<></>),
             } as any}
           />
           <Tabs.Screen
+            name="applications"
+            options={{
+              title: "Applications",
+              href: (isOmsViewer || (isOmsStaff && !isSales)) ? null : "/applications",
+              _isHidden: (isOmsViewer || (isOmsStaff && !isSales)),
+              _iconName: 'document-text',
+              _tabLabel: 'Apps',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
+          />
+          <Tabs.Screen
+            name="oms-partners"
+            options={{
+              title: "Your Partners",
+              href: isOmsViewer || isOmsStaff ? "/oms-partners" : null,
+              _isHidden: !(isOmsViewer || isOmsStaff),
+              _iconName: 'people',
+              _tabLabel: 'Partners',
+              tabBarIcon: ({ focused }) => (<></>),
+            } as any}
+          />
+
+          <Tabs.Screen
+            name="oms-partner-detail"
+            options={{
+              title: "Partner Details",
+              href: null,
+              headerShown: false,
+            }}
+          />
+
+          <Tabs.Screen
+            name="oms-add-partner"
+            options={{
+              title: "Add Partner",
+              href: null,
+              headerShown: false,
+            }}
+          />
+
+          <Tabs.Screen
             name="profile"
             options={{
               title: "Profile",
               href: "/profile",
-              headerRight: () => <ProfileHeaderRight />,
               _iconName: 'person',
               _tabLabel: 'Profile',
               tabBarIcon: ({ focused }) => (<></>),
@@ -1069,6 +1160,7 @@ export default function Layout() {
             options={{
               title: "Data",
               href: null,
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1079,6 +1171,7 @@ export default function Layout() {
               title: "Invite Agent",
               href: null,
               tabBarItemStyle: { display: "none" },
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1089,6 +1182,7 @@ export default function Layout() {
               title: "Team Management",
               href: null,
               tabBarItemStyle: { display: "none" },
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1098,6 +1192,7 @@ export default function Layout() {
             options={{
               title: "Learn and Grow",
               href: null,
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1107,6 +1202,7 @@ export default function Layout() {
             options={{
               title: "SAAS Products",
               href: null,
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1116,6 +1212,7 @@ export default function Layout() {
             options={{
               title: "Loan Products",
               href: null,
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1125,6 +1222,7 @@ export default function Layout() {
             options={{
               title: "EMI Calculator",
               href: null,
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1134,6 +1232,7 @@ export default function Layout() {
             options={{
               title: "Banker Lists",
               href: null,
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
@@ -1143,9 +1242,11 @@ export default function Layout() {
             options={{
               title: "Help Support",
               href: null,
+              headerLeft: () => <ScreenBackButton />,
               headerRight: () => <ThemeToggleBtn />,
             }}
           />
+
 
           {/* <Tabs.Screen
             name="notifications"
@@ -1163,8 +1264,8 @@ export default function Layout() {
             name="more"
             options={{
               title: "More",
-              headerTitle: "More Options",
-              headerRight: () => <ThemeToggleBtn />,
+              href: "/more",
+              _isHidden: false,
               _iconName: 'grid',
               _tabLabel: 'More',
               tabBarIcon: ({ focused }) => (<></>),
